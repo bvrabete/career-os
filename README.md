@@ -40,12 +40,16 @@ graph TD
     subgraph INGESTION ["Foundation: Wiki Ingestion (kb-ingest)"]
         direction TB
         Raw["Raw Sources\nPDF / DOCX / MD"]
-        Parser[Parser\ndocling]
-        Classifier[Classifier\nOllama]
-        Generator["Generator\nGPT-4o"]
+        Parser[Parser\npypdf / docling]
+        Classifier[Classifier\nOllama: Classify]
+        Extractor[Extractor\nGPT-4o: Extract Verbatim]
+        Resolver[Resolver\nPython: Map Aliases]
+        Generator[Generator\nGPT-4o: Schema Entry]
+        Merger[Merger\nGPT-4o: Enrich/Create]
+        Validator[Validator\nPython: Schema Check]
         Writer[Writer\nPython]
 
-        Raw --> Parser --> Classifier --> Generator --> Writer
+        Raw --> Parser --> Classifier --> Extractor --> Resolver --> Generator --> Merger --> Validator --> Writer
     end
 
     Writer --> Experiences
@@ -57,14 +61,24 @@ graph TD
 
 ---
 
+## Ingestion Pipeline Key Features
+
+To maintain structural integrity and high ingestion speeds, `kb-ingest` employs:
+*   **Dual PDF Parsing Strategy**: Digital PDFs are parsed using `pypdf`, preserving exact horizontal alignment of dates and text while reducing processing time by 100x. Scanned PDFs fallback dynamically to OCR via `docling`.
+*   **Insensitive Entity Matching**: The mapping engine normalizes and slugifies both source organization names and aliases in `mappings.md` to avoid duplicate file creation due to formatting mismatches.
+*   **Date-Bound Merging**: Unrelated roles at the same company (based on start date discrepancy) are correctly saved into separate time-bound files rather than being merged.
+*   **Self-Healing YAML Validator**: Auto-cleans inline comments or annotations appended to YAML frontmatter fields by LLMs, ensuring strict parse compliance.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Installation
-CareerOS uses `uv` for lightning-fast dependency management.
+CareerOS uses `uv` for dependency management.
 
 ```bash
-git clone https://github.com/your-repo/careeros
-cd careeros
+git clone https://github.com/bvrabete/career-os
+cd career-os
 uv sync
 ```
 
