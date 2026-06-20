@@ -1,0 +1,4 @@
+!*.log
+!**/extracted_raw/
+!.env*
+!GeneratedCVs/
