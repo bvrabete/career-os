@@ -1,0 +1,127 @@
+/* Professional CV Base Style - Robust Local Fonts */
+
+/* Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #13384B;
+    --accent-color: #51BF9D;
+    --text-color: #333;
+    --light-grey: #666D89;
+    --bg-color: #fff;
+}
+
+@page {
+    size: A4;
+    margin: 1.1cm 1cm;
+    @bottom-right {
+        content: counter(page) " of " counter(pages);
+        font-size: 7.5pt;
+        color: var(--light-grey);
+    }
+}
+
+body {
+    /* Prioritize locally installed professional fonts: Lato, Satoshi, Carlito */
+    font-family: 'Lato', 'Satoshi', 'Carlito', -apple-system, sans-serif;
+    font-size: 9.2pt; 
+    line-height: 1.2;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+.cv-container {
+    width: 100%;
+}
+
+h1 {
+    font-family: 'Lato', sans-serif;
+    font-weight: 900; /* Use Lato Black/Heavy for impact */
+    font-size: 18pt;
+    color: var(--primary-color);
+    margin-bottom: 2pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+}
+
+/* Contact Info Header */
+h1 + p {
+    font-size: 8.5pt;
+    color: var(--light-grey);
+    margin-bottom: 8pt;
+    font-weight: 400;
+}
+
+h2 {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 10.5pt;
+    color: var(--primary-color);
+    border-bottom: 1.5pt solid var(--accent-color);
+    padding-bottom: 1pt;
+    margin-top: 10pt;
+    margin-bottom: 4pt;
+    text-transform: uppercase;
+    page-break-after: avoid;
+}
+
+h3 {
+    font-weight: 700;
+    font-size: 10pt;
+    color: var(--primary-color);
+    margin-top: 6pt;
+    margin-bottom: 1pt;
+    page-break-after: avoid;
+}
+
+/* Role Header (Dates/Location/Tech) */
+h3 + p {
+    font-size: 8.5pt;
+    margin-top: 0;
+    margin-bottom: 3pt;
+    color: var(--light-grey);
+    line-height: 1.1;
+}
+
+h3 + p strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+ul {
+    padding-left: 12pt;
+    margin-bottom: 4pt;
+    list-style-position: inside;
+}
+
+li {
+    margin-bottom: 1.5pt;
+    text-indent: -10pt;
+    padding-left: 10pt;
+    line-height: 1.15;
+}
+
+hr {
+    margin: 6pt 0;
+    border: 0;
+    border-top: 0.5pt solid #eee;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+strong {
+    font-weight: 700;
+}
+
+/* Ensure no page breaks inside entries */
+li, p, h3 {
+    orphans: 2;
+    widows: 2;
+}

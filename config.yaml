@@ -1,0 +1,58 @@
+# Model Selection Definitions
+MODELS:
+  ollama: "gemma4:26b"
+  openai: "gpt-4o"
+
+# Pipeline Step Configurations
+# You can specify the TYPE ('ollama' or 'openai') and optionally a specific 'MODEL_NAME' to override the default.
+STEPS:
+  EXTRACTION:
+    TYPE: "ollama"
+    MODEL_NAME: "gemma4:26b"
+  REFINEMENT:
+    TYPE: "ollama" # Kept consistent
+    MODEL_NAME: "gemma4:26b"
+  MERGE:
+    TYPE: "ollama"
+    MODEL_NAME: "gemma4:26b"
+  GAP_ANALYSIS:
+    TYPE: "ollama"
+    MODEL_NAME: "gemma4:26b"
+  # CV Generator LangGraph Steps
+  ANALYSIS:
+    # TYPE: "ollama"
+    # MODEL_NAME: "gemma4:26b"
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+  RETRIEVAL:
+    # TYPE: "ollama"
+    # MODEL_NAME: "gemma4:26b"
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+  DRAFTING:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4.1-mini"
+  AUDIT:
+    # TYPE: "ollama"
+    # MODEL_NAME: "gemma4:26b"
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+  # Ingestion pipeline steps
+  INGESTION_CLASSIFY:
+    TYPE: "ollama"
+    MODEL_NAME: "gemma4:26b"
+  INGESTION_EXTRACT:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+  INGESTION_GENERATE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+  INGESTION_MERGE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o"
+
+OLLAMA_BASE_URL: "http://localhost:11434"
+
+# Future configurations (e.g., prompt weights, track defaults)
+TRACK_DEFAULT: "Corporate"
+STRATEGY_DEFAULT: "emea"

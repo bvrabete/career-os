@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+.langchain.db
+
+# Config and credentials
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs and outputs
+*.log
+test_output*
+ai-generated-cvs/
+job-descriptions/
+llm-wiki/

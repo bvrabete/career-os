@@ -1,0 +1,80 @@
+@import url('base.css');
+
+/* Netherlands Modern CV Style - Optimized for 2-3 pages */
+
+:root {
+    --primary-color: #005D63;
+    --accent-color: #A6CE39;
+}
+
+/* Force overrides to ensure compactness even if base.css fails or is loose */
+body {
+    font-size: 9pt !important;
+    line-height: 1.15 !important;
+}
+
+h1 {
+    font-size: 16pt !important;
+    margin-bottom: 2pt !important;
+}
+
+h2 {
+    font-size: 10.5pt !important;
+    border-bottom: 2pt solid var(--accent-color) !important;
+    padding-bottom: 1pt !important;
+    margin-top: 8pt !important;
+    margin-bottom: 4pt !important;
+}
+
+h3 {
+    font-size: 10pt !important;
+    margin-top: 5pt !important;
+    margin-bottom: 1pt !important;
+}
+
+/* Target the paragraphs following headers (since classes aren't applied by markdown2) */
+h3 + p {
+    margin-top: 0 !important;
+    margin-bottom: 2pt !important;
+    font-size: 8.5pt !important;
+    font-weight: 500;
+}
+
+/* Lists */
+ul {
+    padding-left: 15pt !important;
+    margin-bottom: 3pt !important;
+    list-style-position: inside; /* Prevents markers from detaching on page breaks */
+}
+
+li {
+    margin-bottom: 1pt !important;
+    text-indent: -12pt; /* Hanging indent for inside markers */
+    padding-left: 12pt;
+}
+
+/* Horizontal lines */
+hr {
+    margin: 4pt 0 !important;
+    border: 0;
+    border-top: 0.5pt solid #eee;
+}
+
+/* Prevent orphans and widows */
+h1, h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+.cv-container p, .cv-container li {
+    orphans: 3;
+    widows: 3;
+}
+
+/* Ensure Personal Profile styling works even without class by targeting the first p after the first h2 */
+h2#professional-profile + p {
+    border-left: 2pt solid var(--accent-color);
+    padding-left: 8pt;
+    font-style: italic;
+    color: #444;
+}
