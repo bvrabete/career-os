@@ -75,15 +75,28 @@ def _parse_mappings() -> dict:
     return mappings
 
 
+def _slugify(text: str) -> str:
+    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
+
+
 def _resolve_org(raw_name: str, mappings: dict) -> str:
     """Map a raw org name to a canonical slug, falling back to a generated slug."""
     lower = raw_name.lower().strip()
     if lower in mappings:
         return mappings[lower]
-    for alias, slug in mappings.items():
-        if alias in lower or lower in alias:
+
+    raw_slug = _slugify(raw_name)
+    slugified_mappings = {_slugify(alias): slug for alias, slug in mappings.items()}
+
+    if raw_slug in slugified_mappings:
+        return slugified_mappings[raw_slug]
+
+    for slug_alias, slug in slugified_mappings.items():
+        if slug_alias and (slug_alias in raw_slug or raw_slug in slug_alias):
             return slug
-    return re.sub(r'[^a-z0-9]+', '-', lower).strip('-')
+
+    return raw_slug
+
 
 
 def _llm_text(content: Union[str, list]) -> str:  # type: ignore[type-arg]
@@ -115,6 +128,19 @@ def node_parser(state: IngestionState) -> dict:
     raw_text = ""
 
     if suffix in (".pdf", ".docx", ".doc"):
+        if suffix == ".pdf":
+            # Try pypdf first (layout-accurate for digital PDFs and extremely fast)
+            try:
+                reader = pypdf.PdfReader(str(path))
+                raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                if len(raw_text.strip()) > 200:
+                    logging.info(f"Parsed via pypdf (primary): {len(raw_text)} chars")
+                    return {"raw_text": raw_text}
+                else:
+                    logging.info("pypdf extracted very little text, falling back to docling")
+            except Exception as e:
+                logging.warning(f"pypdf failed ({e}), falling back to docling")
+
         try:
             if suffix == ".pdf":
                 # SimplePipeline only supports declarative backends (DOCX/MD).
@@ -384,15 +410,29 @@ def _find_existing_experience(org_slug: str, generated_path: Path, role_start: s
         # No existing page for this org — use generated path if it exists, else None (new file)
         return generated_path if generated_path.exists() else None
 
+    # Match by start year if role_start is provided
+    if role_start:
+        try:
+            target_year = int(role_start[:4])
+            matching_candidates = []
+            for f, start in candidates:
+                if start:
+                    try:
+                        c_year = int(str(start)[:4])
+                        if abs(c_year - target_year) <= 1:
+                            matching_candidates.append(f)
+                    except ValueError:
+                        pass
+            if matching_candidates:
+                return matching_candidates[0]
+            else:
+                # No matching experience for this period — it's a new experience/role
+                return generated_path if generated_path.exists() else None
+        except ValueError:
+            pass
+
     if len(candidates) == 1:
         return candidates[0][0]
-
-    # Multiple roles at same org — match by start year
-    if role_start:
-        target_year = role_start[:4]
-        for f, start in candidates:
-            if start[:4] == target_year:
-                return f
 
     # Fallback: most recently modified file for this org
     return max(candidates, key=lambda x: x[0].stat().st_mtime)[0]
@@ -440,13 +480,13 @@ def node_merger(state: IngestionState) -> dict:
         existing_content = path.read_text(encoding="utf-8")
 
         system_prompt = f"""You are a strict Wiki Maintenance Agent merging new evidence into an existing career wiki page.
-
+ 
 CRITICAL CONSTRAINTS:
 1. PRESERVE: Keep ALL existing STAR achievements verbatim. NEVER remove or shorten existing bullet points.
 2. ENRICH: Add achievements, context, or narrative from the new content that are NOT already present.
 3. DEDUPLICATE: If new content describes an achievement already present (same action/result), skip it — no duplicates.
-4. RECONCILE: If new content contradicts existing data (dates, metrics), add a comment inline next to both conflicting claims — but ONLY inside the markdown body, NEVER inside the YAML frontmatter block. Frontmatter fields must remain clean, valid YAML values.
-5. UPDATE: Set the frontmatter `updated:` field to {today}. All other frontmatter date fields must stay as plain ISO dates (YYYY-MM-DD) with no annotations.
+4. RECONCILE: If new content contradicts existing data (such as location, dates, metrics, title), add a comment inline next to both conflicting claims — but ONLY inside the markdown body, NEVER inside the YAML frontmatter block. The frontmatter block must remain strictly valid, clean YAML with NO comments, NO HTML annotations (e.g. do NOT append '<!-- comment -->' or similar), and NO explanations.
+5. UPDATE: Set the frontmatter `updated:` field to {today}. All other frontmatter fields must stay as plain, clean values with no annotations.
 6. LANGUAGE: English only. Translate any non-English content.
 7. FORMAT: Output raw markdown only — no code fences, no explanation."""
 
@@ -470,6 +510,21 @@ NEW EVIDENCE TO INTEGRATE:
     return {"wiki_outputs": merged_outputs}
 
 
+def _clean_frontmatter(content: str) -> str:
+    """Strip HTML comments and trailing annotations from frontmatter block."""
+    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if not fm_match:
+        return content
+    fm_text = fm_match.group(1)
+    cleaned_lines = []
+    for line in fm_text.split("\n"):
+        cleaned_line = re.sub(r'<!--.*?-->', '', line).strip()
+        cleaned_line = cleaned_line.split('<!--')[0].strip()
+        cleaned_lines.append(cleaned_line)
+    cleaned_fm = "\n".join(cleaned_lines)
+    return f"---\n{cleaned_fm}\n---" + content[fm_match.end():]
+
+
 def node_validator(state: IngestionState) -> dict:
     """Pure Python: validate frontmatter schema compliance."""
     logging.info("--- NODE: VALIDATOR ---")
@@ -479,7 +534,8 @@ def node_validator(state: IngestionState) -> dict:
     validated = []
     for output in state.get("wiki_outputs", []):
         errors = list(output.get("validation_errors", []))
-        content = output.get("content", "")
+        content = _clean_frontmatter(output.get("content", ""))
+        output["content"] = content
 
         if not content:
             errors.append("Empty content — generation may have failed")

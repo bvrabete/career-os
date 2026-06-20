@@ -21,6 +21,12 @@ venv/
 # Logs and outputs
 *.log
 test_output*
-ai-generated-cvs/
-job-descriptions/
-llm-wiki/
+
+# Tips folder
+tips/
+
+# Utility scripts
+scratch/
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
