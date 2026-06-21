@@ -230,7 +230,7 @@ def _clean_frontmatter(content: str) -> str:
         # Skip any markdown code block lines that might have been wrapped inside the dashes
         if line_stripped.startswith("```"):
             continue
-        cleaned_line = re.sub(r'<!--.*?-->', '', line).strip()
+        cleaned_line = re.sub(r'(?s)<!--.*?-->', '', line).strip()
         cleaned_line = cleaned_line.split('<!--')[0].strip()
         cleaned_fm_lines.append(cleaned_line)
         
