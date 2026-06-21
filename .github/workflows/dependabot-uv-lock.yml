@@ -1,0 +1,49 @@
+name: Dependabot UV Lock Updater
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+
+jobs:
+  uv-lock:
+    name: Update uv lockfile
+    # Only run for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Use GITHUB_TOKEN to commit back
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update uv.lock
+        run: uv lock
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add uv.lock
+          # Only commit and push if uv.lock actually changed
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(deps): regenerate uv.lock"
+            git push
+          else
+            echo "No changes to uv.lock needed"
+          fi

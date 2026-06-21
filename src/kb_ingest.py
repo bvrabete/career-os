@@ -10,9 +10,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".md", ".txt"}
 
+
 def get_status_file() -> Path:
     from kb_config import get_wiki_dir
     return get_wiki_dir() / "ingestion_status.json"
+
 
 def get_log_file() -> Path:
     from kb_config import get_wiki_dir
@@ -63,19 +65,27 @@ def collect_files(path: Path) -> list[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Agentic Wiki Ingestion Pipeline")
+    parser = argparse.ArgumentParser(
+        description="Agentic Wiki Ingestion Pipeline")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--file", help="Path to a single raw document to ingest")
-    group.add_argument("--dir", help="Path to a directory of raw documents to ingest")
+    group.add_argument(
+        "--file", help="Path to a single raw document to ingest")
+    group.add_argument(
+        "--dir", help="Path to a directory of raw documents to ingest")
     parser.add_argument("--dry-run", action="store_true",
                         help="Parse and extract but do not write wiki files")
     parser.add_argument("--force", action="store_true",
                         help="Re-process files already recorded in ingestion_status.json")
-    parser.add_argument("--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
+    parser.add_argument(
+        "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
     args = parser.parse_args()
 
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+
+    from kb_config import get_wiki_dir
+    from kb_ingest_graph import _bootstrap_wiki_structure
+    _bootstrap_wiki_structure(get_wiki_dir())
 
     target = Path(args.file or args.dir)
     if not target.exists():
@@ -107,7 +117,8 @@ def main():
         if not args.force:
             if stored_hash == current_hash:
                 # File unchanged — skip regardless of previous status
-                reason = "already processed" if existing.get("status") == "SUCCESS" else "unchanged since last attempt"
+                reason = "already processed" if existing.get(
+                    "status") == "SUCCESS" else "unchanged since last attempt"
                 print(f"  ⏭️  Skipping ({reason}): {file_path.name}")
                 total_skipped += 1
                 continue
@@ -132,7 +143,7 @@ def main():
         outputs = final_state.get("wiki_outputs", [])
 
         if doc_type == "skip":
-            print(f"  ⏭️  Skipped (classified as: skip)")
+            print("  ⏭️  Skipped (classified as: skip)")
             status["processed"][rel_path] = {
                 "status": "SKIPPED",
                 "file_hash": current_hash,
@@ -142,8 +153,10 @@ def main():
         else:
             written = [o for o in outputs if o.get("written")]
             dry_run_outputs = [o for o in outputs if o.get("dry_run")]
-            failed = [o for o in outputs if o.get("validation_errors") and not o.get("written") and not o.get("dry_run")]
-            duplicates = [o for o in outputs if o.get("skipped_reason") == "duplicate"]
+            failed = [o for o in outputs if o.get("validation_errors") and not o.get(
+                "written") and not o.get("dry_run")]
+            duplicates = [o for o in outputs if o.get(
+                "skipped_reason") == "duplicate"]
 
             for o in written:
                 label = "Updated" if o.get("merged") else "Created"
@@ -154,7 +167,8 @@ def main():
             for o in duplicates:
                 print(f"  ⏭️  Duplicate skipped: {o['path']}")
             for o in failed:
-                print(f"  ❌ Validation failed: {o['path']} — {o['validation_errors']}")
+                print(
+                    f"  ❌ Validation failed: {o['path']} — {o['validation_errors']}")
 
             total_written += len(written)
             total_errors += len(failed)
@@ -182,7 +196,8 @@ def main():
             save_status(status)
 
     print(f"\n{'=' * 50}")
-    print(f"✅ Written: {total_written}  ⏭️ Skipped: {total_skipped}  ❌ Errors: {total_errors}")
+    print(
+        f"✅ Written: {total_written}  ⏭️ Skipped: {total_skipped}  ❌ Errors: {total_errors}")
     if args.dry_run:
         print("ℹ️  Dry-run mode — no files were written")
 

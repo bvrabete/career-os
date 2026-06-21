@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "ms-python.vscode-python-envs",
+        "ms-python.autopep8",
+        "streetsidesoftware.code-spell-checker",
+        "mermaidchart.vscode-mermaid-chart",
+        "davidanson.vscode-markdownlint"
+    ]
+}

@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.2.3"
+version = "1.3.0"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,12 +23,13 @@ dependencies = [
     "pyyaml>=6.0.2",
     "transformers>=4.47.0",
     "weasyprint>=68.1",
+    "langchain-google-genai",
 ]
 
 [tool.uv]
 package = true
 
 [project.scripts]
-cv-gen = "generate_cv:main"
 kb-ingest = "kb_ingest:main"
+cv-gen = "generate_cv:main"
 pdf-gen = "generate_pdf_cli:main"

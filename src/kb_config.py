@@ -79,6 +79,11 @@ def get_model_for_step(step_name: str, temperature: float = 0):
             num_ctx=8192 # Increased for large CV context
         )
     
+    elif model_type == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        model_name = step_config.get("MODEL_NAME", models_map.get("gemini", "gemini-1.5-flash"))
+        return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+    
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
 
