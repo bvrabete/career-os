@@ -34,11 +34,8 @@ STEPS:
     MODEL_NAME: "llama3.1:8b" # Fits perfectly in VRAM
 
   DRAFTING:
-    TYPE: "openai"
-    MODEL_NAME: "gpt-4o"
-    # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-pro" # Commented out Gemini (handles >30k token career context with massive window)
-    # TYPE: "ollama" | MODEL_NAME: "qwen2.5:14b" (Local, requires running with num_ctx=32768 in Ollama, relies on 128GB RAM) # Fast local document classification
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
 
   AUDIT:
     TYPE: "ollama"

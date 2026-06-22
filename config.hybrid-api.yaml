@@ -1,0 +1,65 @@
+# Model Selection Definitions
+MODELS:
+  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
+  openai: "gpt-4o"
+  gemini: "gemini-1.5-flash" # Default fast API model
+
+# Pipeline Step Configurations (Hybrid API-Assisted Setup)
+# Uses high-speed, zero-VRAM cloud APIs (Gemini & OpenAI) for complex parsing, reasoning, and auditing,
+# while retaining light local models (llama3.1:8b & qwen2.5:7b) for fast local steps.
+STEPS:
+  EXTRACTION:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-flash" # Blazing fast schema parsing (zero local VRAM, 100% accurate)
+
+  REFINEMENT:
+    TYPE: "ollama"
+    MODEL_NAME: "llama3.1:8b" # Fast local verification (fits easily in 6GB VRAM)
+
+  MERGE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o" # High-reasoning enterprise deduplication and syncing
+
+  GAP_ANALYSIS:
+    TYPE: "ollama"
+    MODEL_NAME: "llama3.1:8b" # Fast local reasoning
+
+  # CV Generator LangGraph Steps
+  ANALYSIS:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b" # Fast local region and intent analyzer
+
+  RETRIEVAL:
+    TYPE: "ollama"
+    MODEL_NAME: "llama3.1:8b" # Fast local semantic mapping and matching
+
+  DRAFTING:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
+
+  AUDIT:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-flash" # Brutally honest cloud-based recruiter critic (fast and accurate)
+
+  # Ingestion pipeline steps
+  INGESTION_CLASSIFY:
+    TYPE: "ollama"
+    MODEL_NAME: "llama3.1:8b" # Fast local document classification
+
+  INGESTION_EXTRACT:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-flash" # Flawless cloud extraction of candidate data
+
+  INGESTION_GENERATE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o" # Perfect schema compliance for frontmatter generation
+
+  INGESTION_MERGE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o" # Near-perfect deduplication of new experiences into existing nodes
+
+OLLAMA_BASE_URL: "http://localhost:11434"
+
+# Future configurations (e.g., prompt weights, track defaults)
+TRACK_DEFAULT: "Corporate"
+STRATEGY_DEFAULT: "emea"

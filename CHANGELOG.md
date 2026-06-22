@@ -26,9 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **GitHub Actions CI Pipeline**: Added a continuous integration workflow (`.github/workflows/test.yml`) that automatically runs the unit test suite on all pushes and pull requests to `main` and `master`, enabling pull request blocking on failure.
 - **Project-Specific Dependabot Support**: Relocated and configured the Dependabot settings to the correct location at `.github/dependabot.yml` using the `pip` ecosystem for Python and `github-actions` for workflows.
 - **Dependabot UV Lock Auto-Updater**: Created a custom workflow `.github/workflows/dependabot-uv-lock.yml` that runs on Dependabot PRs, automatically running `uv lock` and pushing updates to keep the virtual environment lockfile fully in-sync.
+- **Dynamic Wiki-Synthesis Default Output**: Refactored `cv-gen` to make `--out` completely optional. If omitted, the generated CV (enriched with tracking frontmatter properties) is saved by default directly inside the predefined LLM-Wiki Synthesis directory (`wiki/synthesis/synthesis-cv-{company}-{role}-{date}.md`), keeping the root clean and automating your professional application tracking.
 
 ### Changed
 
 - **Graph State Expansion**: Extended `CVPipelineState` inside `src/cv_generator_graph.py` with modular state keys for projects, patents, notes, few-shots, and skill-bridging maps.
 - **Drafter Prompt Enrichment**: Updated the `node_drafter` system prompt to utilize retrieved projects, patents, and review notes, align phrasing with successful few-shots, and apply deterministic skill translations.
 - **System Documentation**: Expanded `README.md` with complete details on PDF customization, bootstrapping, and an updated multi-pipeline system architecture Mermaid diagram.
+- **PDF Compilation Filtering**: Upgraded PDF generation to always compile using the clean draft CV layout, preventing raw YAML frontmatter tracking properties from showing up at the top of compiled PDFs.

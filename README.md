@@ -130,17 +130,68 @@ uv run kb-ingest --dir /path/to/raw/sources/ --wiki-dir /path/to/my-external-wik
 ```
 
 ### 4. Generate a Tailored CV
-Point the generator at a Job Description text file, specify your external wiki, and output the customized markdown CV (with optional PDF generation).
+Point the generator at a Job Description text file and specify your external wiki.
+
+#### 🗂️ Zero-Config Default (Highly Recommended)
+By default, you do not need to specify an output file! If you omit the `--out` argument, CareerOS automatically saves the frontmatter-tracked, CRM-ready Markdown CV directly into your external wiki's synthesis folder (`<LLM_WIKI_DIR>/wiki/synthesis/synthesis-cv-{company}-{role}-{date}.md`), keeping your workspace clean and logging your application history:
 
 ```bash
-uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --strategy ireland --generate-pdf
+uv run cv-gen --jd job-descriptions/target_jd.txt --wiki-dir /path/to/my-external-wiki
 ```
+
+If you append `--generate-pdf`, it will compile a clean PDF alongside the Markdown file inside the same synthesis folder, while dynamically filtering out raw tracking frontmatter headers so your resume remains perfectly professional.
+
+#### 💾 Custom File Output
+If you want to write a clean Markdown CV to a specific file outside of your LLM-Wiki, pass the `--out` parameter:
+
+```bash
+uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf
+```
+*(When `--out` is specified, a backup duplicate copy is still archived under your wiki synthesis folder automatically for tracking, and a context JSON file is saved adjacent to the custom output for debugging).*
 
 ### 5. Advanced CLI Strategy & PDF Compilation
 The generation pipeline supports direct override of region strategy selection and automatic production-ready PDF compilation:
 *   `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
 *   `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
 
+---
+
+## ⚙️ Model & Pipeline Configuration (`config.yaml`)
+
+CareerOS features a fully programmable model-routing architecture defined in `config.yaml`. You can customize which LLM (local Ollama, Google Gemini, or OpenAI) handles each node of the ingestion and generation pipelines.
+
+### 💻 Local Ollama Installation & Setup
+
+To run local models, you must first install Ollama:
+
+1. **Download & Install**: Visit [Ollama's Official Website](https://ollama.com) or install directly on Linux/macOS via terminal:
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
+2. **Start the Server**: Ensure the Ollama server is running locally (by default it runs on `http://localhost:11434`).
+3. **Pull the Required Models**: Run the following commands to pull the exact models used in the active configuration:
+   ```bash
+   # General fast operations, scoring, and classification (8B parameters)
+   ollama pull llama3.1:8b
+
+   # Light, ultra-fast intent analyzer and parser (7B parameters)
+   ollama pull qwen2.5:7b
+   ```
+
+---
+
+### 🎨 Available Configuration Templates
+
+We provide several predefined configurations tailored for different hardware setups:
+
+1. **`config.yaml` (Active Default / Low VRAM Local-First)**: 
+   Optimized specifically to run **100% on GPU under 6GB VRAM**. By using `llama3.1:8b` and `qwen2.5:7b`, it completely avoids slow CPU offloading, making local execution near-instantaneous. Heavy drafting is offloaded to OpenAI's `gpt-4o` (which handles >30k token contexts effortlessly).
+2. **`config.hybrid-api.yaml` (Cloud-Assisted Hybrid)**:
+   A high-speed, high-precision layout that redirects intensive parsing and deduplication to cloud APIs (`gemini-1.5-flash` and `gpt-4o`) for **0 local VRAM spillage** and flawless schema matching, while retaining local models for simple classification and retrieval.
+3. **`config.original-heavy.yaml` (High-End Local)**:
+   The original model setup utilizing high-parameter local models (`qwen2.5:14b` and `gemma2:27b`) for high-reasoning local matching. Recommended only if you have 16GB+ VRAM or a dedicated cluster.
+
+*To activate an alternative setup, simply overwrite `config.yaml` with your chosen template (e.g. `cp config.hybrid-api.yaml config.yaml`).*
 
 ---
 

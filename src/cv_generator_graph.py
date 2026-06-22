@@ -33,6 +33,71 @@ def _llm_text(content: Union[str, list]) -> str:  # type: ignore[type-arg]
     return " ".join(str(part) for part in content)
 
 
+def robust_json_loads(text: str) -> Any:
+    """Robustly parse a JSON string from LLM output, handling preambles, trailing commas, comments, and control characters."""
+    if not text:
+        raise ValueError("Empty input string")
+        
+    text = text.strip()
+    
+    # 1. Strip markdown code blocks if present
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0].strip()
+        
+    # 2. Locate the outermost JSON object/array
+    start_brace = text.find("{")
+    start_bracket = text.find("[")
+    
+    if start_brace == -1 and start_bracket == -1:
+        raise ValueError("No JSON object or array found in text")
+        
+    if start_brace != -1 and (start_bracket == -1 or start_brace < start_bracket):
+        # Starts with an object
+        end_brace = text.rfind("}")
+        if end_brace == -1:
+            raise ValueError("Mismatched opening brace '{'")
+        text = text[start_brace:end_brace+1]
+    else:
+        # Starts with an array
+        end_bracket = text.rfind("]")
+        if end_bracket == -1:
+            raise ValueError("Mismatched opening bracket '['")
+        text = text[start_bracket:end_bracket+1]
+        
+    # 3. Clean up comments (both // and /* */)
+    # Strip single-line comments (ensure we don't strip http:// or https://)
+    text = re.sub(r'(?<!:)\/\/.*$', '', text, flags=re.MULTILINE)
+    # Strip multi-line comments
+    text = re.sub(r'\/\*.*?\*\/', '', text, flags=re.DOTALL)
+    
+    # 4. Handle trailing commas before closing braces/brackets
+    text = re.sub(r',\s*([\]}])', r'\1', text)
+    
+    # 5. Replace raw newlines and tabs inside string values
+    def replace_control_chars(match: re.Match[str]) -> str:
+        s = match.group(0)
+        # Escape raw newlines, carriage returns, and tabs within the matched string
+        s_escaped = s.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+        return s_escaped
+    
+    string_pattern = r'"(?:[^"\\]|\\.)*"'
+    text = re.sub(string_pattern, replace_control_chars, text)
+
+    # 6. Try parsing with standard json.loads
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        logging.warning(f"Standard json.loads failed: {e}. Attempting last-resort recovery.")
+        try:
+            # Naive single quote to double quote fallback
+            alt_text = text.replace("'", '"')
+            return json.loads(alt_text)
+        except Exception:
+            raise e
+
+
 class CVPipelineState(TypedDict):
     job_description: str
     target_persona: str
@@ -59,7 +124,7 @@ class CVPipelineState(TypedDict):
 
 def node_analyzer(state: CVPipelineState) -> dict:
     logging.info("--- NODE A: ANALYZER ---")
-    llm = get_model_for_step("ANALYSIS")
+    llm = get_model_for_step("ANALYSIS", format="json")
     jd = state.get("job_description", "")
 
     # Discover available strategies
@@ -105,13 +170,7 @@ def node_analyzer(state: CVPipelineState) -> dict:
     content = _llm_text(response.content)
 
     try:
-        # Robust JSON extraction
-        if JSON_PREAMBLE in content:
-            content = content.split(JSON_PREAMBLE)[1].split("```")[0].strip()
-        elif "{" in content:
-            content = content[content.find("{"):content.rfind("}")+1]
-
-        data = json.loads(content)
+        data = robust_json_loads(content)
         persona = data.get("persona", content)
         keywords = data.get("keywords", [])
         locations = data.get("locations", [])
@@ -119,9 +178,9 @@ def node_analyzer(state: CVPipelineState) -> dict:
         region = data.get("suggested_region", default_strategy).lower()
         target_org = data.get("target_organization_slug", "unknown-company").lower()
         target_role = data.get("target_role", "unknown-role")
-    except Exception:
+    except Exception as e:
         logging.warning(
-            "Failed to parse JSON from Analyzer, falling back to heuristics.")
+            f"Failed to parse JSON from Analyzer, falling back to heuristics: {e}")
         persona = content
         keywords = []
         locations = []
@@ -197,12 +256,7 @@ def _generate_skill_bridging_map(llm: Any, jd: str, skills: List[str], keywords:
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         content = _llm_text(response.content)
-        if JSON_PREAMBLE in content:
-            content = content.split(JSON_PREAMBLE)[1].split("```")[0].strip()
-        elif "{" in content:
-            content = content[content.find("{"):content.rfind("}")+1]
-        
-        data = json.loads(content)
+        data = robust_json_loads(content)
         if isinstance(data, dict):
             return {str(k): str(v) for k, v in data.items()}
     except Exception as e:
@@ -213,7 +267,7 @@ def _generate_skill_bridging_map(llm: Any, jd: str, skills: List[str], keywords:
 
 def node_retriever(state: CVPipelineState) -> dict:
     logging.info("--- NODE B: RETRIEVER ---")
-    llm = get_model_for_step("RETRIEVAL")
+    llm = get_model_for_step("RETRIEVAL", format="json")
 
     jd = state.get("job_description", "")
     persona = state.get("target_persona", "")
@@ -266,18 +320,12 @@ def node_retriever(state: CVPipelineState) -> dict:
             score = 0
             justification = "N/A"
             try:
-                if JSON_PREAMBLE in content:
-                    content = content.split(JSON_PREAMBLE)[
-                        1].split("```")[0].strip()
-                elif "{" in content:
-                    content = content[content.find("{"):content.rfind("}")+1]
-
-                data = json.loads(content)
+                data = robust_json_loads(content)
                 score = int(data.get("score", 0))
                 justification = data.get("justification", "N/A")
-            except Exception:
+            except Exception as e:
                 logging.warning(
-                    f"Failed to parse LLM score for {entry_path.name}, defaulting to 0.")
+                    f"Failed to parse LLM score for {entry_path.name}, defaulting to 0: {e}")
 
             scored_entries.append(
                 (score, entry_path.name, experience_content, justification))

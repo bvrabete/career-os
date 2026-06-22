@@ -46,7 +46,7 @@ def get_strategy_default():
     config = load_config()
     return config.get("STRATEGY_DEFAULT", "emea")
 
-def get_model_for_step(step_name: str, temperature: float = 0):
+def get_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
     """
     Returns an LLM instance optimized for a specific pipeline step.
     Looks up the step in the 'STEPS' section of config.yaml.
@@ -66,17 +66,24 @@ def get_model_for_step(step_name: str, temperature: float = 0):
     if model_type == "openai":
         # Check step-specific MODEL_NAME first, fallback to global mapping
         model_name = step_config.get("MODEL_NAME", models_map.get("openai", "gpt-4o"))
-        return ChatOpenAI(model=model_name, temperature=temperature)
+        kwargs = {}
+        if format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+        return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
     
     elif model_type == "ollama":
         # Check step-specific MODEL_NAME first, fallback to global mapping
         model_name = step_config.get("MODEL_NAME", models_map.get("ollama", "qwen2.5:7b"))
         base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        kwargs = {}
+        if format:
+            kwargs["format"] = format
         return ChatOllama(
             model=model_name, 
             base_url=base_url, 
             temperature=temperature,
-            num_ctx=8192 # Increased for large CV context
+            num_ctx=8192, # Increased for large CV context
+            **kwargs
         )
     
     elif model_type == "gemini":
