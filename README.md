@@ -77,7 +77,9 @@ graph TD
         Auditor -->|PASS| FinalCV
         
         PDF["PDF Compilation<br>(WeasyPrint via final CSS template)"]
+        Word["Word Compilation<br>(pure-Python docx)"]
         FinalCV -->|--generate-pdf| PDF
+        FinalCV -->|--generate-docx| Word
     end
 
     WIKI -->|Read Profile Data| Retriever
@@ -139,20 +141,21 @@ By default, you do not need to specify an output file! If you omit the `--out` a
 uv run cv-gen --jd job-descriptions/target_jd.txt --wiki-dir /path/to/my-external-wiki
 ```
 
-If you append `--generate-pdf`, it will compile a clean PDF alongside the Markdown file inside the same synthesis folder, while dynamically filtering out raw tracking frontmatter headers so your resume remains perfectly professional.
+If you append `--generate-pdf` or `--generate-docx`, it will compile a clean PDF or Word (.docx) document alongside the Markdown file inside the same synthesis folder, while dynamically filtering out raw tracking frontmatter headers so your resume remains perfectly professional.
 
 #### 💾 Custom File Output
 If you want to write a clean Markdown CV to a specific file outside of your LLM-Wiki, pass the `--out` parameter:
 
 ```bash
-uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf
+uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf --generate-docx
 ```
 *(When `--out` is specified, a backup duplicate copy is still archived under your wiki synthesis folder automatically for tracking, and a context JSON file is saved adjacent to the custom output for debugging).*
 
-### 5. Advanced CLI Strategy & PDF Compilation
-The generation pipeline supports direct override of region strategy selection and automatic production-ready PDF compilation:
+### 5. Advanced CLI Strategy, PDF & Word Compilation
+The generation pipeline supports direct override of region strategy selection, and automatic production-ready PDF or Word document compilation:
 *   `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
 *   `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
+*   `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
 
 ---
 
@@ -186,12 +189,14 @@ We provide several predefined configurations tailored for different hardware set
 
 1. **`config.yaml` (Active Default / Low VRAM Local-First)**: 
    Optimized specifically to run **100% on GPU under 6GB VRAM**. By using `llama3.1:8b` and `qwen2.5:7b`, it completely avoids slow CPU offloading, making local execution near-instantaneous. Heavy drafting is offloaded to OpenAI's `gpt-4o` (which handles >30k token contexts effortlessly).
-2. **`config.hybrid-api.yaml` (Cloud-Assisted Hybrid)**:
-   A high-speed, high-precision layout that redirects intensive parsing and deduplication to cloud APIs (`gemini-1.5-flash` and `gpt-4o`) for **0 local VRAM spillage** and flawless schema matching, while retaining local models for simple classification and retrieval.
-3. **`config.original-heavy.yaml` (High-End Local)**:
+2. **`config.hybrid-openai.yaml` (Cloud-Assisted OpenAI Hybrid)**:
+   A high-speed, high-precision layout pairing local Ollama models with OpenAI APIs (`gpt-4o` and `gpt-4o-mini`) for intensive parsing, drafting, and deduplication tasks.
+3. **`config.hybrid-gemini.yaml` (Cloud-Assisted Gemini Hybrid)**:
+   A fast, high-context layout pairing local Ollama models with Google Gemini APIs (`gemini-1.5-flash` and `gemini-1.5-pro`) for extensive drafting and schema-extraction tasks.
+4. **`config.original-heavy.yaml` (High-End Local)**:
    The original model setup utilizing high-parameter local models (`qwen2.5:14b` and `gemma2:27b`) for high-reasoning local matching. Recommended only if you have 16GB+ VRAM or a dedicated cluster.
 
-*To activate an alternative setup, simply overwrite `config.yaml` with your chosen template (e.g. `cp config.hybrid-api.yaml config.yaml`).*
+*To activate an alternative setup, simply overwrite `config.yaml` with your chosen template (e.g., `cp config.hybrid-openai.yaml config.yaml`).*
 
 ---
 

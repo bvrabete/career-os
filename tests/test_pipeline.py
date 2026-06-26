@@ -119,7 +119,9 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "patents_entries": [],
             "notes_entries": [],
             "few_shot_examples": [],
-            "skill_bridging_map": {}
+            "skill_bridging_map": {},
+            "target_organization_slug": "",
+            "target_role": ""
         }
 
         result = node_analyzer(state)
@@ -128,6 +130,202 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(result["target_region"], "ireland")
         self.assertEqual(result["target_organization_slug"], "mock-org")
         self.assertEqual(result["target_role"], "Mock Role")
+
+    @patch("cv_generator_graph.get_model_for_step")
+    def test_compress_experience_llm_success(self, mock_get_model):
+        """Test that _compress_experience_llm correctly calls retrieval model and compresses."""
+        from cv_generator_graph import _compress_experience_llm
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Compressed content summary."
+        mock_llm.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_llm
+
+        raw_experience = "---\ntype: experience\n---\nLong body list..."
+        compressed = _compress_experience_llm(raw_experience)
+        self.assertEqual(compressed, "Compressed content summary.")
+        mock_get_model.assert_called_once_with("RETRIEVAL")
+
+    @patch("cv_generator_graph.get_model_for_step")
+    @patch("cv_generator_graph.get_fallback_model_for_step")
+    def test_node_drafter_fallback_on_rate_limit(self, mock_get_fallback, mock_get_model):
+        """Test that node_drafter falls back to configured fallback model when OpenAI raises rate limit exception."""
+        from cv_generator_graph import node_drafter
+        
+        # Mock main LLM to raise RateLimitError
+        mock_openai_llm = MagicMock()
+        mock_openai_llm.invoke.side_effect = Exception("rate_limit_exceeded: TPM limit reached")
+        mock_get_model.return_value = mock_openai_llm
+
+        # Mock fallback LLM
+        mock_gemini_llm = MagicMock()
+        mock_gemini_response = MagicMock()
+        mock_gemini_response.content = "Gemini-drafted CV content"
+        mock_gemini_llm.invoke.return_value = mock_gemini_response
+        mock_get_fallback.return_value = mock_gemini_llm
+
+        state: CVPipelineState = {
+            "job_description": "We need a Python coder",
+            "iteration_count": 0,
+            "target_persona": "Persona",
+            "target_region": "emea",
+            "target_locations": [],
+            "cv_expectations": "",
+            "primary_keywords": [],
+            "selected_entries": ["--- CAREER ENTRY: test.md ---\nContent"],
+            "education_entries": [],
+            "skills_entries": [],
+            "strategy_info": "",
+            "pdf_template": "",
+            "draft_cv": "",
+            "audit_feedback": "",
+            "refiner_feedback": "",
+            "projects_entries": [],
+            "patents_entries": [],
+            "notes_entries": [],
+            "few_shot_examples": [],
+            "skill_bridging_map": {},
+            "target_organization_slug": "org",
+            "target_role": "role"
+        }
+
+        result = node_drafter(state)
+        self.assertEqual(result["draft_cv"], "Gemini-drafted CV content")
+        mock_get_fallback.assert_called_once_with("DRAFTING")
+
+    @patch("cv_generator_graph.get_model_for_step")
+    @patch("cv_generator_graph.get_fallback_model_for_step")
+    def test_node_drafter_no_fallback_configured(self, mock_get_fallback, mock_get_model):
+        """Test that node_drafter raises the original exception when no fallback is configured."""
+        from cv_generator_graph import node_drafter
+        
+        # Mock main LLM to raise RateLimitError
+        mock_openai_llm = MagicMock()
+        mock_openai_llm.invoke.side_effect = Exception("rate_limit_exceeded: TPM limit reached")
+        mock_get_model.return_value = mock_openai_llm
+
+        # Mock fallback loader to return None (no fallback configured)
+        mock_get_fallback.return_value = None
+
+        state: CVPipelineState = {
+            "job_description": "We need a Python coder",
+            "iteration_count": 0,
+            "target_persona": "Persona",
+            "target_region": "emea",
+            "target_locations": [],
+            "cv_expectations": "",
+            "primary_keywords": [],
+            "selected_entries": ["--- CAREER ENTRY: test.md ---\nContent"],
+            "education_entries": [],
+            "skills_entries": [],
+            "strategy_info": "",
+            "pdf_template": "",
+            "draft_cv": "",
+            "audit_feedback": "",
+            "refiner_feedback": "",
+            "projects_entries": [],
+            "patents_entries": [],
+            "notes_entries": [],
+            "few_shot_examples": [],
+            "skill_bridging_map": {},
+            "target_organization_slug": "org",
+            "target_role": "role"
+        }
+
+        with self.assertRaises(Exception) as context:
+            node_drafter(state)
+        self.assertIn("rate_limit_exceeded", str(context.exception))
+
+    def test_prune_recent_experience_top_achievements(self):
+        """Test that _prune_recent_experience ranks and limits achievements to the top 4."""
+        from cv_generator_graph import _prune_recent_experience
+        
+        # Experience with 6 achievements
+        test_content = """---
+type: experience
+title: "Senior Manager"
+organization: [[test-org]]
+dates:
+  start: 2020-01-01
+  end: Present
+skills: [Python, Go]
+---
+
+# Senior Manager at Test Org
+
+## Narrative & Reflections
+This is some narrative text that should be stripped.
+
+## Achievements
+
+- **Situation**: Need a highly scalable microservice.
+  - **Task**: Write a service in Python.
+  - **Action**: Wrote it using FastAPI and asyncio.
+  - **Result**: Handled 10k RPS.
+- **Situation**: Legacy database migration.
+  - **Task**: Migrate Postgres to CockroachDB.
+  - **Action**: Automated with Python and SQL scripts.
+  - **Result**: Zero downtime migration.
+- **Situation**: Heavy manual deployment overhead.
+  - **Task**: Reduce deploy time.
+  - **Action**: Implemented Docker and Kubernetes CI/CD.
+  - **Result**: Saved 20 hours a week.
+- **Situation**: Team was not using Go.
+  - **Task**: Standardize on Go for high performance.
+  - **Action**: Trained 5 engineers in Go.
+  - **Result**: Built new high speed RPC services.
+- **Situation**: Low test coverage.
+  - **Task**: Raise coverage to 90%.
+  - **Action**: Wrote pytest unit tests.
+  - **Result**: Fixed 15 bugs early.
+- **Situation**: Unrelated achievement with low overlap.
+  - **Task**: Paint the office kitchen.
+  - **Action**: Painted it yellow.
+  - **Result**: Better office mood.
+"""
+        
+        # Run with keywords matching the first 4 achievements (Python, Postgres, Kubernetes, Go)
+        pruned = _prune_recent_experience(test_content, ["Python", "Postgres", "Kubernetes", "Go"])
+        
+        # Verify that Narrative & Reflections is stripped
+        self.assertNotIn("Narrative & Reflections", pruned)
+        self.assertNotIn("should be stripped", pruned)
+        
+        # Verify that only 4 achievements are kept (and the "office kitchen" one is filtered out)
+        self.assertIn("FastAPI", pruned)
+        self.assertIn("CockroachDB", pruned)
+        self.assertIn("Docker and Kubernetes", pruned)
+        self.assertIn("Trained 5 engineers", pruned)
+        self.assertNotIn("Paint the office kitchen", pruned)
+        
+        # Count the number of achievements (Situation blocks)
+        self.assertEqual(pruned.count("- **Situation"), 4)
+
+
+class TestDOCXGenerator(unittest.TestCase):
+    """Unit tests for the DOCX generation utility using Pandoc."""
+
+    def test_docx_generation_success(self):
+        """Test docx generation with valid input using tempfile."""
+        from docx_generator import generate_docx
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = Path(tmpdir) / "test_output.docx"
+            md_content = "# Hello World\nSome body text."
+            success = generate_docx(md_content, str(out_file))
+            self.assertTrue(success)
+            self.assertTrue(out_file.exists())
+            self.assertTrue(out_file.stat().st_size > 0)
+
+    @patch("docx.Document")
+    def test_docx_generation_failure(self, mock_doc):
+        """Test docx generation failure handling on document save or creation error."""
+        from docx_generator import generate_docx
+        # Mock docx.Document raising an exception
+        mock_doc.side_effect = Exception("Mocked document creation failure")
+        
+        success = generate_docx("# Dummy", "dummy.docx")
+        self.assertFalse(success)
 
 
 if __name__ == "__main__":

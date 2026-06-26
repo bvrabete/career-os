@@ -1,11 +1,10 @@
 # Model Selection Definitions
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  openai: "gpt-4o"
   gemini: "gemini-1.5-flash" # Default fast API model
 
-# Pipeline Step Configurations (Hybrid API-Assisted Setup)
-# Uses high-speed, zero-VRAM cloud APIs (Gemini & OpenAI) for complex parsing, reasoning, and auditing,
+# Pipeline Step Configurations (Hybrid Gemini-Assisted Setup)
+# Uses high-speed, zero-VRAM Google Gemini cloud APIs (gemini-1.5-flash & gemini-1.5-pro) for complex parsing, reasoning, and auditing,
 # while retaining light local models (llama3.1:8b & qwen2.5:7b) for fast local steps.
 STEPS:
   EXTRACTION:
@@ -17,8 +16,8 @@ STEPS:
     MODEL_NAME: "llama3.1:8b" # Fast local verification (fits easily in 6GB VRAM)
 
   MERGE:
-    TYPE: "openai"
-    MODEL_NAME: "gpt-4o" # High-reasoning enterprise deduplication and syncing
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-pro" # High-reasoning enterprise deduplication and syncing
 
   GAP_ANALYSIS:
     TYPE: "ollama"
@@ -36,6 +35,14 @@ STEPS:
   DRAFTING:
     TYPE: "gemini"
     MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
+    # OPTIONAL EXPLICIT FALLBACK (Defined, not assumed):
+    # If you encounter API rate limits (e.g. 429), you can define a fallback model here.
+    # If no fallback is defined below or if its credentials are missing, the original error is re-raised.
+    #
+    # Fallback (Local Ollama, since this is a Gemini-focused profile):
+    # FALLBACK:
+    #   TYPE: "ollama"
+    #   MODEL_NAME: "qwen2.5:7b"
 
   AUDIT:
     TYPE: "gemini"
@@ -51,12 +58,12 @@ STEPS:
     MODEL_NAME: "gemini-1.5-flash" # Flawless cloud extraction of candidate data
 
   INGESTION_GENERATE:
-    TYPE: "openai"
-    MODEL_NAME: "gpt-4o" # Perfect schema compliance for frontmatter generation
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-pro" # Perfect schema compliance for frontmatter generation
 
   INGESTION_MERGE:
-    TYPE: "openai"
-    MODEL_NAME: "gpt-4o" # Near-perfect deduplication of new experiences into existing nodes
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-1.5-pro" # Near-perfect deduplication of new experiences into existing nodes
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 

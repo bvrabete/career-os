@@ -13,11 +13,12 @@ import os
 import json
 import logging
 import re
+import yaml
 from typing import TypedDict, List, Union, Any, Dict
 from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
-from kb_config import get_model_for_step, get_strategy_default, get_wiki_dir
+from kb_config import get_model_for_step, get_strategy_default, get_wiki_dir, get_fallback_model_for_step
 
 JSON_PREAMBLE = "```json"
 
@@ -120,6 +121,8 @@ class CVPipelineState(TypedDict):
     notes_entries: List[str]
     few_shot_examples: List[str]
     skill_bridging_map: Dict[str, str]
+    target_organization_slug: str
+    target_role: str
 
 
 def node_analyzer(state: CVPipelineState) -> dict:
@@ -265,6 +268,104 @@ def _generate_skill_bridging_map(llm: Any, jd: str, skills: List[str], keywords:
     return {}
 
 
+def _compress_experience_llm(content: str) -> str:
+    """
+    Compresses an old, lower-relevance experience entry into a highly concise summary
+    retaining metadata, company description/size, location, technologies, and 1 key achievement.
+    """
+    try:
+        # Load a dedicated LLM without JSON formatting constraints
+        llm = get_model_for_step("RETRIEVAL")
+        prompt = f"""
+        You are an expert resume compressor. Compress the following historical 'Career Entry' into a single highly condensed, ATS-optimized block.
+        
+        CRITICAL REQUIREMENTS:
+        - Retain the exact YAML frontmatter (dates, title, organization, location, skills).
+        - Provide a single short paragraph or 1-2 extremely concise bullet points summarizing:
+          1. What the company does & its size (if mentioned).
+          2. The primary responsibilities and key technologies used.
+          3. The single most significant impact/accomplishment.
+        - Keep the output extremely brief (under 100 words total).
+        
+        Career Entry to Compress:
+        {content}
+        """
+        response = llm.invoke([HumanMessage(content=prompt)])
+        return _llm_text(response.content)
+    except Exception as e:
+        logging.warning(f"Failed to compress experience via LLM: {e}")
+        return content
+
+
+def _prune_recent_experience(content: str, keywords: List[str] = []) -> str:
+    """
+    Prunes a recent experience file to reduce token bloat before sending it to the DRAFTER.
+    - Strips comments (<!-- ... -->)
+    - Removes unnecessary YAML fields (created, updated, sources, tags, tracks)
+    - Strips the 'Narrative & Reflections' section to preserve token budget for Achievements.
+    - Scores and retains only the top 4 achievements based on keyword overlap (complying with the "3-4 STAR achievements" rule).
+    """
+    # 1. Strip HTML comments
+    content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
+    
+    # 2. Extract and prune frontmatter
+    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if fm_match:
+        try:
+            fm_raw = fm_match.group(1)
+            fm = yaml.safe_load(fm_raw) or {}
+            
+            # Heal dates if start/end are at top-level (common indentation error)
+            if "dates" not in fm or not isinstance(fm["dates"], dict):
+                start = fm.get("start") or fm.get("dates")
+                end = fm.get("end")
+                if start or end:
+                    fm["dates"] = {
+                        "start": start,
+                        "end": end or "Present"
+                    }
+            
+            # Keep only essential fields
+            pruned_fm = {}
+            for key in ["type", "title", "organization", "location", "dates", "skills"]:
+                if key in fm:
+                    pruned_fm[key] = fm[key]
+            
+            # Reconstruct frontmatter
+            pruned_fm_str = yaml.dump(pruned_fm, sort_keys=False)
+            
+            # Get body
+            body = content[fm_match.end():].strip()
+            
+            # 3. Strip 'Narrative & Reflections' section if present
+            body = re.sub(r'##\s*Narrative\s*&\s*Reflections.*?(?=##\s*|$)', '', body, flags=re.DOTALL)
+            
+            # 4. Extract and keep only the top 4 achievements
+            ach_pattern = r'(^\s*-\s*\*\*Situation.*?(?=(^\s*-\s*\*\*Situation|^\s*##|^\s*###|\Z)))'
+            achievements = [m.group(0) for m in re.finditer(ach_pattern, body, flags=re.MULTILINE | re.DOTALL)]
+            if achievements:
+                scored_ach = []
+                for ach in achievements:
+                    score = _score_by_keywords(ach, keywords)
+                    scored_ach.append((score, ach))
+                # Sort by score descending
+                scored_ach.sort(key=lambda x: x[0], reverse=True)
+                top_ach = [x[1] for x in scored_ach[:4]]
+                
+                # Strip original achievements and append top ones
+                clean_body = re.sub(ach_pattern, '', body, flags=re.MULTILINE | re.DOTALL)
+                clean_body = re.sub(r'\n{3,}', '\n\n', clean_body).strip()
+                body = f"{clean_body}\n\n## Key STAR Achievements\n\n" + "\n".join(top_ach)
+            
+            # Reconstruct content
+            content = f"---\n{pruned_fm_str}---\n\n{body.strip()}"
+        except Exception as e:
+            logging.warning(f"Failed to prune recent experience: {e}")
+            
+    return content
+
+
+
 def node_retriever(state: CVPipelineState) -> dict:
     logging.info("--- NODE B: RETRIEVER ---")
     llm = get_model_for_step("RETRIEVAL", format="json")
@@ -332,15 +433,80 @@ def node_retriever(state: CVPipelineState) -> dict:
 
     scored_entries.sort(key=lambda x: x[0], reverse=True)
 
+    # Deduplicate experience entries to avoid overwhelming the LLM with duplicate files
+    deduplicated_entries = []
+    seen_roles = set()  # key is (org, start_year)
+    for score, name, content, justification in scored_entries:
+        org = ""
+        start_year = ""
+        fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+        if fm_match:
+            try:
+                fm = yaml.safe_load(fm_match.group(1)) or {}
+                org_raw = str(fm.get("organization", ""))
+                org_match = re.search(r'\[\[(.*?)\]\]', org_raw)
+                org = org_match.group(1) if org_match else org_raw.strip().lower()
+                
+                dates = fm.get("dates")
+                if not isinstance(dates, dict):
+                    start = fm.get("start") or dates
+                    end = fm.get("end")
+                    dates = {"start": start, "end": end or "Present"} if (start or end) else {}
+                
+                if isinstance(dates, dict):
+                    start_date_val = str(dates.get("start", ""))
+                    if start_date_val:
+                        start_year = start_date_val[:4]
+            except Exception:
+                pass
+        
+        if not org:
+            org = name.replace(".md", "").split("-")[0]
+            
+        key = (org, start_year)
+        if key not in seen_roles:
+            seen_roles.add(key)
+            deduplicated_entries.append((score, name, content, justification))
+            logging.info(f"Retrieved unique experience: {name} (Key: {key})")
+        else:
+            logging.info(f"Skipping duplicate experience: {name} (Key: {key})")
+
     selected_content = []
     retrieved_exp_slugs = []
-    # Reduced to top 7 most relevant roles to keep length under control
-    for score, name, content, justification in scored_entries[:7]:
+    for score, name, content, justification in deduplicated_entries:
         logging.info(
             f"Retrieved experience {name} with semantic relevance score: {score} ({justification})")
         # Extract organizational slug by removing ".md"
         slug = name.replace(".md", "")
         retrieved_exp_slugs.append(slug)
+
+        # Smart-compression: experiences older than 10 years (pre-2016)
+        is_old_role = False
+        fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+        if fm_match:
+            try:
+                fm = yaml.safe_load(fm_match.group(1)) or {}
+                dates = fm.get("dates")
+                if not isinstance(dates, dict):
+                    start = fm.get("start") or dates
+                    end = fm.get("end")
+                    dates = {"start": start, "end": end or "Present"} if (start or end) else {}
+                
+                if isinstance(dates, dict):
+                    start_date_val = str(dates.get("start", ""))
+                    if start_date_val and start_date_val[:4].isdigit():
+                        if int(start_date_val[:4]) < 2016:
+                            is_old_role = True
+            except Exception:
+                pass
+
+        if is_old_role:
+            logging.info(f"Smart-compressing old experience {name} to reduce token bloat...")
+            content = _compress_experience_llm(content)
+        else:
+            logging.info(f"Pruning recent experience {name} to optimize token budget...")
+            content = _prune_recent_experience(content, keywords)
+
         entry_wrapper = (
             f"--- CAREER ENTRY: {name} (SEMANTIC RELEVANCE SCORE: {score}) ---\n"
             f"JUSTIFICATION: {justification}\n"
@@ -351,8 +517,64 @@ def node_retriever(state: CVPipelineState) -> dict:
 
     wiki_dir = get_wiki_dir()
     education_dir = wiki_dir / "wiki" / "education"
-    education_content = [f.read_text(encoding="utf-8")
-                         for f in education_dir.glob("*.md")]
+    
+    # Deduplicate education entries
+    edu_candidates = []
+    if education_dir.exists():
+        for f in education_dir.glob("*.md"):
+            try:
+                edu_text = f.read_text(encoding="utf-8")
+                inst = ""
+                start_year = ""
+                status = ""
+                fm_match = re.match(r'^---\n(.*?)\n---', edu_text, re.DOTALL)
+                if fm_match:
+                    try:
+                        fm = yaml.safe_load(fm_match.group(1)) or {}
+                        inst_raw = str(fm.get("institution", ""))
+                        inst_match = re.search(r'\[\[(.*?)\]\]', inst_raw)
+                        inst = inst_match.group(1) if inst_match else inst_raw.strip().lower()
+                        
+                        dates = fm.get("dates", {})
+                        if isinstance(dates, dict):
+                            start_date_val = str(dates.get("start", ""))
+                            if start_date_val:
+                                start_year = start_date_val[:4]
+                        status = str(fm.get("status", ""))
+                    except Exception:
+                        pass
+                
+                if not inst:
+                    inst = f.name.replace(".md", "").split("-")[0]
+                    
+                edu_candidates.append({
+                    "path": f,
+                    "content": edu_text,
+                    "inst": inst,
+                    "start_year": start_year,
+                    "status": status,
+                    "size": len(edu_text)
+                })
+            except Exception:
+                pass
+
+    # Sort: completed status first, then larger file size
+    def edu_sort_key(x):
+        is_completed = 1 if "completed" in str(x["status"]).lower() else 0
+        return (is_completed, x["size"])
+        
+    edu_candidates.sort(key=edu_sort_key, reverse=True)
+    
+    education_content = []
+    seen_edu = set()
+    for item in edu_candidates:
+        key = (item["inst"], item["start_year"])
+        if key not in seen_edu:
+            seen_edu.add(key)
+            education_content.append(item["content"])
+            logging.info(f"Retrieved unique education: {item['path'].name} (Key: {key})")
+        else:
+            logging.info(f"Skipping duplicate education: {item['path'].name} (Key: {key})")
 
     skills_dir = wiki_dir / "wiki" / "skills"
     skills_content = [f.read_text(encoding="utf-8")
@@ -371,7 +593,7 @@ def node_retriever(state: CVPipelineState) -> dict:
             scored_projects.append((score, f.name, p_content))
     scored_projects.sort(key=lambda x: x[0], reverse=True)
     projects_entries = []
-    for p_score, p_name, p_content in scored_projects[:5]:
+    for p_score, p_name, p_content in scored_projects[:3]:
         projects_entries.append(
             f"--- PROJECT ENTRY: {p_name} (KEYWORD RELEVANCE SCORE: {p_score}) ---\n"
             f"{p_content}\n"
@@ -391,7 +613,7 @@ def node_retriever(state: CVPipelineState) -> dict:
             scored_patents.append((score, f.name, pat_content))
     scored_patents.sort(key=lambda x: x[0], reverse=True)
     patents_entries = []
-    for pat_score, pat_name, pat_content in scored_patents[:5]:
+    for pat_score, pat_name, pat_content in scored_patents[:3]:
         patents_entries.append(
             f"--- PATENT ENTRY: {pat_name} (KEYWORD RELEVANCE SCORE: {pat_score}) ---\n"
             f"{pat_content}\n"
@@ -400,7 +622,7 @@ def node_retriever(state: CVPipelineState) -> dict:
 
     # 3. Notes (Performance Reviews) Retrieval
     notes_dir = wiki_dir / "wiki" / "notes"
-    notes_entries = []
+    scored_notes = []
     if notes_dir.exists():
         for f in notes_dir.glob("*.md"):
             note_content = f.read_text(encoding="utf-8")
@@ -411,11 +633,18 @@ def node_retriever(state: CVPipelineState) -> dict:
                     has_relation = True
                     break
             if has_review_tag or has_relation:
-                notes_entries.append(
-                    f"--- NOTE ENTRY: {f.name} ---\n"
-                    f"{note_content}\n"
-                    f"--- END NOTE ENTRY ---\n"
-                )
+                score = _score_by_keywords(note_content, keywords)
+                if has_review_tag:
+                    score += 5  # boost performance reviews
+                scored_notes.append((score, f.name, note_content))
+    scored_notes.sort(key=lambda x: x[0], reverse=True)
+    notes_entries = []
+    for n_score, n_name, n_content in scored_notes[:5]:
+        notes_entries.append(
+            f"--- NOTE ENTRY: {n_name} (RELEVANCE SCORE: {n_score}) ---\n"
+            f"{n_content}\n"
+            f"--- END NOTE ENTRY ---\n"
+        )
 
     # 4. Success Feedback Retrieval (Few-Shot Selection)
     synthesis_dir = wiki_dir / "wiki" / "synthesis"
@@ -429,10 +658,14 @@ def node_retriever(state: CVPipelineState) -> dict:
                 scored_examples.append((score, f.name, cv_content))
     scored_examples.sort(key=lambda x: x[0], reverse=True)
     few_shot_examples = []
-    for fs_score, fs_name, fs_content in scored_examples[:2]:
+    for fs_score, fs_name, fs_content in scored_examples[:1]:
+        fs_content_pruned = fs_content
+        if len(fs_content) > 12000:
+            fs_content_pruned = fs_content[:12000] + "\n\n... [TRUNCATED SUCCESSFUL PAST CV FOR BREVITY] ...\n"
+            logging.info(f"Few-shot example {fs_name} truncated to 12k characters to fit within TPM limits.")
         few_shot_examples.append(
             f"--- SUCCESSFUL PAST CV: {fs_name} (RELEVANCE SCORE: {fs_score}) ---\n"
-            f"{fs_content}\n"
+            f"{fs_content_pruned}\n"
             f"--- END SUCCESSFUL PAST CV ---\n"
         )
 
@@ -538,20 +771,27 @@ def node_drafter(state: CVPipelineState) -> dict:
     for entry_str in entries:
         name_match = re.search(r'CAREER ENTRY: (.*?\.md)', entry_str)
         date_start_match = re.search(
-            r'start:\s*(\d{4}-\d{2}-\d{2})', entry_str)
+            r'start:\s*[\'"]?(\d{4}-\d{2}-\d{2})[\'"]?', entry_str)
 
-        if name_match and date_start_match:
+        if name_match:
             score_match = re.search(
                 r'SEMANTIC RELEVANCE SCORE: (\d+)', entry_str)
             score = int(score_match.group(1)) if score_match else 0
-
             entry_name = name_match.group(1)
-            start_date_str = date_start_match.group(1)
-            year, month, _ = map(int, start_date_str.split('-'))
+
+            if date_start_match:
+                start_date_str = date_start_match.group(1)
+                try:
+                    year, month, _ = map(int, start_date_str.split('-'))
+                    start_date = (year, month)
+                except Exception:
+                    start_date = (1970, 1)
+            else:
+                start_date = (1970, 1)
 
             parsed_entries.append({
                 "name": entry_name,
-                "start_date": (year, month),
+                "start_date": start_date,
                 "score": score,
                 "content": entry_str
             })
@@ -560,30 +800,38 @@ def node_drafter(state: CVPipelineState) -> dict:
     chronological_entries_text = "\n\n".join(
         [str(entry["content"]) for entry in parsed_entries])
 
-    system_prompt = """You are a Master Executive Resume Writer. Your goal is to draft a professional, ATS-optimized Markdown CV that passes both sophisticated and simple tracking systems.
+    system_prompt = """You are a highly rigorous, factual, and detail-oriented Executive Resume Writer. Your goal is to draft a professional, ATS-optimized Markdown CV that is 100% grounded in verifiable data and free of any embellishments, fluff, or fabricated claims.
 
 CORE RULES:
-1. TRUTH & NO HALLUCINATIONS: Use ONLY the provided 'CAREER ENTRIES', 'EDUCATION', 'SKILLS', and 'SUBJECT PROFILE' facts.
+1. TRUTH, NO EMBELLISHMENT & NO HALLUCINATIONS:
+   - Use ONLY the provided 'CAREER ENTRIES', 'EDUCATION', 'SKILLS', and 'SUBJECT PROFILE' facts.
+   - Absolutely NO embellishment, exaggeration, or generic buzzword-heavy marketing speak.
+   - Every single claim, metric, role, and title MUST be directly backed by the provided facts.
+   - Do NOT invent or assume any roles, achievements, years of experience, or leadership responsibilities not explicitly present in the data.
 2. SURGICAL FILTERING: 
    - Act as a filter, not a copier. Even in high-scoring roles, select ONLY the top 3-4 STAR bullets that directly map to the Job Description.
    - Delete or condense supporting bullets that don't add specific value to the target Persona.
    - Prioritize evidence of 'Agentic AI', 'Forward Deployment', and 'Scale'.
-3. CHRONOLOGY & DENSITY CONTROL:
+3. CHRONOLOGY & DENSITY CONTROL (CRITICAL - PREVENT GAPS):
    - All experience MUST be in strict REVERSE CHRONOLOGICAL order.
-   - Compress roles older than 10 years (pre-2015) into a single line summary or 1 concise bullet.
-   - Target length: STRICTLY 2-3 pages.
-4. ATS OPTIMIZATION (EXPERT TIPS):
+   - NO CAREER GAPS: Every provided career entry (including career breaks like "Childcare Leave") must be represented in the final CV. There must be absolutely no timeline gaps in the work experience section.
+   - INTEGRATE CAREER BREAKS: Do NOT list career breaks (like "Childcare Leave") at the end of the Work Experience section or in a separate section. They MUST be integrated directly into the 'Work Experience' timeline in their exact reverse-chronological order based on their dates (e.g., if a career break is 2012-2016, it must appear between a 2017-2026 role and a 2009-2011 role). The Work Experience section must form a single, unbroken chronological timeline from present to past.
+   - RECENT ROLES (Last 10 Years, i.e., 2016 – present): Regardless of how well they match the job description or their semantic relevance score, all recent roles must be fully detailed with 3-4 STAR achievements. Never summarize, condense, or omit roles from the last 10 years.
+   - OLDER ROLES (Older than 10 Years, i.e., pre-2016): Roles older than 10 years should be compressed/summarized to a single-line summary or 1-2 concise bullet points to respect the page budget, but they must remain in the timeline to preserve history.
+4. DEDUPLICATION:
+   - If there are duplicate or overlapping entries in the provided 'CAREER ENTRIES' (e.g. referencing the same company and overlapping dates), merge them cleanly into a single entry in the timeline instead of listing them separately.
+5. ATS OPTIMIZATION & DATA INTEGRITY:
    - USE STANDARD HEADINGS: Only use "Professional Summary", "Key Skills", "Work Experience", "Education", and "Additional Information".
    - EXPAND ACRONYMS: For any technical or professional certification/skill, include both the full name and acronym (e.g., "Natural Language Processing (NLP)", "Project Management Professional (PMP)").
-   - QUANTIFY EVERYTHING: If a bullet doesn't have a number, find a way to quantify it (team size, budget, % increase, number of users, countries reached, or time saved).
-   - 3-LINE HOOK: The "Professional Summary" must be exactly 3 lines long and high-impact.
-5. FORMATTING:
+   - NO METRIC FABRICATION: Under no circumstances should you invent, estimate, or hallucinate metrics, numbers, percentages, budgets, or team sizes. Only include metrics if they are explicitly provided in the source facts. If no metric is given, describe the achievement's impact using clear, objective, and factual language.
+   - REGIONAL PROFESSIONAL SUMMARY: Adapt the style and length of the "Professional Summary" to the target region and format expectations (e.g., US/technical style favors a concise, high-density 1-2 sentence branding statement or profile; UK/EMEA style favors a 3-line dense factual overview; other regions may omit it if requested). Under no circumstances should you use flowery marketing adjectives (e.g., do NOT use words like "Dynamic", "Visionary", "Proven track record", or "Adept at..."). If a summary is used, pack it entirely with dense, concrete facts: exact years of experience, primary technical skills, specific domains, and key verified achievements. Do not pad or add fluff to hit any arbitrary length.
+6. FORMATTING:
    - Respond with pure markdown only (NO code blocks).
    - For EVERY role, include a **Technologies:** line immediately after the header.
-6. SKILL BRIDGING: Use the 'SKILL BRIDGING MAP' to translate or bridge candidate skills to the JD's requested keywords where direct sibling/equivalent technologies exist.
-7. INCORPORATE PROJECTS & PATENTS: Integrate the retrieved standalone projects and patents into the respective Work Experience roles or an "Additional Information" / "Key Accomplishments" section to showcase modular, high-impact achievements.
-8. MY VOICE & PEER PRAISE: Infuse authentic reflections, peer praises, and proof points from 'PERFORMANCE REVIEW NOTES' into the Professional Summary and Work Experience descriptions to deliver a highly personal, high-agency tone.
-9. FEW-SHOT ALIGNMENT: Study the successful 'FEW-SHOT EXAMPLES' to mirror their style, density, and formatting structures.
+7. SKILL BRIDGING: Use the 'SKILL BRIDGING MAP' to translate or bridge candidate skills to the JD's requested keywords where direct sibling/equivalent technologies exist.
+8. INCORPORATE PROJECTS & PATENTS: Integrate the retrieved standalone projects and patents into the respective Work Experience roles or an "Additional Information" / "Key Accomplishments" section to showcase modular, high-impact achievements.
+9. MY VOICE & PEER PRAISE: Infuse authentic reflections, peer praises, and proof points from 'PERFORMANCE REVIEW NOTES' into the Professional Summary and Work Experience descriptions to deliver a highly personal, high-agency tone. Do not extrapolate beyond the literal facts provided in the notes.
+10. FEW-SHOT ALIGNMENT: Study the successful 'FEW-SHOT EXAMPLES' to mirror their style, density, and formatting structures, while maintaining absolute factual accuracy.
 """
 
     prompt = f"""Please draft the final CV.
@@ -632,10 +880,30 @@ SKILLS & LANGUAGES:
 Draft the final tailored Markdown CV now:
 """
 
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=prompt)
-    ])
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=prompt)
+        ])
+    except Exception as e:
+        err_msg = str(e).lower()
+        if any(keyword in err_msg for keyword in ["rate_limit", "rate limit", "limit_exceeded", "429"]):
+            fallback_llm = get_fallback_model_for_step("DRAFTING")
+            if fallback_llm is not None:
+                logging.warning(f"DRAFTING LLM invocation failed due to rate limit: {e}. Attempting configured fallback model...")
+                try:
+                    response = fallback_llm.invoke([
+                        SystemMessage(content=system_prompt),
+                        HumanMessage(content=prompt)
+                    ])
+                except Exception as fallback_err:
+                    logging.error(f"Configured fallback model failed: {fallback_err}. Re-raising original rate limit error.")
+                    raise e
+            else:
+                logging.warning(f"DRAFTING LLM invocation failed due to rate limit: {e}. No valid fallback model configured or credentials missing. Re-raising error.")
+                raise e
+        else:
+            raise e
 
     return {"draft_cv": _llm_text(response.content)}
 
@@ -670,11 +938,15 @@ def node_auditor(state: CVPipelineState) -> dict:
     prompt = f"""Act as a brutally honest Executive Recruiter and ATS Specialist. Review the Draft CV against the Job Description.
 
 CRITIQUE CRITERIA:
-1. WEAK METRICS: Highlight any bullet points that lack quantifiable impact (numbers, %, $, time).
-2. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
-3. FLUFF: Identify overused buzzwords that don't have supporting evidence.
+1. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, or achievements. Highlight any claim, metric, role, or title that is not directly supported by the candidate's career history and facts.
+2. NO FLUFF/MARKETING HYPE: Identify and reject any generic marketing buzzwords or empty filler adjectives (such as "Dynamic", "Visionary", "Proven track record", "Adept at") in the summary or experience descriptions. Ensure the tone is objective, sober, factual, and direct.
+3. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
 4. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
-5. SUMMARY HOOK: Is the professional summary exactly 3 lines and compelling?
+5. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations (e.g. concise 1-2 sentence statement for US, or a 3-line overview for UK/EMEA), dense, strictly factual, and completely free of fluff or marketing hype?
+6. TIMELINE CONTINUITY & CHRONOLOGY (CRITICAL):
+   - Check if all experiences (including career breaks like "Childcare Leave") are in strict REVERSE CHRONOLOGICAL order.
+   - Verify that there are absolutely NO timeline/career gaps in the Work Experience section.
+   - Ensure that career breaks are integrated directly into the Work Experience timeline in their correct reverse-chronological position, NOT pushed to the end of the section or into a separate section.
 
 If the CV is world-class and perfectly optimized, output "PASS". 
 Otherwise, provide a BRUTALLY HONEST list of gaps and specific rewrite suggestions.

@@ -89,10 +89,73 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     elif model_type == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         model_name = step_config.get("MODEL_NAME", models_map.get("gemini", "gemini-1.5-flash"))
+        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
+        if model_name == "gemini-1.5-flash":
+            logging.info(f"Mapping deprecated model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
+            model_name = "gemini-2.5-flash"
+        elif model_name == "gemini-1.5-pro":
+            logging.info(f"Mapping deprecated model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
+            model_name = "gemini-2.5-pro"
         return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
     
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
+
+def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
+    """
+    Returns the fallback LLM instance configured under a specific pipeline step in config.yaml.
+    Checks for credential availability before instantiating.
+    """
+    config = load_config()
+    steps = config.get("STEPS", {})
+    step_config = steps.get(step_name)
+    if not step_config or "FALLBACK" not in step_config:
+        return None
+        
+    fallback_config = step_config["FALLBACK"]
+    model_type = fallback_config.get("TYPE")
+    model_name = fallback_config.get("MODEL_NAME")
+    
+    if not model_type or not model_name:
+        return None
+        
+    if model_type == "openai":
+        if not os.getenv("OPENAI_API_KEY"):
+            logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
+            return None
+        kwargs = {}
+        if format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+        return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
+        
+    elif model_type == "gemini":
+        if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+            logging.warning(f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set.")
+            return None
+        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
+        if model_name == "gemini-1.5-flash":
+            logging.info(f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
+            model_name = "gemini-2.5-flash"
+        elif model_name == "gemini-1.5-pro":
+            logging.info(f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
+            model_name = "gemini-2.5-pro"
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+        
+    elif model_type == "ollama":
+        base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        kwargs = {}
+        if format:
+            kwargs["format"] = format
+        return ChatOllama(
+            model=model_name, 
+            base_url=base_url, 
+            temperature=temperature,
+            num_ctx=8192,
+            **kwargs
+        )
+        
+    return None
 
 def get_model(temperature=0):
     """Legacy wrapper for global model instantiation."""

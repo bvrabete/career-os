@@ -135,6 +135,7 @@ class IngestionState(TypedDict):
     extracted_patents: List[dict]
     extracted_notes: List[dict]
     extracted_cover_letters: List[dict]
+    extracted_profile: dict
     resolved_entities: dict
     wiki_outputs: List[dict]
 
@@ -192,6 +193,104 @@ def _resolve_org(raw_name: str, mappings: dict) -> str:
     return raw_slug
 
 
+def _get_persona_slug_from_mappings() -> str | None:
+    """Parse mappings.md to find the canonical persona slug from ## Persona Mappings section."""
+    mappings_path = get_mappings_path()
+    if not mappings_path.exists():
+        return None
+    
+    with open(mappings_path, "r", encoding="utf-8") as f:
+        in_persona_section = False
+        for line in f:
+            if "## Persona Mappings" in line:
+                in_persona_section = True
+                continue
+            elif line.startswith("## ") and in_persona_section:
+                in_persona_section = False
+                
+            if in_persona_section and "**Canonical:**" in line:
+                m = re.search(r'\[\[([^\]]+)\]\]', line)
+                if m:
+                    return m.group(1).strip()
+    return None
+
+
+def _add_persona_mapping_if_missing(name: str, slug: str):
+    """Automatically append a new Persona Mapping to mappings.md if not already present."""
+    mappings_path = get_mappings_path()
+    if not mappings_path.exists():
+        return
+    
+    content = mappings_path.read_text(encoding="utf-8")
+    
+    # Check if slug is already mentioned in mappings.md
+    if f"[[{slug}]]" in content:
+        return
+        
+    lines = content.splitlines()
+    new_lines = []
+    in_section = False
+    added = False
+    
+    for line in lines:
+        if "## Persona Mappings" in line:
+            in_section = True
+            new_lines.append(line)
+            continue
+        elif line.startswith("## ") and in_section:
+            # We reached the next section without having written our new mapping.
+            # Append it right here before continuing.
+            new_lines.append(f"- **Canonical:** [[{slug}]]")
+            new_lines.append(f"  - Aliases: `{name}`")
+            new_lines.append("")
+            added = True
+            in_section = False
+        
+        new_lines.append(line)
+            
+    if in_section and not added:
+        # Persona section was at the end, append it
+        new_lines.append(f"- **Canonical:** [[{slug}]]")
+        new_lines.append(f"  - Aliases: `{name}`")
+        new_lines.append("")
+        added = True
+        
+    if not added:
+        # Persona section didn't exist at all, append it to the end
+        new_lines.append("")
+        new_lines.append("## Persona Mappings")
+        new_lines.append("")
+        new_lines.append(f"- **Canonical:** [[{slug}]]")
+        new_lines.append(f"  - Aliases: `{name}`")
+        new_lines.append("")
+        
+    mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    logging.info(f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
+
+
+def _get_persona_slug(profile_name: str) -> str:
+    """Robustly find or generate the canonical persona slug, and ensure mappings.md is seeded."""
+    # 1. Look for existing canonical persona slug
+    persona_slug = _get_persona_slug_from_mappings()
+    if persona_slug:
+        return persona_slug
+        
+    # 2. Look up in general mappings if name is mapped
+    mappings = _parse_mappings()
+    resolved = _resolve_org(profile_name, mappings)
+    if resolved != _slugify(profile_name):
+        _add_persona_mapping_if_missing(profile_name, resolved)
+        return resolved
+        
+    # 3. Fallback: slugify name and append -person to distinguish it from organizations
+    slug = _slugify(profile_name)
+    if not slug.endswith("-person") and slug != "brad-vrabete":
+        slug = f"{slug}-person"
+        
+    _add_persona_mapping_if_missing(profile_name, slug)
+    return slug
+
+
 def _llm_text(content: Union[str, list]) -> str:  # type: ignore[type-arg]
     """Coerce a LangChain response.content value to a plain string.
 
@@ -213,6 +312,26 @@ def _strip_fences(text: str) -> str:
 def _clean_frontmatter(content: str) -> str:
     """Strip code fences, HTML comments and trailing annotations from frontmatter block."""
     content = content.strip()
+    
+    # Handle LLM wrapping frontmatter or entire file in markdown code blocks (e.g. ```yaml ... ```)
+    if content.startswith("```"):
+        lines = content.splitlines()
+        first_line = lines[0].strip()
+        closing_idx = -1
+        for idx in range(1, len(lines)):
+            if lines[idx].strip() == "```" or lines[idx].strip() == "```markdown":
+                closing_idx = idx
+                break
+        if closing_idx != -1:
+            fm_lines = lines[1:closing_idx]
+            body_lines = lines[closing_idx+1:]
+            
+            # Clean fm_lines of any inner ---
+            fm_lines_cleaned = [l for l in fm_lines if l.strip() != "---"]
+            fm_content = "\n".join(fm_lines_cleaned)
+            body_content = "\n".join(body_lines)
+            content = f"---\n{fm_content}\n---\n\n{body_content}"
+
     lines = content.splitlines()
     boundary_indices = [i for i, line in enumerate(lines) if line.strip() == "---"]
     
@@ -375,10 +494,20 @@ CRITICAL CONSTRAINTS:
 2. Extract organization and institution names EXACTLY as they appear — do NOT normalize (keep "Intel Corp", not "Intel Corporation").
 3. NEVER fabricate metrics, dates, or achievements not present in the source text.
 4. If a date is approximate (e.g. "2020"), output "2020-01-01" as best estimate. If a date is completely missing, output an empty string.
-5. Output ONLY valid JSON with no markdown fences and no explanation.
+5. CAREER BREAKS: Do NOT ignore or skip explicitly listed career breaks, childcare leave, parental leave, sabbaticals, or extended gaps on the resume. Extract them as entries in the "roles" array: use "Career Break" or "Self" for raw_org_name, the type of break (e.g. "Childcare Leave", "Sabbatical") for title, provide the start and end dates, set tracks to ["Engineering"] (or appropriate track), and describe the break context (e.g. "Childcare Leave" or "Sabbatical").
+6. Output ONLY valid JSON with no markdown fences and no explanation.
 
 Output format:
 {
+  "profile": {
+    "name": "<full legal or preferred candidate name, e.g. Amalia Vrabete>",
+    "email": "<email address>",
+    "phone": "<phone number>",
+    "linkedin": "<linkedin profile URL or empty string>",
+    "location": "<address, city, country, or location, e.g. Veldleeuwerik 8, IJsselstein, Utrecht, Netherlands>",
+    "overview": "<overview/professional summary paragraph from the resume or a concise 1-2 sentence career description if no explicit summary is found>",
+    "tags": ["<relevant high-level skill/domain tags like 'supply chain', 'logistics', 'data analytics', etc.>"]
+  },
   "roles": [
     {
       "raw_org_name": "<exact company name from document>",
@@ -440,7 +569,7 @@ Output format:
 
     response = llm.invoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Extract all roles, education history, spoken languages, projects, and patents from this document:\n\n{raw_text}")
+        HumanMessage(content=f"Extract candidate personal profile, all roles, education history, spoken languages, projects, and patents from this document:\n\n{raw_text}")
     ])
     
     raw = _llm_text(response.content).strip()
@@ -531,6 +660,7 @@ def node_extractor(state: IngestionState) -> dict:
     patents = []
     notes = []
     cover_letters = []
+    profile = {}
 
     if not raw_text.strip():
         logging.warning("Empty raw_text - skipping extraction")
@@ -541,7 +671,8 @@ def node_extractor(state: IngestionState) -> dict:
             "extracted_projects": projects,
             "extracted_patents": patents,
             "extracted_notes": notes,
-            "extracted_cover_letters": cover_letters
+            "extracted_cover_letters": cover_letters,
+            "extracted_profile": profile
         }
 
     llm = get_model_for_step("INGESTION_EXTRACT")
@@ -553,7 +684,10 @@ def node_extractor(state: IngestionState) -> dict:
         languages = extracted.get("languages", [])
         projects = extracted.get("projects", [])
         patents = extracted.get("patents", [])
+        profile = extracted.get("profile", {})
         logging.info(f"Extracted {len(roles)} role(s), {len(education)} education entry(ies), {len(languages)} language(s), {len(projects)} project(s), {len(patents)} patent(s)")
+        if profile:
+            logging.info(f"Extracted personal profile for: {profile.get('name')}")
         
     elif doc_type == "cover_letter":
         extracted = _extract_cover_letter(llm, raw_text)
@@ -575,7 +709,8 @@ def node_extractor(state: IngestionState) -> dict:
         "extracted_projects": projects,
         "extracted_patents": patents,
         "extracted_notes": notes,
-        "extracted_cover_letters": cover_letters
+        "extracted_cover_letters": cover_letters,
+        "extracted_profile": profile
     }
 
 
@@ -1174,6 +1309,75 @@ Output the complete wiki markdown file content (frontmatter block then body):"""
             })
 
 
+def _generate_profile(profile: dict, source_file: str, today_str: str, wiki_outputs: List[dict]):
+    """Generate candidate profile markdown (person entity) and add to wiki_outputs."""
+    name = profile.get("name", "").strip()
+    if not name:
+        logging.warning("No profile name extracted; skipping profile generation")
+        return
+
+    slug = _get_persona_slug(name)
+    target_path = get_wiki_root() / "entities" / f"{slug}.md"
+    
+    # Preserve existing profile created/updated dates if file exists
+    created_str = today_str
+    if target_path.exists():
+        try:
+            existing_content = target_path.read_text(encoding="utf-8")
+            m_created = re.search(r'created:\s*([\d-]+)', existing_content)
+            if m_created:
+                created_str = m_created.group(1).strip()
+        except Exception as e:
+            logging.warning(f"Failed to read existing created date: {e}")
+
+    tags = profile.get("tags", [])
+    if "person" not in tags:
+        tags = ["person"] + tags
+
+    # Coerce tags to list of strings
+    tags_str = json.dumps(tags)
+    
+    # Basename of source file
+    source_basename = Path(source_file).name
+    
+    # Build clean markdown
+    overview_text = profile.get("overview", "").strip()
+    if not overview_text:
+        overview_text = f"{name} is a professional specializing in {', '.join(tags[1:4]) if len(tags) > 1 else 'their field'}."
+
+    content = f"""---
+type: entity
+title: {name}
+created: {created_str}
+updated: {today_str}
+tags: {tags_str}
+related: []
+sources: ["{source_basename}"]
+---
+# {name}
+
+- **Full Legal Name:** {name}
+- **Preferred Name:** {name}
+- **Email:** {profile.get("email", "").strip()}
+- **LinkedIn:** {profile.get("linkedin", "").strip()}
+- **Phone:** {profile.get("phone", "").strip()}
+- **Location:** {profile.get("location", "").strip()}
+
+## Overview
+{overview_text}
+"""
+    wiki_outputs.append({
+        "path": str(target_path),
+        "content": content,
+        "org_slug": slug,
+        "title": name,
+        "type": "entity",
+        "merged": target_path.exists(),
+        "validation_errors": [],
+    })
+    logging.info(f"Generated profile entity for {name} ({slug})")
+
+
 def node_generator(state: IngestionState) -> dict:
     """Pass 2: Generate schema-compliant wiki markdown using canonical slugs."""
     logging.info("--- NODE: GENERATOR (Pass 2) ---")
@@ -1184,8 +1388,9 @@ def node_generator(state: IngestionState) -> dict:
     patents = state.get("extracted_patents", [])
     notes = state.get("extracted_notes", [])
     cover_letters = state.get("extracted_cover_letters", [])
+    profile = state.get("extracted_profile", {})
 
-    if not any([roles, education, languages, projects, patents, notes, cover_letters]):
+    if not any([roles, education, languages, projects, patents, notes, cover_letters, profile]):
         logging.info("No content to generate")
         return {"wiki_outputs": []}
 
@@ -1225,6 +1430,10 @@ def node_generator(state: IngestionState) -> dict:
     if cover_letters:
         _generate_cover_letters(llm, cover_letters, resolved, today_str, wiki_outputs)
 
+    # 8. Profile/Persona Entity Generation
+    if profile:
+        _generate_profile(profile, state.get("source_file", ""), today_str, wiki_outputs)
+
     return {"wiki_outputs": wiki_outputs}
 
 
@@ -1250,7 +1459,7 @@ def _find_existing_experience(org_slug: str, generated_path: Path, role_start: s
             # Search raw text — YAML parses [[slug]] as nested list, not string
             if f"[[{org_slug}]]" not in fm_text:
                 continue
-            fm = yaml.safe_load(fm_text)
+            fm = yaml.safe_load(fm_text) or {}
             start = str(fm.get("dates", {}).get("start", ""))
             candidates.append((f, start))
         except Exception:
@@ -1307,7 +1516,7 @@ def _find_existing_education(inst_slug: str, generated_path: Path, edu_start: st
             fm_text = fm_match.group(1)
             if f"[[{inst_slug}]]" not in fm_text:
                 continue
-            fm = yaml.safe_load(fm_text)
+            fm = yaml.safe_load(fm_text) or {}
             start = str(fm.get("dates", {}).get("start", ""))
             candidates.append((f, start))
         except Exception:
@@ -1365,7 +1574,7 @@ def node_merger(state: IngestionState) -> dict:
                             output.get("content", ""), re.DOTALL)
         if fm_match:
             try:
-                fm = yaml.safe_load(fm_match.group(1))
+                fm = yaml.safe_load(fm_match.group(1)) or {}
                 role_start = str(fm.get("dates", {}).get("start", ""))
                 page_type = fm.get("type", "experience")
             except Exception:
@@ -1442,6 +1651,16 @@ CRITICAL CONSTRAINTS:
 3. UPDATE: Set the frontmatter `updated:` field to {today}.
 4. LANGUAGE: English only.
 5. FORMAT: Output raw markdown only — do NOT wrap the output or any sections in markdown code blocks or fences. No explanation."""
+        elif page_type == "entity":
+            system_prompt = f"""You are a strict Wiki Maintenance Agent merging new evidence into an existing entity page.
+     
+CRITICAL CONSTRAINTS:
+1. PRESERVE: Keep all existing overview, contact details (if any), legal name, and key contributions/core value details verbatim.
+2. ENRICH: Add new contact details, tags, sources, or contributions that are NOT already present.
+3. DEDUPLICATE: Skip identical details.
+4. UPDATE: Set the frontmatter `updated:` field to {today}. Combine the lists of `tags` and `sources` from both files, removing duplicates and preserving clean YAML syntax.
+5. LANGUAGE: English only.
+6. FORMAT: Output raw markdown only — do NOT wrap the output or any sections in markdown code blocks or fences. No explanation."""
         elif page_type == "cover-letter":
             system_prompt = f"""You are a strict Wiki Maintenance Agent merging cover letter variants.
      
@@ -1515,7 +1734,7 @@ def node_validator(state: IngestionState) -> dict:
             errors.append("No valid YAML frontmatter block found")
         else:
             try:
-                fm = yaml.safe_load(fm_match.group(1))
+                fm = yaml.safe_load(fm_match.group(1)) or {}
                 page_type = fm.get("type", "unknown")
                 
                 if page_type == "experience":
@@ -1600,6 +1819,12 @@ def node_validator(state: IngestionState) -> dict:
                     org = str(fm.get("target_organization", ""))
                     if "[[" not in org or "]]" not in org:
                         errors.append(f"target_organization field missing [[slug]] syntax: '{org}'")
+
+                elif page_type == "entity":
+                    ENTITY_REQUIRED_FIELDS = {"type", "title", "tags", "sources"}
+                    missing = ENTITY_REQUIRED_FIELDS - set(fm.keys())
+                    if missing:
+                        errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
                 else:
                     errors.append(f"Unknown frontmatter type: '{page_type}'")

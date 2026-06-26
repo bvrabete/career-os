@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-26
+
+### Added
+
+- **Factual Honesty and Non-Embellishment Mandate**: Re-engineered the core CV generation pipeline prompts in `src/cv_generator_graph.py` to enforce strict data integrity and prohibit metric fabrication or empty resume-writing adjectives (e.g. "Dynamic", "Visionary", "Proven track record").
+- **Dynamic Regional Professional Summaries**: Refactored the summary guidelines to adapt style and length dynamically according to target regions (such as 1-2 sentence concise technical hooks for US-style resumes, or 3-line dense factual overviews for UK/EMEA targets) rather than a rigid, hardcoded 3-line constraint.
+- **Fact-Based Skill Bridging Guidelines**: Guided the `node_drafter` to explicitly represent transferable skills using honest qualifiers (e.g. "Azure (AWS equivalent)" or "Kotlin (transferable to Java)") to pass semantic ATS screeners without fabricating direct experience.
+
+### Changed
+
+- **Rigorous Auditing Criteria**: Updated the `node_auditor` critique prompt to penalize embellishments, fake metrics, and empty marketing buzzwords while allowing flexible, factual, region-appropriate summaries.
+
 ## [1.3.0] - 2026-06-21
 
 ### Added

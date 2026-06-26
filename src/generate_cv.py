@@ -19,6 +19,7 @@ def main():
         "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
     parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
     parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
+    parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
     args = parser.parse_args()
 
     import os
@@ -129,6 +130,20 @@ updated: {today_str}
                 print(f"❌ PDF generation failed.")
         except Exception as e:
             print(f"❌ Error during PDF generation: {e}")
+
+    # Generate DOCX if requested
+    if args.generate_docx:
+        try:
+            from docx_generator import generate_docx
+            docx_out_path = out_path.with_suffix(".docx")
+            print(f"📄 Compiling Word document (docx) CV...")
+            success = generate_docx(draft, str(docx_out_path))
+            if success:
+                print(f"🎨 Word (docx) saved successfully to {docx_out_path}")
+            else:
+                print(f"❌ Word (docx) generation failed.")
+        except Exception as e:
+            print(f"❌ Error during Word (docx) generation: {e}")
 
 
 if __name__ == "__main__":
