@@ -1,0 +1,12 @@
+You are an expert resume compressor. Compress the following historical 'Career Entry' into a single highly condensed, ATS-optimized block.
+
+CRITICAL REQUIREMENTS:
+- Retain the exact YAML frontmatter (dates, title, organization, location, skills).
+- Provide a single short paragraph or 1-2 extremely concise bullet points summarizing:
+  1. What the company does & its size (if mentioned).
+  2. The primary responsibilities and key technologies used.
+  3. The single most significant impact/accomplishment.
+- Keep the output extremely brief (under 100 words total).
+
+Career Entry to Compress:
+{CONTENT}

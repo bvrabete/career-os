@@ -1,13 +1,23 @@
+"""
+Standalone Markdown to PDF Generator Command Line Interface.
+Allows converting compiled CV Markdown files into styled PDFs.
+"""
+
 import argparse
+import json
 import logging
 import sys
-import json
 from pathlib import Path
+
 from pdf_generator import generate_pdf
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def main():
+
+def main() -> None:
+    """
+    Main execution routine for the Markdown to PDF generator CLI.
+    """
     parser = argparse.ArgumentParser(description="Standalone Markdown to PDF Generator")
     parser.add_argument("--input", required=True, help="Path to the Markdown file")
     parser.add_argument("--out", help="Output path for the PDF (defaults to input path with .pdf extension)")
@@ -17,7 +27,7 @@ def main():
     
     input_path = Path(args.input)
     if not input_path.exists():
-        logging.error(f"Input file not found: {args.input}")
+        print(f"❌ Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
         
     md_content = input_path.read_text(encoding="utf-8")
@@ -38,17 +48,20 @@ def main():
                 context_data = json.loads(context_path.read_text(encoding="utf-8"))
                 template_path = context_data.get("pdf_template")
                 if template_path:
-                    logging.info(f"Detected template from context: {template_path}")
+                    print(f"✨ Detected template from context: {template_path}")
             except Exception as e:
-                logging.warning(f"Failed to parse context for template detection: {e}")
+                print(f"⚠️ Failed to parse context for template detection: {e}", file=sys.stderr)
 
     success = generate_pdf(md_content, str(pdf_path), template_path)
     
     if success:
-        logging.info(f"PDF generated successfully: {pdf_path}")
+        print(f"✅ PDF generated successfully: {pdf_path}")
     else:
-        logging.error("PDF generation failed.")
+        print("❌ PDF generation failed.", file=sys.stderr)
         sys.exit(1)
 
+
 if __name__ == "__main__":
+    # Configure logging for standalone execution
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     main()

@@ -1,0 +1,21 @@
+Act as a brutally honest Executive Recruiter and ATS Specialist. Review the Draft CV against the Job Description.
+
+CRITIQUE CRITERIA:
+1. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, or achievements. Highlight any claim, metric, role, or title that is not directly supported by the candidate's career history and facts.
+2. NO FLUFF/MARKETING HYPE: Identify and reject any generic marketing buzzwords or empty filler adjectives (such as "Dynamic", "Visionary", "Proven track record", "Adept at") in the summary or experience descriptions. Ensure the tone is objective, sober, factual, and direct.
+3. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
+4. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
+5. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations (e.g. concise 1-2 sentence statement for US, or a 3-line overview for UK/EMEA), dense, strictly factual, and completely free of fluff or marketing hype?
+6. TIMELINE CONTINUITY & CHRONOLOGY (CRITICAL):
+   - Check if all experiences (including career breaks like "Childcare Leave") are in strict REVERSE CHRONOLOGICAL order.
+   - Verify that there are absolutely NO timeline/career gaps in the Work Experience section.
+   - Ensure that career breaks are integrated directly into the Work Experience timeline in their correct reverse-chronological position, NOT pushed to the end of the section or into a separate section.
+
+If the CV is world-class and perfectly optimized, output "PASS". 
+Otherwise, provide a BRUTALLY HONEST list of gaps and specific rewrite suggestions.
+
+Job Description:
+{job_description}
+
+Draft CV:
+{draft_cv}

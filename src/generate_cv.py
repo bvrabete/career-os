@@ -3,7 +3,7 @@ import logging
 import json
 import warnings
 from pathlib import Path
-from cv_generator_graph import build_graph
+from generation import build_graph
 
 # Suppress annoying logging from httpx if possible
 logging.getLogger("httpx").setLevel(logging.WARNING)

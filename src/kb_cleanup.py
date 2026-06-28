@@ -4,31 +4,36 @@ This script performs a retroactive sweep across all experience files to dynamica
 partition achievements, semantically deduplicate redundant bullets, and merge frontmatter fields.
 """
 
-import sys
+import argparse
+import logging
 import os
 import re
 import shutil
-import logging
+import sys
 from datetime import date
 from pathlib import Path
-from typing import Union
+from typing import Any
 
-# Add current directory and src/ to path
-sys.path.insert(0, str(Path(__file__).parent))
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from kb_config import get_model_for_step, get_wiki_dir
-from langchain_core.messages import SystemMessage, HumanMessage
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
-def _llm_text(content: Union[str, list]) -> str:
+def _llm_text(content: str | list[Any]) -> str:
+    """
+    Coerce LLM content response into a standard string.
+    """
     if isinstance(content, str):
         return content
     return " ".join(str(part) for part in content)
 
 
 def _clean_frontmatter(content: str) -> str:
+    """
+    Extracts and sanitizes the frontmatter block, and cleans up formatting issues.
+    """
     content = content.strip()
     
     if content.startswith("```"):
@@ -75,10 +80,13 @@ def _clean_frontmatter(content: str) -> str:
     return f"---\n{cleaned_fm}\n---\n\n{body}"
 
 
-def run_cleanup(wiki_dir: Path, dry_run: bool = False):
+def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
+    """
+    Run retroactive clean-up sweep on all experience files in the wiki.
+    """
     experiences_dir = wiki_dir / "wiki" / "experiences"
     if not experiences_dir.exists():
-        print(f"❌ Experiences directory not found at: {experiences_dir}")
+        print(f"❌ Experiences directory not found at: {experiences_dir}", file=sys.stderr)
         return
 
     # 1. Create a safe backup before doing anything in-place
@@ -95,6 +103,11 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False):
     llm = get_model_for_step("INGESTION_MERGE")
     today = date.today().isoformat()
 
+    # Load prompts externalized to src/prompts/ingestion/
+    prompts_dir = Path(__file__).parent / "prompts" / "ingestion"
+    system_template = (prompts_dir / "cleanup_system.txt").read_text(encoding="utf-8")
+    user_template = (prompts_dir / "cleanup_user.txt").read_text(encoding="utf-8")
+
     total_processed = 0
     total_errors = 0
 
@@ -106,21 +119,8 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False):
         print(f"\n✨ Consolidating and cleaning up: {f.name}")
         content = f.read_text(encoding="utf-8")
 
-        system_prompt = f"""You are an elite Career Operating System Database Architect performing database-wide normalization on experience entries.
-
-Your goal is to optimize and rewrite the given experience file in-place to ensure absolute factual density, zero verbal redundancy, and strict compliance with the dynamic schema standards.
-
-CRITICAL CONSTRAINTS:
-1. DYNAMIC THEMATIC PARTITIONING: Analyze the complete set of accomplishments currently present in the file. Identify the optimal 3 to 5 core thematic categories (H3 headings) that best partition and capture the unique focus areas of this specific role. Avoid rigid hardcoded headings if they do not fit the role's level, track, or seniority (e.g., an early developer shouldn't have management headings; a CTO should have business/board headings). Do not create more than 5 headings, and do not use more than 1 category containing only a single bullet.
-2. SEMANTIC DEDUPLICATION: Intelligently merge and combine overlapping or highly similar accomplishments. If multiple bullet points describe the same project, system, tool implementation, or incident response (even if phrased differently), synthesize them into a single, high-impact, information-dense STAR bullet. Completely eliminate verbal repetition.
-3. CONCRETE DETAILS: Never lose or dilute any precise metrics, dollar amounts, headcounts, numbers, technology names, specific tool names, or physical document/meeting/evidence references (e.g., PowerPoint filenames, email subjects, or meeting names like 'Daily stand-up', 'Red Foundation', etc.). Merge details to maximize factual weight and authenticity.
-4. FRONTMATTER INTEGRATION: Keep the existing YAML frontmatter fields (type, title, organization, location, dates, tracks, skills, tags, created) intact, but clean up the `sources` list to combine all relevant sources, remove duplicates, and sort them. Set the `updated:` date to {today}. Keep the frontmatter perfectly valid, clean YAML with no markdown code blocks, backticks, or inline comments.
-5. NARRATIVE & REFLECTIONS: Retain the entire Narrative & Reflections and Context sections verbatim. Do not truncate, summarize, or alter them unless there are explicit duplicates inside them.
-6. LANGUAGE & FORMAT: Output English only. Output raw markdown only — do NOT wrap the output or any sections in markdown code blocks or fences. No explanations."""
-
-        prompt = f"""Clean up, consolidate, and deduplicate the following career experience file. Output the complete optimized markdown:
-
-{content}"""
+        system_prompt = system_template.replace("{today}", today)
+        prompt = user_template.replace("{content}", content)
 
         if dry_run:
             print(f"  [DRY RUN] Would rewrite: {f.name}")
@@ -139,7 +139,7 @@ CRITICAL CONSTRAINTS:
             else:
                 raise ValueError("LLM response did not contain valid YAML frontmatter delimiters.")
         except Exception as e:
-            print(f"  ❌ Error processing {f.name}: {e}")
+            print(f"  ❌ Error processing {f.name}: {e}", file=sys.stderr)
             total_errors += 1
 
     print(f"\n{'=' * 50}")
@@ -149,8 +149,10 @@ CRITICAL CONSTRAINTS:
         print(f"ℹ️  A backup is available in wiki/experiences_backup/ in case you need to revert any changes.")
 
 
-def main():
-    import argparse
+def main() -> None:
+    """
+    CLI Main entry point for the experiences cleanup tool.
+    """
     parser = argparse.ArgumentParser(description="Career OS Experiences Retroactive Cleanup Tool")
     parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
@@ -166,4 +168,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # Add current directory and src/ to path to allow importing config correctly
+    sys.path.insert(0, str(Path(__file__).parent))
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     main()

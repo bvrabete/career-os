@@ -1,22 +1,35 @@
-import os
+"""
+Module for generating high-quality PDFs from Markdown content
+using WeasyPrint and customizable CSS templates.
+"""
+
 import logging
-import markdown2
+import os
 from pathlib import Path
-from weasyprint import HTML, CSS
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+import markdown2
+from weasyprint import CSS, HTML
+
+logger = logging.getLogger(__name__)
 
 
-def generate_pdf(md_content: str, output_path: str, css_template_path: str = None):
+def generate_pdf(md_content: str, output_path: str, css_template_path: str | None = None) -> bool:
     """
     Converts Markdown content to a PDF using WeasyPrint and an optional CSS template.
+    
+    Args:
+        md_content: Markdown source string.
+        output_path: Path where the resulting PDF will be saved.
+        css_template_path: Optional path to a CSS template file for custom styling.
+        
+    Returns:
+        bool: True if generation was successful, False otherwise.
     """
-    logging.info(f"Generating PDF for {output_path}...")
+    logger.info(f"Generating PDF for {output_path}...")
 
     # 1. Convert Markdown to HTML
     # Use extras for common MD features (tables, code blocks, etc.)
-    html_body = markdown2.markdown(
+    html_body: str = markdown2.markdown(
         md_content, extras=["fenced-code-blocks", "tables", "header-ids"])
 
     # 2. Wrap in basic HTML structure
@@ -36,7 +49,7 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str = Non
     """
 
     # 3. Prepare CSS
-    stylesheets = []
+    stylesheets: list[CSS] = []
     if css_template_path:
         css_path = Path(css_template_path)
         
@@ -56,7 +69,7 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str = Non
                         css_path = p
                         break
             except Exception as e:
-                logging.debug(f"Could not resolve via external wiki_dir: {e}")
+                logger.debug(f"Could not resolve via external wiki_dir: {e}")
 
         # 3.2 Fallback to repository location if still not found
         if not css_path.exists():
@@ -70,23 +83,24 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str = Non
 
         if css_path.exists():
             stylesheets.append(CSS(filename=str(css_path)))
-            logging.info(f"Using CSS template: {css_path}")
+            logger.info(f"Using CSS template: {css_path}")
         else:
-            logging.warning(
+            logger.warning(
                 f"CSS template not found at {css_template_path}, using default styling.")
 
     # 4. Generate PDF
     try:
         HTML(string=full_html, base_url=os.getcwd()).write_pdf(
             output_path, stylesheets=stylesheets)
-        logging.info(f"Successfully saved PDF to {output_path}")
+        logger.info(f"Successfully saved PDF to {output_path}")
         return True
     except Exception as e:
-        logging.exception(f"Failed to generate PDF: {str(e)}")
+        logger.exception(f"Failed to generate PDF: {str(e)}")
         return False
 
 
 if __name__ == "__main__":
     # Test run
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     test_md = "# Test CV\n\nThis is a test PDF generation.\n\n- Point 1\n- Point 2"
     generate_pdf(test_md, "test_cv.pdf", "templates/base.css")

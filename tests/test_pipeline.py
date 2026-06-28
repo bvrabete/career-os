@@ -2,16 +2,16 @@ import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 import json
-
 import sys
+
 # Ensure src is in python path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from cv_generator_graph import (
-    _score_by_keywords,
-    _generate_skill_bridging_map,
-    node_analyzer,
-    CVPipelineState
+from generation.state import CVPipelineState
+from generation.nodes import node_analyzer
+from generation.helpers import (
+    score_by_keywords as _score_by_keywords,
+    generate_skill_bridging_map as _generate_skill_bridging_map
 )
 
 
@@ -44,7 +44,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(_score_by_keywords("", ["Python"]), 0)
         self.assertEqual(_score_by_keywords("Some text", []), 0)
 
-    @patch("cv_generator_graph.get_model_for_step")
+    @patch("generation.helpers.get_model_for_step")
     def test_generate_skill_bridging_map_basic(self, mock_get_model):
         """Test _generate_skill_bridging_map returns expected dictionary."""
         mock_llm = MagicMock()
@@ -62,7 +62,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(bridge_map.get("AWS"), "Azure (equivalent)")
         self.assertEqual(bridge_map.get("React"), "Angular (equivalent)")
 
-    @patch("cv_generator_graph.get_model_for_step")
+    @patch("generation.helpers.get_model_for_step")
     def test_generate_skill_bridging_map_invalid_json(self, mock_get_model):
         """Test _generate_skill_bridging_map returns empty dict on malformed JSON."""
         mock_llm = MagicMock()
@@ -74,8 +74,8 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         bridge_map = _generate_skill_bridging_map(mock_llm, "Job Description", [], ["AWS"])
         self.assertEqual(bridge_map, {})
 
-    @patch("cv_generator_graph.get_model_for_step")
-    @patch("cv_generator_graph.get_wiki_dir")
+    @patch("generation.nodes.get_model_for_step")
+    @patch("generation.nodes.get_wiki_dir")
     def test_node_analyzer_with_strategy_override(self, mock_get_wiki_dir, mock_get_model):
         """Test node_analyzer respects strategy_override and bypasses suggested_region."""
         # Mock strategy directory
@@ -131,10 +131,10 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(result["target_organization_slug"], "mock-org")
         self.assertEqual(result["target_role"], "Mock Role")
 
-    @patch("cv_generator_graph.get_model_for_step")
+    @patch("generation.helpers.get_model_for_step")
     def test_compress_experience_llm_success(self, mock_get_model):
         """Test that _compress_experience_llm correctly calls retrieval model and compresses."""
-        from cv_generator_graph import _compress_experience_llm
+        from generation.helpers import compress_experience_llm as _compress_experience_llm
         mock_llm = MagicMock()
         mock_response = MagicMock()
         mock_response.content = "Compressed content summary."
@@ -146,11 +146,11 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(compressed, "Compressed content summary.")
         mock_get_model.assert_called_once_with("RETRIEVAL")
 
-    @patch("cv_generator_graph.get_model_for_step")
-    @patch("cv_generator_graph.get_fallback_model_for_step")
+    @patch("generation.nodes.get_model_for_step")
+    @patch("generation.nodes.get_fallback_model_for_step")
     def test_node_drafter_fallback_on_rate_limit(self, mock_get_fallback, mock_get_model):
         """Test that node_drafter falls back to configured fallback model when OpenAI raises rate limit exception."""
-        from cv_generator_graph import node_drafter
+        from generation.nodes import node_drafter
         
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
@@ -193,11 +193,11 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self.assertEqual(result["draft_cv"], "Gemini-drafted CV content")
         mock_get_fallback.assert_called_once_with("DRAFTING")
 
-    @patch("cv_generator_graph.get_model_for_step")
-    @patch("cv_generator_graph.get_fallback_model_for_step")
+    @patch("generation.nodes.get_model_for_step")
+    @patch("generation.nodes.get_fallback_model_for_step")
     def test_node_drafter_no_fallback_configured(self, mock_get_fallback, mock_get_model):
         """Test that node_drafter raises the original exception when no fallback is configured."""
-        from cv_generator_graph import node_drafter
+        from generation.nodes import node_drafter
         
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
@@ -238,7 +238,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
     def test_prune_recent_experience_top_achievements(self):
         """Test that _prune_recent_experience ranks and limits achievements to the top 4."""
-        from cv_generator_graph import _prune_recent_experience
+        from generation.helpers import prune_recent_experience as _prune_recent_experience
         
         # Experience with 6 achievements
         test_content = """---

@@ -108,6 +108,17 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
   - **Modularity**: Code must be well-structured, clean, and highly modular.
   - **Complexity**: Keep SonarQube cognitive/cyclomatic complexity STRICTLY below 15 per function/method. Large complex routines must be decomposed into smaller, single-responsibility functions.
   - **Deterministic Testing**: Write unit tests for core helpers and node functions. Mock external LLM and database operations using unit testing mocks or standard fixtures to guarantee fast, offline, and predictable tests.
+- **Logging and Console Output**:
+  - **Helper Modules, Graph Nodes, and Libraries**: Use standard Python logging with module-level loggers:
+    ```python
+    import logging
+    logger = logging.getLogger(__name__)
+    ```
+    Always log system messages (events, operations, debug details) through `logger.info()`, `logger.warning()`, `logger.exception()`, etc. Never use raw `print()` statements here, and never call `logging.basicConfig()` inside libraries, as it overrides the importing CLI's logging configurations.
+  - **CLI Entrypoint/Command Scripts** (e.g., `src/generate_cv.py`, `src/kb_ingest.py`, `src/kb_cleanup.py`):
+    - May configure the root logger (via `logging.basicConfig`) in `main()` or the `if __name__ == "__main__":` block.
+    - May use `print()` statements adorned with emojis (🚀, ✅, ❌, 📦, 🧹, ✨) *exclusively* for highly legible, user-facing console interactions and progress reporting.
+
 
 ## Legacy Note
 The scripts `kb_ingest.py`, `kb_refinery.py`, and `master_merger.py` (in `src/`) are largely superseded by the new LLM-driven Wiki workflow. Use the `uv run kb-ingest` command for new ingestion.
