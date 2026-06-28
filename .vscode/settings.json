@@ -14,5 +14,9 @@
         "slugified",
         "venv",
         "Xoft"
-    ]
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "bvrabete",
+        "projectKey": "bvrabete_career-os"
+    }
 }

@@ -8,6 +8,18 @@ from pathlib import Path
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+def validate_path(path: Path | str) -> Path:
+    """
+    Validates and canonicalizes file paths to prevent traversal and security risks.
+    """
+    import os
+    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    canonical_path = os.path.realpath(os.path.abspath(path))
+    if not canonical_path.startswith(base_dir):
+        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
+    return Path(canonical_path)
+
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".md", ".txt"}
 
 
@@ -49,7 +61,8 @@ def append_log(written_paths: list[str]):
 def file_hash(path: Path) -> str:
     """MD5 of file contents — used to detect changes since last ingestion."""
     h = hashlib.md5()
-    with open(path, "rb") as f:
+    safe_path = validate_path(path)
+    with open(safe_path, "rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
@@ -206,7 +219,7 @@ def main() -> None:
     from kb_ingest_graph import _bootstrap_wiki_structure
     _bootstrap_wiki_structure(get_wiki_dir())
 
-    target = Path(args.file or args.dir)
+    target = validate_path(args.file or args.dir)
     if not target.exists():
         print(f"❌ Path not found: {target}")
         return

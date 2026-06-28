@@ -4,6 +4,10 @@
         "ms-python.autopep8",
         "streetsidesoftware.code-spell-checker",
         "mermaidchart.vscode-mermaid-chart",
-        "davidanson.vscode-markdownlint"
+        "davidanson.vscode-markdownlint",
+        "github.vscode-github-actions",
+        "tamasfe.even-better-toml",
+        "dbaeumer.vscode-eslint",
+        "streetsidesoftware.code-spell-checker-cspell-bundled-dictionaries"
     ]
 }

@@ -12,6 +12,18 @@ from generation import build_graph
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+def validate_path(path: Path | str) -> Path:
+    """
+    Validates and canonicalizes file paths to prevent traversal and security risks.
+    """
+    import os
+    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    canonical_path = os.path.realpath(os.path.abspath(path))
+    if not canonical_path.startswith(base_dir):
+        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
+    return Path(canonical_path)
+
+
 def parse_arguments() -> argparse.Namespace:
     """
     Parses command-line arguments for the CV generator.
@@ -40,7 +52,7 @@ def save_outputs(
     Saves the generated CV (Markdown draft), contexts, and archives to the appropriate paths.
     """
     if args.out:
-        out_path = Path(args.out)
+        out_path = validate_path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Write clean draft to specified path
@@ -49,7 +61,7 @@ def save_outputs(
         print(f"\n✅ Build complete! Clean Markdown saved to {out_path}")
 
         # Save Context (Graph State) for debugging
-        context_path = out_path.with_name(f"{out_path.stem}_context.json")
+        context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
         state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
         with open(context_path, "w", encoding="utf-8") as f:
             json.dump(state_to_save, f, indent=2)
@@ -57,14 +69,15 @@ def save_outputs(
 
         # Also write archived duplicate with frontmatter tracking to LLM-Wiki Synthesis folder
         try:
-            with open(synthesis_path, "w", encoding="utf-8") as f:
+            safe_synthesis_path = validate_path(synthesis_path)
+            with open(safe_synthesis_path, "w", encoding="utf-8") as f:
                 f.write(synthesis_content)
             print(f"🗂️ CRM Synthesis copy archived to {synthesis_path}")
         except Exception as e:
             print(f"⚠️ Failed to write CRM synthesis copy: {e}")
     else:
         # Default: Write the frontmatter-tracked file directly to LLM-Wiki Synthesis directory
-        out_path = synthesis_path
+        out_path = validate_path(synthesis_path)
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(synthesis_content)
         print(f"\n✅ Build complete! Frontmatter-tracked CV saved directly to LLM-Wiki: {out_path}")
@@ -122,7 +135,7 @@ def main() -> None:
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
-    jd_path = Path(args.jd)
+    jd_path = validate_path(args.jd)
     if not jd_path.exists():
         print(f"❌ Error: Job Description file not found at {jd_path}")
         return

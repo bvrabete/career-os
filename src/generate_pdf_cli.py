@@ -11,6 +11,17 @@ from pathlib import Path
 
 from pdf_generator import generate_pdf
 
+def validate_path(path: Path | str) -> Path:
+    """
+    Validates and canonicalizes file paths to prevent traversal and security risks.
+    """
+    import os
+    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    canonical_path = os.path.realpath(os.path.abspath(path))
+    if not canonical_path.startswith(base_dir):
+        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
+    return Path(canonical_path)
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +36,7 @@ def main() -> None:
     
     args = parser.parse_args()
     
-    input_path = Path(args.input)
+    input_path = validate_path(args.input)
     if not input_path.exists():
         print(f"❌ Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
@@ -34,13 +45,15 @@ def main() -> None:
     
     # Resolve output path
     if args.out:
-        pdf_path = Path(args.out)
+        pdf_path = validate_path(args.out)
     else:
-        pdf_path = input_path.with_suffix(".pdf")
+        pdf_path = validate_path(input_path.with_suffix(".pdf"))
         
     # Resolve template
     template_path = args.template
-    if not template_path:
+    if template_path:
+        template_path = str(validate_path(template_path))
+    else:
         # Try to detect template from context.json if it exists
         context_path = input_path.with_name(f"{input_path.stem}_context.json")
         if context_path.exists():
