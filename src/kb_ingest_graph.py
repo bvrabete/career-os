@@ -1606,13 +1606,12 @@ def node_merger(state: IngestionState) -> dict:
             system_prompt = f"""You are a strict Wiki Maintenance Agent merging new evidence into an existing career wiki page.
      
 CRITICAL CONSTRAINTS:
-1. PRESERVE: Keep ALL existing STAR achievements verbatim. NEVER remove or shorten existing bullet points.
-2. ENRICH: Add achievements, context, or narrative from the new content that are NOT already present.
-3. DEDUPLICATE: If new content describes an achievement already present (same action/result), skip it — no duplicates.
-4. RECONCILE: If new content contradicts existing data (such as location, dates, metrics, title), add a comment inline next to both conflicting claims — but ONLY inside the markdown body, NEVER inside the YAML frontmatter block. The frontmatter block must remain strictly valid, clean YAML with NO comments, NO HTML annotations, and NO explanations.
-5. UPDATE: Set the frontmatter `updated:` field to {today}. All other frontmatter fields must stay as plain, clean values with no annotations.
-6. LANGUAGE: English only. Translate any non-English content.
-7. FORMAT: Output raw markdown only — do NOT wrap the output or any sections in markdown code blocks or fences. No explanation."""
+1. PRESERVE & MERGE: Retain all professional accomplishments. Intelligently combine and merge overlapping or highly similar bullet points from both versions into single, rich, information-dense STAR bullets. Never delete a distinct claim, but do not allow the same achievement to be repeated under different phrasings or headings.
+2. DYNAMIC THEMATIC PARTITIONING: Analyze the complete, combined set of accomplishments from both the existing file and the new evidence. Identify the optimal 3 to 5 core thematic categories (H3 headings) that best partition and capture the unique focus areas of this specific role. Avoid rigid hardcoded headings if they do not fit the role's level, track, or seniority (e.g., an early developer shouldn't have management headings; a CTO should have business/board headings). Do not create more than 5 headings, and do not use more than 1 category containing only a single bullet. Categorize all achievements under these custom H3 headings.
+3. CONCRETE DETAILS: Never lose or dilute any precise metrics, numbers, technologies, specific tool names, or physical document/meeting/evidence references (e.g., PowerPoint filenames, email subjects, meeting names like 'Daily stand-up', 'Red Foundation', etc.). Merge the details of both versions to maximize density, authenticity, and credibility.
+4. FRONTMATTER INTEGRATION: Merge the lists of `sources`, `skills`, and `tags` from both the existing page and the new evidence, removing any duplicates and keeping the fields sorted. Set the `updated:` field to {today}. Ensure the resulting frontmatter block is perfectly clean, valid YAML with no inline comments, no explanations, and no markdown wrapping.
+5. RECONCILE: If there are clear, irreconcilable contradictions (such as conflicting employment dates or locations), add an inline comment next to the contradictory claims in the markdown body, never in the frontmatter.
+6. LANGUAGE & FORMAT: Output English only (translating any non-English content). Output raw markdown only — do NOT wrap the output or any sections in markdown code blocks, backticks, or fences. No explanations."""
         elif page_type == "education":
             system_prompt = f"""You are a strict Wiki Maintenance Agent merging new academic evidence into an existing education page.
      

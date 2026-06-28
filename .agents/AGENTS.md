@@ -90,13 +90,24 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
 ## Code Standards (src/)
 
 - **Style**: PEP 8, 120 char limit. Imports: stdlib → third-party → local.
-- **Typing**: Pylance strict mode. Full annotations on all parameters and return types (comprehensive type checking).
+- **Typing**: Pylance strict mode. Full annotations on all parameters and return types (comprehensive type checking). Use generic type aliases and standard collection types (e.g., `list[str]`, `dict[str, Any]`, `str | None`).
+- **File Length & Structure Limits**:
+  - No single Python source file should exceed **500 lines** to maintain readability and ease of maintenance.
+  - Large modules or graphs (e.g., `kb_ingest_graph.py`) must be decomposed into dedicated package subdirectories (e.g., `src/ingestion/`) with separated files:
+    - `state.py` (State definition & Pydantic schemas)
+    - `prompts.py` (Prompt templates & externalized instructions)
+    - `nodes.py` (Functional implementation of graph nodes)
+    - `graph.py` (Orchestration & compiler)
+- **LLM Prompt Externalization**: Keep long system prompts and user templates separated from Python logic. Load prompts from external `.txt`, `.md`, or `.yaml` files in `src/prompts/` at runtime where applicable.
+- **Ruff Linting & Formatting**: Enforce strict linting and automatic code formatting with `Ruff`. Run Ruff before committing or testing to ensure maximum cleanliness.
+- **Error Handling & Fallbacks**: Implement explicit, typed error catching for all external APIs and LLM calls. Always define reliable model fallbacks (e.g., failing over to local Ollama models on API timeouts) and raise custom descriptive exceptions.
 - **LLM Handling**: Always coerce `response.content` to `str` before use.
 - **Docstrings & Comments**: Required for every module, class, function, and method. Plain text format. Include descriptive inline comments for complex steps.
 - **Design Principles**:
   - **DRY (Don't Repeat Yourself)**: Extract shared logic into modular helper functions or utility classes.
   - **Modularity**: Code must be well-structured, clean, and highly modular.
   - **Complexity**: Keep SonarQube cognitive/cyclomatic complexity STRICTLY below 15 per function/method. Large complex routines must be decomposed into smaller, single-responsibility functions.
+  - **Deterministic Testing**: Write unit tests for core helpers and node functions. Mock external LLM and database operations using unit testing mocks or standard fixtures to guarantee fast, offline, and predictable tests.
 
 ## Legacy Note
 The scripts `kb_ingest.py`, `kb_refinery.py`, and `master_merger.py` (in `src/`) are largely superseded by the new LLM-driven Wiki workflow. Use the `uv run kb-ingest` command for new ingestion.
