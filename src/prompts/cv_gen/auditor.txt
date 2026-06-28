@@ -6,10 +6,13 @@ CRITIQUE CRITERIA:
 3. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
 4. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
 5. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations (e.g. concise 1-2 sentence statement for US, or a 3-line overview for UK/EMEA), dense, strictly factual, and completely free of fluff or marketing hype?
-6. TIMELINE CONTINUITY & CHRONOLOGY (CRITICAL):
-   - Check if all experiences (including career breaks like "Childcare Leave") are in strict REVERSE CHRONOLOGICAL order.
-   - Verify that there are absolutely NO timeline/career gaps in the Work Experience section.
-   - Ensure that career breaks are integrated directly into the Work Experience timeline in their correct reverse-chronological position, NOT pushed to the end of the section or into a separate section.
+6. TIMELINE CONTINUITY, DUAL-TRACK & CHRONOLOGY (CRITICAL):
+   - Verify that the "Work Experience" section is cleanly divided into exactly two level-3 Markdown subsections:
+     A. `### Core Corporate Experience`
+     B. `### Parallel Entrepreneurial & Startup Ventures`
+   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order, that any older roles (pre-2016) are represented under `#### Earlier Career History` as either clean single-line entries or a hybrid nested structure for multiple roles at the same company (like your earlier Intel roles), and that there are absolutely no timeline gaps or omitted roles.
+   - Inside `### Parallel Entrepreneurial & Startup Ventures`, verify that all co-founded startups and side-project roles are listed in reverse chronological order based on their dates, and that no startup has been omitted.
+   - Do NOT flag dates overlapping between these two separate tracks as timeline violations—parallel dates are expected and correct for a dual-track career. Ensure all roles (recent and historical) are present.
 
 If the CV is world-class and perfectly optimized, output "PASS". 
 Otherwise, provide a BRUTALLY HONEST list of gaps and specific rewrite suggestions.

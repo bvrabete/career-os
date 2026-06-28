@@ -34,3 +34,10 @@ kb-ingest = "kb_ingest:main"
 cv-gen = "generate_cv:main"
 pdf-gen = "generate_pdf_cli:main"
 kb-cleanup = "kb_cleanup:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+]
+

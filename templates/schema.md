@@ -52,6 +52,7 @@ location: "City, Country"
 dates: 
   start: YYYY-MM-DD
   end: YYYY-MM-DD | Present
+employment_type: Permanent | Contract  # Optional, defaults to Permanent
 tracks: [Management, Architecture, Engineering, Entrepreneurial]
 skills: [skill-slug-1, skill-slug-2]
 tags: [role-level, industry]

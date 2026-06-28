@@ -13,6 +13,43 @@ from weasyprint import CSS, HTML
 logger = logging.getLogger(__name__)
 
 
+def _resolve_css_path(css_template_path: str) -> Path | None:
+    """
+    Resolves the CSS template path by checking several potential locations,
+    prioritizing the external wiki directory, and falling back to the repository.
+    """
+    css_path = Path(css_template_path)
+    if css_path.exists():
+        return css_path
+
+    # Try to resolve relative to the external wiki directory with higher priority
+    try:
+        from kb_config import get_wiki_dir
+        wiki_dir = get_wiki_dir()
+        # Check directly in the wiki dir, under wiki_dir/templates, or simple file name under templates
+        paths_to_try = [
+            wiki_dir / css_template_path,
+            wiki_dir / "templates" / css_template_path,
+            wiki_dir / "templates" / Path(css_template_path).name,
+        ]
+        for p in paths_to_try:
+            if p.exists():
+                return p
+    except Exception as e:
+        logger.debug(f"Could not resolve via external wiki_dir: {e}")
+
+    # Fallback to repository location if still not found
+    fallback_path = Path(__file__).parent.parent / css_template_path
+    if fallback_path.exists():
+        return fallback_path
+
+    fallback_name_path = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
+    if fallback_name_path.exists():
+        return fallback_name_path
+
+    return None
+
+
 def generate_pdf(md_content: str, output_path: str, css_template_path: str | None = None) -> bool:
     """
     Converts Markdown content to a PDF using WeasyPrint and an optional CSS template.
@@ -51,37 +88,8 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str | Non
     # 3. Prepare CSS
     stylesheets: list[CSS] = []
     if css_template_path:
-        css_path = Path(css_template_path)
-        
-        # 3.1 Try to resolve relative to the external wiki directory with higher priority
-        if not css_path.exists():
-            try:
-                from kb_config import get_wiki_dir
-                wiki_dir = get_wiki_dir()
-                # Check directly in the wiki dir, under wiki_dir/templates, or simple file name under templates
-                paths_to_try = [
-                    wiki_dir / css_template_path,
-                    wiki_dir / "templates" / css_template_path,
-                    wiki_dir / "templates" / Path(css_template_path).name,
-                ]
-                for p in paths_to_try:
-                    if p.exists():
-                        css_path = p
-                        break
-            except Exception as e:
-                logger.debug(f"Could not resolve via external wiki_dir: {e}")
-
-        # 3.2 Fallback to repository location if still not found
-        if not css_path.exists():
-            fallback_path = Path(__file__).parent.parent / css_template_path
-            if fallback_path.exists():
-                css_path = fallback_path
-            else:
-                fallback_name_path = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
-                if fallback_name_path.exists():
-                    css_path = fallback_name_path
-
-        if css_path.exists():
+        css_path = _resolve_css_path(css_template_path)
+        if css_path:
             stylesheets.append(CSS(filename=str(css_path)))
             logger.info(f"Using CSS template: {css_path}")
         else:

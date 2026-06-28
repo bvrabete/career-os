@@ -28,72 +28,90 @@ from ingestion.helpers import (
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$|^Present$')
 
 
+def _parse_via_pypdf(path: Path) -> str | None:
+    """Attempts to parse a PDF file using pypdf. Returns None if it fails or extracts insufficient text."""
+    try:
+        reader = pypdf.PdfReader(str(path))
+        raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        if len(raw_text.strip()) > 200:
+            return raw_text
+    except Exception as e:
+        logging.warning(f"pypdf failed ({e}), falling back to docling")
+    return None
+
+
+def _parse_via_docling(path: Path, suffix: str) -> str | None:
+    """Attempts to parse a PDF or DOC/DOCX file using Docling. Returns None if it fails."""
+    try:
+        if suffix == ".pdf":
+            pdf_opts = PdfPipelineOptions()
+            pdf_opts.do_table_structure = True
+            pdf_opts.do_ocr = True
+            pdf_opts.allow_external_plugins = True
+            pdf_opts.accelerator_options = AcceleratorOptions(
+                num_threads=8, device=AcceleratorDevice.CPU
+            )
+            converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts)
+                }
+            )
+        else:
+            converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_cls=SimplePipeline)
+                }
+            )
+        result = converter.convert(str(path))
+        return result.document.export_to_markdown()
+    except Exception as e:
+        logging.warning(f"docling failed ({e}), trying fallback")
+    return None
+
+
+def _parse_fallback(path: Path, suffix: str) -> str:
+    """Fallback parser for PDF, DOCX, and text files when other tools fail."""
+    if suffix == ".pdf":
+        try:
+            reader = pypdf.PdfReader(str(path))
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as e:
+            logging.exception(f"pypdf fallback failed: {e}")
+    elif suffix in (".docx", ".doc"):
+        try:
+            doc = docx.Document(str(path))
+            return "\n".join(p.text for p in doc.paragraphs)
+        except Exception as e:
+            logging.exception(f"python-docx fallback failed: {e}")
+    else:
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except Exception as e:
+            logging.exception(f"Text read failed: {e}")
+    return ""
+
+
 def node_parser(state: IngestionState) -> dict[str, Any]:
     """Parse raw source documents (PDF, DOCX, DOC, MD) using Docling or standard fallbacks."""
     logging.info(f"--- NODE: PARSER ({state['source_file']}) ---")
     path = Path(state["source_file"])
     suffix = path.suffix.lower()
-    raw_text = ""
 
     if suffix in (".pdf", ".docx", ".doc"):
         if suffix == ".pdf":
-            # Try pypdf first (layout-accurate for digital PDFs and extremely fast)
-            try:
-                reader = pypdf.PdfReader(str(path))
-                raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
-                if len(raw_text.strip()) > 200:
-                    logging.info(f"Parsed via pypdf (primary): {len(raw_text)} chars")
-                    return {"raw_text": raw_text}
-                logging.info("pypdf extracted very little text, falling back to docling")
-            except Exception as e:
-                logging.warning(f"pypdf failed ({e}), falling back to docling")
+            raw_text = _parse_via_pypdf(path)
+            if raw_text is not None:
+                logging.info(f"Parsed via pypdf (primary): {len(raw_text)} chars")
+                return {"raw_text": raw_text}
+            logging.info("pypdf extracted very little text, falling back to docling")
 
-        try:
-            if suffix == ".pdf":
-                pdf_opts = PdfPipelineOptions()
-                pdf_opts.do_table_structure = True
-                pdf_opts.do_ocr = True
-                pdf_opts.allow_external_plugins = True
-                pdf_opts.accelerator_options = AcceleratorOptions(
-                    num_threads=8, device=AcceleratorDevice.CPU
-                )
-                converter = DocumentConverter(
-                    format_options={
-                        InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts)
-                    }
-                )
-            else:
-                converter = DocumentConverter(
-                    format_options={
-                        InputFormat.PDF: PdfFormatOption(pipeline_cls=SimplePipeline)
-                    }
-                )
-            result = converter.convert(str(path))
-            raw_text = result.document.export_to_markdown()
+        raw_text = _parse_via_docling(path, suffix)
+        if raw_text is not None:
             logging.info(f"Parsed via docling: {len(raw_text)} chars")
-        except Exception as e:
-            logging.warning(f"docling failed ({e}), trying fallback")
-            if suffix == ".pdf":
-                try:
-                    reader = pypdf.PdfReader(str(path))
-                    raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
-                    logging.info(f"Parsed via pypdf fallback: {len(raw_text)} chars")
-                except Exception as e2:
-                    logging.exception(f"pypdf fallback failed: {e2}")
-            elif suffix in (".docx", ".doc"):
-                try:
-                    doc = docx.Document(str(path))
-                    raw_text = "\n".join(p.text for p in doc.paragraphs)
-                    logging.info(f"Parsed via python-docx fallback: {len(raw_text)} chars")
-                except Exception as e2:
-                    logging.exception(f"python-docx fallback failed: {e2}")
-    else:
-        try:
-            raw_text = path.read_text(encoding="utf-8", errors="replace")
-            logging.info(f"Read as text: {len(raw_text)} chars")
-        except Exception as e:
-            logging.exception(f"Text read failed: {e}")
+            return {"raw_text": raw_text}
 
+    raw_text = _parse_fallback(path, suffix)
+    logging.info(f"Parsed via fallback: {len(raw_text)} chars")
     return {"raw_text": raw_text}
 
 
@@ -126,55 +144,113 @@ def node_classifier(state: IngestionState) -> dict[str, Any]:
     return {"doc_type": doc_type}
 
 
+def _resolve_key_and_log(
+    items: list[dict[str, Any]] | list[str] | None,
+    key_or_none: str | None,
+    mappings: dict[str, str],
+    resolved: dict[str, str],
+    log_template: str
+) -> None:
+    """Helper to resolve a key or direct string against mappings and log the translation."""
+    if not items:
+        return
+    for item in items:
+        if isinstance(item, str):
+            raw_name = item
+        else:
+            raw_name = item.get(key_or_none or "") if key_or_none else ""
+        if raw_name:
+            slug = resolve_org(raw_name, mappings)
+            resolved[raw_name] = slug
+            logging.info(log_template.format(raw_name=raw_name, slug=slug))
+
+
 def node_entity_resolver(state: IngestionState) -> dict[str, Any]:
     """Pure Python: map raw organization/institution names to canonical slugs from mappings.md."""
     logging.info("--- NODE: ENTITY RESOLVER (Python) ---")
     mappings = parse_mappings()
     resolved: dict[str, str] = {}
 
-    for role in state.get("extracted_roles", []):
-        raw_name = role.get("raw_org_name", "")
-        if raw_name:
-            slug = resolve_org(raw_name, mappings)
-            resolved[raw_name] = slug
-            logging.info(f"  '{raw_name}' → '[[{slug}]]'")
-
-    for edu in state.get("extracted_education", []):
-        raw_name = edu.get("raw_inst_name", "")
-        if raw_name:
-            slug = resolve_org(raw_name, mappings)
-            resolved[raw_name] = slug
-            logging.info(f"  Education institution '{raw_name}' → '[[{slug}]]'")
-
-    for proj in state.get("extracted_projects", []):
-        raw_name = proj.get("raw_org_name", "")
-        if raw_name:
-            slug = resolve_org(raw_name, mappings)
-            resolved[raw_name] = slug
-            logging.info(f"  Project org '{raw_name}' → '[[{slug}]]'")
-
-    for pat in state.get("extracted_patents", []):
-        raw_name = pat.get("raw_org_name", "")
-        if raw_name:
-            slug = resolve_org(raw_name, mappings)
-            resolved[raw_name] = slug
-            logging.info(f"  Patent org '{raw_name}' → '[[{slug}]]'")
+    _resolve_key_and_log(state.get("extracted_roles"), "raw_org_name", mappings, resolved, "  '{raw_name}' → '[[{slug}]]'")
+    _resolve_key_and_log(state.get("extracted_education"), "raw_inst_name", mappings, resolved, "  Education institution '{raw_name}' → '[[{slug}]]'")
+    _resolve_key_and_log(state.get("extracted_projects"), "raw_org_name", mappings, resolved, "  Project org '{raw_name}' → '[[{slug}]]'")
+    _resolve_key_and_log(state.get("extracted_patents"), "raw_org_name", mappings, resolved, "  Patent org '{raw_name}' → '[[{slug}]]'")
 
     for note in state.get("extracted_notes", []):
-        for raw_name in note.get("related_raw_orgs", []):
-            if raw_name:
-                slug = resolve_org(raw_name, mappings)
-                resolved[raw_name] = slug
-                logging.info(f"  Note org '{raw_name}' → '[[{slug}]]'")
+        _resolve_key_and_log(note.get("related_raw_orgs"), None, mappings, resolved, "  Note org '{raw_name}' → '[[{slug}]]'")
 
-    for cl in state.get("extracted_cover_letters", []):
-        raw_name = cl.get("target_organization_raw", "")
-        if raw_name:
-            slug = resolve_org(raw_name, mappings)
-            resolved[raw_name] = slug
-            logging.info(f"  Cover letter org '{raw_name}' → '[[{slug}]]'")
+    _resolve_key_and_log(state.get("extracted_cover_letters"), "target_organization_raw", mappings, resolved, "  Cover letter org '{raw_name}' → '[[{slug}]]'")
 
     return {"resolved_entities": resolved}
+
+
+def _get_page_info(content: str) -> tuple[str, str]:
+    """Extracts (role_start, page_type) from frontmatter of output content."""
+    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if fm_match:
+        try:
+            fm = yaml.safe_load(fm_match.group(1)) or {}
+            role_start = str(fm.get("dates", {}).get("start", ""))
+            page_type = fm.get("type", "experience")
+            return role_start, page_type
+        except Exception:
+            pass
+    return "", "experience"
+
+
+def _find_existing_page(page_type: str, org_slug: str, path: Path, role_start: str) -> Path | None:
+    """Finds existing wiki page path based on page_type."""
+    if page_type == "experience":
+        return find_existing_experience(org_slug, path, role_start)
+    if page_type == "education":
+        return find_existing_education(org_slug, path, role_start)
+    return path if path.exists() else None
+
+
+def _merge_single_output(output: dict[str, Any], today: str, llm: Any) -> dict[str, Any]:
+    """Merges a single wiki output with its existing counterpart using the LLM."""
+    if output.get("validation_errors"):
+        return output
+
+    path = Path(output["path"])
+    role_start, page_type = _get_page_info(output.get("content", ""))
+    existing = _find_existing_page(page_type, output.get("org_slug", ""), path, role_start)
+
+    if existing is None:
+        logging.info(f"New file — no merge needed: {path.name}")
+        return output
+
+    if existing != path:
+        logging.info(f"Redirecting merge: {path.name} → {existing.name}")
+        output = {**output, "path": str(existing)}
+        path = existing
+
+    logging.info(f"--- MERGE: {path.name} ---")
+    existing_content = path.read_text(encoding="utf-8")
+
+    prompt_filename = f"merge_{page_type}.txt"
+    if page_type not in ("experience", "education", "project", "patent", "note", "entity", "cover-letter"):
+        prompt_filename = "merge_language.txt"
+
+    system_template = load_prompt(prompt_filename)
+    system_prompt = system_template.replace("{TODAY}", today).replace("{today}", today)
+
+    prompt = f"""Merge the new evidence into the existing wiki page. Output the complete merged file.
+
+EXISTING PAGE:
+{existing_content}
+
+NEW EVIDENCE TO INTEGRATE:
+{output['content']}"""
+
+    try:
+        response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
+        merged_content = clean_frontmatter(llm_text(response.content))
+        logging.info(f"Merged successfully: {path.name}")
+        return {**output, "content": merged_content, "merged": True}
+    except Exception as e:
+        logging.exception(f"Merge failed for {path.name}: {e} — keeping generated version as-is")
+        return {**output, "merged": False, "merge_error": str(e)}
 
 
 def node_merger(state: IngestionState) -> dict[str, Any]:
@@ -185,70 +261,7 @@ def node_merger(state: IngestionState) -> dict[str, Any]:
 
     today = date.today().isoformat()
     llm = get_model_for_step("INGESTION_MERGE")
-    merged_outputs: list[dict[str, Any]] = []
-
-    for output in outputs:
-        if output.get("validation_errors"):
-            merged_outputs.append(output)
-            continue
-
-        path = Path(output["path"])
-        role_start = ""
-        page_type = "experience"
-        
-        fm_match = re.match(r'^---\n(.*?)\n---', output.get("content", ""), re.DOTALL)
-        if fm_match:
-            try:
-                fm = yaml.safe_load(fm_match.group(1)) or {}
-                role_start = str(fm.get("dates", {}).get("start", ""))
-                page_type = fm.get("type", "experience")
-            except Exception:
-                pass
-
-        if page_type == "experience":
-            existing = find_existing_experience(output.get("org_slug", ""), path, role_start)
-        elif page_type == "education":
-            existing = find_existing_education(output.get("org_slug", ""), path, role_start)
-        else:
-            existing = path if path.exists() else None
-
-        if existing is None:
-            logging.info(f"New file — no merge needed: {path.name}")
-            merged_outputs.append(output)
-            continue
-
-        if existing != path:
-            logging.info(f"Redirecting merge: {path.name} → {existing.name}")
-            output = {**output, "path": str(existing)}
-            path = existing
-
-        logging.info(f"--- MERGE: {path.name} ---")
-        existing_content = path.read_text(encoding="utf-8")
-
-        prompt_filename = f"merge_{page_type}.txt"
-        if page_type not in ("experience", "education", "project", "patent", "note", "entity", "cover-letter"):
-            prompt_filename = "merge_language.txt"
-
-        system_template = load_prompt(prompt_filename)
-        system_prompt = system_template.replace("{TODAY}", today).replace("{today}", today)
-
-        prompt = f"""Merge the new evidence into the existing wiki page. Output the complete merged file.
-
-EXISTING PAGE:
-{existing_content}
-
-NEW EVIDENCE TO INTEGRATE:
-{output['content']}"""
-
-        try:
-            response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
-            merged_content = clean_frontmatter(llm_text(response.content))
-            logging.info(f"Merged successfully: {path.name}")
-            merged_outputs.append({**output, "content": merged_content, "merged": True})
-        except Exception as e:
-            logging.exception(f"Merge failed for {path.name}: {e} — keeping generated version as-is")
-            merged_outputs.append({**output, "merged": False, "merge_error": str(e)})
-
+    merged_outputs = [_merge_single_output(o, today, llm) for o in outputs]
     return {"wiki_outputs": merged_outputs}
 
 
@@ -278,6 +291,10 @@ def _validate_experience(fm: dict[str, Any], errors: list[str]) -> None:
         errors.append(f"organization field missing [[slug]] syntax: '{org}'")
 
     _validate_dates(fm.get("dates"), errors)
+
+    emp_type = fm.get("employment_type")
+    if emp_type and str(emp_type).strip().capitalize() not in ("Permanent", "Contract"):
+        errors.append(f"employment_type must be either 'Permanent' or 'Contract', got '{emp_type}'")
 
 
 def _validate_education(fm: dict[str, Any], errors: list[str]) -> None:
@@ -361,58 +378,59 @@ def _validate_entity(fm: dict[str, Any], errors: list[str]) -> None:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
 
+def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> None:
+    """Invokes the specific validator function based on page_type."""
+    validators = {
+        "experience": _validate_experience,
+        "education": _validate_education,
+        "skill": _validate_skill,
+        "project": _validate_project,
+        "patent": _validate_patent,
+        "note": _validate_note,
+        "cover-letter": _validate_cover_letter,
+        "entity": _validate_entity,
+    }
+    validator = validators.get(page_type)
+    if validator:
+        validator(fm, errors)
+    else:
+        errors.append(f"Unknown frontmatter type: '{page_type}'")
+
+
+def _validate_single_output(output: dict[str, Any]) -> dict[str, Any]:
+    """Validates the frontmatter and content of a single wiki output."""
+    errors: list[str] = list(output.get("validation_errors", []))
+    content = clean_frontmatter(output.get("content", ""))
+    output["content"] = content
+
+    if not content:
+        errors.append("Empty content — generation may have failed")
+        return {**output, "validation_errors": errors}
+
+    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if not fm_match:
+        errors.append("No valid YAML frontmatter block found")
+    else:
+        try:
+            fm = yaml.safe_load(fm_match.group(1)) or {}
+            page_type = fm.get("type", "unknown")
+            _validate_by_type(page_type, fm, errors)
+        except yaml.YAMLError as e:
+            errors.append(f"YAML parse error: {e}")
+
+    if errors:
+        logging.warning(f"Validation issues for {output['path']}: {errors}")
+    else:
+        logging.info(f"Validation passed: {output['path']}")
+
+    return {**output, "validation_errors": errors}
+
+
 def node_validator(state: IngestionState) -> dict[str, Any]:
     """Pure Python: validate frontmatter schema compliance for all generated wiki outputs."""
     logging.info("--- NODE: VALIDATOR ---")
-    
-    validated: list[dict[str, Any]] = []
-    for output in state.get("wiki_outputs", []):
-        errors: list[str] = list(output.get("validation_errors", []))
-        content = clean_frontmatter(output.get("content", ""))
-        output["content"] = content
-
-        if not content:
-            errors.append("Empty content — generation may have failed")
-            validated.append({**output, "validation_errors": errors})
-            continue
-
-        fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
-        if not fm_match:
-            errors.append("No valid YAML frontmatter block found")
-        else:
-            try:
-                fm = yaml.safe_load(fm_match.group(1)) or {}
-                page_type = fm.get("type", "unknown")
-                
-                if page_type == "experience":
-                    _validate_experience(fm, errors)
-                elif page_type == "education":
-                    _validate_education(fm, errors)
-                elif page_type == "skill":
-                    _validate_skill(fm, errors)
-                elif page_type == "project":
-                    _validate_project(fm, errors)
-                elif page_type == "patent":
-                    _validate_patent(fm, errors)
-                elif page_type == "note":
-                    _validate_note(fm, errors)
-                elif page_type == "cover-letter":
-                    _validate_cover_letter(fm, errors)
-                elif page_type == "entity":
-                    _validate_entity(fm, errors)
-                else:
-                    errors.append(f"Unknown frontmatter type: '{page_type}'")
-
-            except yaml.YAMLError as e:
-                errors.append(f"YAML parse error: {e}")
-
-        if errors:
-            logging.warning(f"Validation issues for {output['path']}: {errors}")
-        else:
-            logging.info(f"Validation passed: {output['path']}")
-
-        validated.append({**output, "validation_errors": errors})
-
+    wiki_outputs = state.get("wiki_outputs", [])
+    validated = [_validate_single_output(o) for o in wiki_outputs]
     return {"wiki_outputs": validated}
 
 

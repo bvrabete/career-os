@@ -8,12 +8,14 @@ on:
 
 jobs:
   test:
-    name: Run Unit Tests
+    name: Run Unit Tests & Coverage
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -29,5 +31,11 @@ jobs:
       - name: Install Dependencies
         run: uv sync --all-extras --dev
 
-      - name: Run Pipeline Unit Tests
-        run: uv run python tests/test_pipeline.py
+      - name: Run Pipeline Unit Tests with Coverage
+        run: uv run pytest --cov=src --cov-report=xml:coverage.xml
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+

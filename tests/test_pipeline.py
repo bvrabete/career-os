@@ -11,7 +11,8 @@ from generation.state import CVPipelineState
 from generation.nodes import node_analyzer
 from generation.helpers import (
     score_by_keywords as _score_by_keywords,
-    generate_skill_bridging_map as _generate_skill_bridging_map
+    generate_skill_bridging_map as _generate_skill_bridging_map,
+    _detect_employment_type
 )
 
 
@@ -57,7 +58,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         skills = ["Azure Cloud Platform", "Angular 17 Frontend"]
         keywords = ["AWS", "React"]
         
-        bridge_map = _generate_skill_bridging_map(mock_llm, "Job Description", skills, keywords)
+        bridge_map = _generate_skill_bridging_map(mock_llm, skills, keywords)
         
         self.assertEqual(bridge_map.get("AWS"), "Azure (equivalent)")
         self.assertEqual(bridge_map.get("React"), "Angular (equivalent)")
@@ -71,7 +72,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
         mock_get_model.return_value = mock_llm
 
-        bridge_map = _generate_skill_bridging_map(mock_llm, "Job Description", [], ["AWS"])
+        bridge_map = _generate_skill_bridging_map(mock_llm, [], ["AWS"])
         self.assertEqual(bridge_map, {})
 
     @patch("generation.nodes.get_model_for_step")
@@ -147,7 +148,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         mock_get_model.assert_called_once_with("RETRIEVAL")
 
     @patch("generation.nodes.get_model_for_step")
-    @patch("generation.nodes.get_fallback_model_for_step")
+    @patch("generation.helpers.get_fallback_model_for_step")
     def test_node_drafter_fallback_on_rate_limit(self, mock_get_fallback, mock_get_model):
         """Test that node_drafter falls back to configured fallback model when OpenAI raises rate limit exception."""
         from generation.nodes import node_drafter
@@ -194,7 +195,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         mock_get_fallback.assert_called_once_with("DRAFTING")
 
     @patch("generation.nodes.get_model_for_step")
-    @patch("generation.nodes.get_fallback_model_for_step")
+    @patch("generation.helpers.get_fallback_model_for_step")
     def test_node_drafter_no_fallback_configured(self, mock_get_fallback, mock_get_model):
         """Test that node_drafter raises the original exception when no fallback is configured."""
         from generation.nodes import node_drafter
@@ -300,6 +301,33 @@ This is some narrative text that should be stripped.
         
         # Count the number of achievements (Situation blocks)
         self.assertEqual(pruned.count("- **Situation"), 4)
+
+    def test_detect_employment_type_explicit(self):
+        """Test _detect_employment_type with explicit frontmatter."""
+        fm = {"employment_type": "Contract"}
+        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        
+        fm = {"employment_type": "Permanent"}
+        self.assertEqual(_detect_employment_type(fm, ""), "Permanent")
+        
+        fm = {"employment_type": "contract"}
+        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+
+    def test_detect_employment_type_fallback(self):
+        """Test _detect_employment_type fallbacks when frontmatter is missing."""
+        fm = {"tags": ["contract", "remote"]}
+        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        
+        fm = {"title": "Contract Software Engineer"}
+        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        
+        fm = {}
+        content = "Worked as a contractor for 6 months."
+        self.assertEqual(_detect_employment_type(fm, content), "Contract")
+        
+        fm = {}
+        content = "Regular full-time software developer role."
+        self.assertEqual(_detect_employment_type(fm, content), "Permanent")
 
 
 class TestDOCXGenerator(unittest.TestCase):
