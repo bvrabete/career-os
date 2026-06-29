@@ -232,10 +232,11 @@ def _merge_single_output(output: dict[str, Any], today: str, llm: Any) -> dict[s
     if page_type not in ("experience", "education", "project", "patent", "note", "entity", "cover-letter"):
         prompt_filename = "merge_language.txt"
 
-    system_template = load_prompt(prompt_filename)
-    system_prompt = system_template.replace("{TODAY}", today).replace("{today}", today)
+    system_prompt = load_prompt(prompt_filename)
 
-    prompt = f"""Merge the new evidence into the existing wiki page. Output the complete merged file.
+    prompt = f"""TODAY'S DATE: {today}
+
+Merge the new evidence into the existing wiki page. Output the complete merged file.
 
 EXISTING PAGE:
 {existing_content}

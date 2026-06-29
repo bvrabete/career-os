@@ -11,7 +11,7 @@ CRITICAL CONSTRAINTS:
 8. DATES: Use ISO format YYYY-MM-DD in frontmatter. Use "Present" for current roles.
 
 CANONICAL ENTITY MAPPING (these are the ONLY valid organization slugs):
-{ENTITY_MAP_LINES}
+[Provided in the User Message]
 
 SCHEMA REFERENCE (use this as the template):
-{SCHEMA_TEXT}
+[Provided in the User Message]

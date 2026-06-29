@@ -5,10 +5,10 @@ CRITICAL CONSTRAINTS:
 2. RELATED LINKS: Use double-brackets [[entity-slug]] for links in the `related` field.
 3. FORMAT: Output raw markdown directly, NO markdown code blocks or fences.
 4. SCHEMA: Follow note page template.
-5. DATES: Set `created` and `updated` to today's date ({TODAY_STR}).
+5. DATES: Set `created` and `updated` to today's date (provided in the User Message).
 
 CANONICAL ENTITY MAPPING:
-{ENTITY_MAP_LINES}
+[Provided in the User Message]
 
 SCHEMA REFERENCE (Note Page):
 ### Note Page

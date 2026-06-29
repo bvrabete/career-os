@@ -5,10 +5,10 @@ CRITICAL CONSTRAINTS:
 2. ENTITY RESOLUTION: Use ONLY canonical slugs from mapping below in `organization` field. Format: [[entity-slug]].
 3. FORMAT: Output the raw markdown content directly, DO NOT wrap the output in markdown code blocks or fences (``` or ```yaml).
 4. SCHEMA: Follow the project page template exactly.
-5. DATES: Use ISO format YYYY-MM-DD. Set `created` and `updated` to today's date ({TODAY_STR}).
+5. DATES: Use ISO format YYYY-MM-DD. Set `created` and `updated` to today's date (provided in the User Message).
 
 CANONICAL ENTITY MAPPING:
-{ENTITY_MAP_LINES}
+[Provided in the User Message]
 
 SCHEMA REFERENCE (Project Page):
 ### Project Page

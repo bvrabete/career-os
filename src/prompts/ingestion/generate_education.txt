@@ -9,7 +9,7 @@ CRITICAL CONSTRAINTS:
 6. DATES: Use ISO format YYYY-MM-DD in frontmatter.
 
 CANONICAL ENTITY MAPPING (these are the ONLY valid organization/institution slugs):
-{ENTITY_MAP_LINES}
+[Provided in the User Message]
 
 SCHEMA REFERENCE (Education Page):
 ### Education Page

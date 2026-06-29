@@ -5,10 +5,10 @@ CRITICAL CONSTRAINTS:
 2. ENTITY RESOLUTION: Use ONLY canonical slugs from mapping in `organization` field. Format: [[entity-slug]].
 3. FORMAT: Output raw markdown directly, NO markdown code blocks or fences.
 4. SCHEMA: Follow the patent page template exactly.
-5. DATES: Set `created` and `updated` to today's date ({TODAY_STR}).
+5. DATES: Set `created` and `updated` to today's date (provided in the User Message).
 
 CANONICAL ENTITY MAPPING:
-{ENTITY_MAP_LINES}
+[Provided in the User Message]
 
 SCHEMA REFERENCE (Patent Page):
 ### Patent Page

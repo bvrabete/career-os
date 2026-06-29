@@ -30,26 +30,61 @@ def _llm_text(content: str | list[Any]) -> str:
     return " ".join(str(part) for part in content)
 
 
+def _strip_outer_markdown_code_block(content: str) -> str:
+    """
+    If the content starts with markdown backticks, strips them and returns standard frontmatter/body.
+    """
+    if not content.startswith("```"):
+        return content
+
+    lines = content.splitlines()
+    closing_idx = -1
+    for idx in range(1, len(lines)):
+        if lines[idx].strip() in ("```", "```markdown", "```yaml"):
+            closing_idx = idx
+            break
+
+    if closing_idx == -1:
+        return content
+
+    fm_lines = lines[1:closing_idx]
+    body_lines = lines[closing_idx+1:]
+    fm_lines_cleaned = [l for l in fm_lines if l.strip() != "---"]
+    fm_content = "\n".join(fm_lines_cleaned)
+    body_content = "\n".join(body_lines)
+    return f"---\n{fm_content}\n---\n\n{body_content}"
+
+
+def _clean_frontmatter_lines(fm_lines: list[str]) -> str:
+    """
+    Removes comments and backticks from frontmatter lines and strips them.
+    """
+    cleaned_fm_lines = []
+    for line in fm_lines:
+        if line.strip().startswith("```"):
+            continue
+        cleaned_line = re.sub(r'(?s)<!--.*?-->', '', line).strip()
+        cleaned_line = cleaned_line.split('<!--')[0].strip()
+        cleaned_fm_lines.append(cleaned_line)
+    return "\n".join(cleaned_fm_lines)
+
+
+def _clean_body_lines(body_lines: list[str]) -> str:
+    """
+    Strips leading and trailing backticks or empty lines from body.
+    """
+    while body_lines and (body_lines[0].strip() == "```" or not body_lines[0].strip()):
+        body_lines.pop(0)
+    while body_lines and (body_lines[-1].strip() == "```" or not body_lines[-1].strip()):
+        body_lines.pop()
+    return "\n".join(body_lines)
+
+
 def _clean_frontmatter(content: str) -> str:
     """
     Extracts and sanitizes the frontmatter block, and cleans up formatting issues.
     """
-    content = content.strip()
-    
-    if content.startswith("```"):
-        lines = content.splitlines()
-        closing_idx = -1
-        for idx in range(1, len(lines)):
-            if lines[idx].strip() in ("```", "```markdown", "```yaml"):
-                closing_idx = idx
-                break
-        if closing_idx != -1:
-            fm_lines = lines[1:closing_idx]
-            body_lines = lines[closing_idx+1:]
-            fm_lines_cleaned = [l for l in fm_lines if l.strip() != "---"]
-            fm_content = "\n".join(fm_lines_cleaned)
-            body_content = "\n".join(body_lines)
-            content = f"---\n{fm_content}\n---\n\n{body_content}"
+    content = _strip_outer_markdown_code_block(content.strip())
 
     lines = content.splitlines()
     boundary_indices = [i for i, line in enumerate(lines) if line.strip() == "---"]
@@ -58,25 +93,9 @@ def _clean_frontmatter(content: str) -> str:
         return content
 
     i, j = boundary_indices[0], boundary_indices[1]
-    fm_lines = lines[i+1:j]
-    body_lines = lines[j+1:]
+    cleaned_fm = _clean_frontmatter_lines(lines[i+1:j])
+    body = _clean_body_lines(lines[j+1:])
 
-    cleaned_fm_lines = []
-    for line in fm_lines:
-        if line.strip().startswith("```"):
-            continue
-        cleaned_line = re.sub(r'(?s)<!--.*?-->', '', line).strip()
-        cleaned_line = cleaned_line.split('<!--')[0].strip()
-        cleaned_fm_lines.append(cleaned_line)
-        
-    cleaned_fm = "\n".join(cleaned_fm_lines)
-
-    while body_lines and (body_lines[0].strip() == "```" or not body_lines[0].strip()):
-        body_lines.pop(0)
-    while body_lines and (body_lines[-1].strip() == "```" or not body_lines[-1].strip()):
-        body_lines.pop()
-
-    body = "\n".join(body_lines)
     return f"---\n{cleaned_fm}\n---\n\n{body}"
 
 
@@ -119,8 +138,8 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
         print(f"\n✨ Consolidating and cleaning up: {f.name}")
         content = f.read_text(encoding="utf-8")
 
-        system_prompt = system_template.replace("{today}", today)
-        prompt = user_template.replace("{content}", content)
+        system_prompt = system_template
+        prompt = f"TODAY'S DATE: {today}\n\n" + user_template.replace("{content}", content)
 
         if dry_run:
             print(f"  [DRY RUN] Would rewrite: {f.name}")
@@ -145,8 +164,8 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
     print(f"\n{'=' * 50}")
     print(f"🎉 Cleanup completed. Processed: {total_processed}  Errors: {total_errors}")
     if not dry_run:
-        print(f"ℹ️  All cleaned files have been written directly to wiki/experiences/.")
-        print(f"ℹ️  A backup is available in wiki/experiences_backup/ in case you need to revert any changes.")
+        print("ℹ️  All cleaned files have been written directly to wiki/experiences/.")
+        print("ℹ️  A backup is available in wiki/experiences_backup/ in case you need to revert any changes.")
 
 
 def main() -> None:

@@ -22,13 +22,8 @@ def _generate_experiences(
     """Generate experience files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    # Load and format external system prompt template
-    system_template = load_prompt("generate_experience.txt")
-    system_prompt = (
-        system_template
-        .replace("{ENTITY_MAP_LINES}", entity_map_lines)
-        .replace("{SCHEMA_TEXT}", schema_text[:3000])
-    )
+    # Load external system prompt template completely statically
+    system_prompt = load_prompt("generate_experience.txt")
 
     for role in roles:
         raw_org = role.get("raw_org_name", "")
@@ -40,7 +35,15 @@ def _generate_experiences(
         filename = f"{canonical_slug}-{title_slug}.md"
         output_path = str(get_wiki_root() / "experiences" / filename)
 
-        prompt = f"""Generate a complete wiki experience entry using ONLY the data provided below.
+        prompt = f"""TODAY'S DATE: {today_str}
+
+CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+SCHEMA REFERENCE:
+{schema_text[:3000]}
+
+Generate a complete wiki experience entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required organization slug in frontmatter: [[{canonical_slug}]]
@@ -79,8 +82,8 @@ def _generate_education(
     """Generate education files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    system_template = load_prompt("generate_education.txt")
-    edu_system_prompt = system_template.replace("{ENTITY_MAP_LINES}", entity_map_lines)
+    # Load external system prompt template completely statically
+    edu_system_prompt = load_prompt("generate_education.txt")
 
     for edu in education:
         raw_inst = edu.get("raw_inst_name", "")
@@ -92,7 +95,10 @@ def _generate_education(
         filename = f"{canonical_slug}-{title_slug}.md"
         output_path = str(get_wiki_root() / "education" / filename)
 
-        prompt = f"""Generate a complete wiki education entry using ONLY the data provided below.
+        prompt = f"""CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+Generate a complete wiki education entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required institution slug in frontmatter: [[{canonical_slug}]]
@@ -133,8 +139,8 @@ def _generate_languages(
     llm: Any, languages: list[dict[str, Any]], today_str: str, wiki_outputs: list[dict[str, Any]]
 ) -> None:
     """Generate language skill files and append them to wiki_outputs."""
-    system_template = load_prompt("generate_language.txt")
-    lang_system_prompt = system_template.replace("{TODAY_STR}", today_str)
+    # Load external system prompt template completely statically
+    lang_system_prompt = load_prompt("generate_language.txt")
 
     for lang in languages:
         lang_name = lang.get("language", "").strip() or "unknown-language"
@@ -144,7 +150,9 @@ def _generate_languages(
         filename = f"lang-{lang_slug}.md"
         output_path = str(get_wiki_root() / "skills" / filename)
 
-        prompt = f"""Generate a complete wiki language skill entry using ONLY the data provided below.
+        prompt = f"""TODAY'S DATE: {today_str}
+
+Generate a complete wiki language skill entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required title in frontmatter: {lang_name}
@@ -186,12 +194,8 @@ def _generate_projects(
     """Generate standalone project files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    system_template = load_prompt("generate_project.txt")
-    system_prompt = (
-        system_template
-        .replace("{ENTITY_MAP_LINES}", entity_map_lines)
-        .replace("{TODAY_STR}", today_str)
-    )
+    # Load external system prompt template completely statically
+    system_prompt = load_prompt("generate_project.txt")
 
     for proj in projects:
         raw_org = proj.get("raw_org_name", "")
@@ -203,7 +207,12 @@ def _generate_projects(
         filename = f"project-{title_slug}.md"
         output_path = str(get_wiki_root() / "projects" / filename)
 
-        prompt = f"""Generate a complete wiki project entry using ONLY the data provided below.
+        prompt = f"""CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+TODAY'S DATE: {today_str}
+
+Generate a complete wiki project entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required organization slug in frontmatter: [[{canonical_slug}]]
@@ -242,12 +251,8 @@ def _generate_patents(
     """Generate standalone patent files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    system_template = load_prompt("generate_patent.txt")
-    system_prompt = (
-        system_template
-        .replace("{ENTITY_MAP_LINES}", entity_map_lines)
-        .replace("{TODAY_STR}", today_str)
-    )
+    # Load external system prompt template completely statically
+    system_prompt = load_prompt("generate_patent.txt")
 
     for pat in patents:
         raw_org = pat.get("raw_org_name", "")
@@ -258,7 +263,12 @@ def _generate_patents(
         filename = f"patent-{id_slug}.md"
         output_path = str(get_wiki_root() / "patents" / filename)
 
-        prompt = f"""Generate a complete wiki patent entry using ONLY the data provided below.
+        prompt = f"""CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+TODAY'S DATE: {today_str}
+
+Generate a complete wiki patent entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required organization slug in frontmatter: [[{canonical_slug}]]
@@ -297,12 +307,8 @@ def _generate_notes(
     """Generate standalone note/feedback files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    system_template = load_prompt("generate_note.txt")
-    system_prompt = (
-        system_template
-        .replace("{ENTITY_MAP_LINES}", entity_map_lines)
-        .replace("{TODAY_STR}", today_str)
-    )
+    # Load external system prompt template completely statically
+    system_prompt = load_prompt("generate_note.txt")
 
     for note in notes:
         title = note.get("title", "").strip() or "note"
@@ -313,7 +319,12 @@ def _generate_notes(
         related_raw = note.get("related_raw_orgs", [])
         related_slugs = [f"[[{resolved[r]}]]" for r in related_raw if r in resolved]
         
-        prompt = f"""Generate a complete wiki note entry using ONLY the data provided below.
+        prompt = f"""CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+TODAY'S DATE: {today_str}
+
+Generate a complete wiki note entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required related slugs in frontmatter: {json.dumps(related_slugs)}
@@ -354,12 +365,8 @@ def _generate_cover_letters(
     """Generate cover letter files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
     
-    system_template = load_prompt("generate_cover_letter.txt")
-    system_prompt = (
-        system_template
-        .replace("{ENTITY_MAP_LINES}", entity_map_lines)
-        .replace("{TODAY_STR}", today_str)
-    )
+    # Load external system prompt template completely statically
+    system_prompt = load_prompt("generate_cover_letter.txt")
 
     for cl in cover_letters:
         raw_org = cl.get("target_organization_raw", "")
@@ -369,7 +376,12 @@ def _generate_cover_letters(
         filename = f"cover-letter-{title_slug}.md"
         output_path = str(get_wiki_root() / "cover-letters" / filename)
 
-        prompt = f"""Generate a complete wiki cover letter entry using ONLY the data provided below.
+        prompt = f"""CANONICAL ENTITY MAPPING:
+{entity_map_lines}
+
+TODAY'S DATE: {today_str}
+
+Generate a complete wiki cover letter entry using ONLY the data provided below.
 
 Required output filename: {filename}
 Required target organization in frontmatter: [[{canonical_slug}]]

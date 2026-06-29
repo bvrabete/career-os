@@ -56,11 +56,12 @@ graph TD
 
     subgraph GENERATION ["Pipeline 2: CV Generation (cv-gen)"]
         JD[Job Description] --> Analyzer[ANALYSIS: Persona/Region]
-        Analyzer --> Retriever[RETRIEVAL: Keyword-Score Top 6]
-        Retriever --> Drafter[DRAFTING: Tailored CV]
-        Drafter --> Auditor[AUDIT: ATS Check]
+        Analyzer --> Retriever["RETRIEVAL: Rank, Programmatic Pre-Group, Score"]
+        Retriever --> Drafter["DRAFTING: Tailored CV"]
+        Drafter --> Refiner["REFINER: Validate Density & Page Count"]
+        Refiner --> Auditor["AUDIT: ATS Check"]
         Auditor -->|Feedback| Drafter
-        Auditor -->|PASS| FinalCV[Final CV + context.json]
+        Auditor -->|PASS| FinalCV["Final CV + context.json"]
     end
 
     Experiences --> Retriever

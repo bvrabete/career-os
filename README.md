@@ -98,6 +98,15 @@ To maintain structural integrity and high ingestion speeds, `kb-ingest` employs:
 
 ---
 
+## Generation Pipeline Key Features
+
+To ensure a perfectly structured, compact, and compliant CV, the generation pipeline utilizes:
+*   **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
+*   **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
+*   **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -281,11 +290,13 @@ When you compile a CV with PDF generation enabled (`--generate-pdf`), the engine
 
 ## 🛠️ Generator Node Roles
 
-*   **Analyzer:** Deconstructs the JD to identify the target persona and region.
+*   **Analyzer:** Deconstructs the JD to identify the target persona, target organization, and region.
 *   **Retriever:** Scans the Knowledge Graph, ranks relevant entries, and loads strategy rules.
-*   *   **Drafter:** A high-fidelity executive writer that applies acronym expansion and aggressive quantification.
-*   **Refiner:** Validates document density to ensure professional layout.
-*   **Auditor:** Acts as a **Brutally Honest Senior Recruiter**, hunting for weak metrics or "fluff."
+    *   *Programmatic Pre-Grouping:* Programmatically identifies historical experiences (starting <= `current_year - 10`) belonging to the same organization, and merges them into a combined company entry to prevent redundant flat listings.
+    *   *Nested Grouped Compression:* Compresses merged historical experiences using a specialized LLM node and a prompt designed for tight nesting, rendering a clean, multi-role indented timeline with single-line impact statements.
+*   **Drafter:** A high-fidelity executive writer that applies acronym expansion, aggressive quantification, and regional profile tailoring.
+*   **Refiner:** Validates document density and page limits, checking length constraints and adjusting formatting if necessary to guarantee professional layout presentation.
+*   **Auditor:** Acts as a **Brutally Honest Senior Recruiter**, hunting for weak metrics, "fluff," or style violations, feeding constructive adjustments back into the pipeline.
 
 ---
 
