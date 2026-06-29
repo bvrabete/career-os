@@ -73,8 +73,9 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_experience(fm, errors)
-        self.assertTrue(len(errors) > 0)
+        self.assertGreater(len(errors), 0)
         self.assertTrue(any("Missing frontmatter fields" in err for err in errors))
+
 
     def test_validate_experience_invalid_org_link(self):
         """Test _validate_experience fails on raw string organization names without [[slug]]."""

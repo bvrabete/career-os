@@ -17,6 +17,9 @@ set_llm_cache(SQLiteCache(database_path=".langchain.db"))
 CONFIG_PATH = Path("config.yaml")
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+GEMINI_1_5_FLASH = "gemini-1.5-flash"
+
 def get_wiki_dir() -> Path:
     """Returns the Path to the llm-wiki directory, checking environment variables or default."""
     env_val = os.getenv("LLM_WIKI_DIR")
@@ -38,7 +41,7 @@ def load_config():
                 "EXTRACTION": {"TYPE": "ollama"},
                 "REFINEMENT": {"TYPE": "openai"}
             },
-            "OLLAMA_BASE_URL": "http://localhost:11434",
+            "OLLAMA_BASE_URL": DEFAULT_OLLAMA_BASE_URL,
             "STRATEGY_DEFAULT": "emea"
         }
 
@@ -74,7 +77,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     elif model_type == "ollama":
         # Check step-specific MODEL_NAME first, fallback to global mapping
         model_name = step_config.get("MODEL_NAME", models_map.get("ollama", "qwen2.5:7b"))
-        base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         kwargs = {}
         if format:
             kwargs["format"] = format
@@ -88,9 +91,9 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     
     elif model_type == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        model_name = step_config.get("MODEL_NAME", models_map.get("gemini", "gemini-1.5-flash"))
+        model_name = step_config.get("MODEL_NAME", models_map.get("gemini", GEMINI_1_5_FLASH))
         # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
-        if model_name == "gemini-1.5-flash":
+        if model_name == GEMINI_1_5_FLASH:
             logging.info(f"Mapping deprecated model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
             model_name = "gemini-2.5-flash"
         elif model_name == "gemini-1.5-pro":
@@ -100,6 +103,41 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
+
+def _create_openai_fallback(model_name: str, step_name: str, temperature: float, format: str | None):
+    if not os.getenv("OPENAI_API_KEY"):
+        logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
+        return None
+    kwargs = {}
+    if format == "json":
+        kwargs["response_format"] = {"type": "json_object"}
+    return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
+
+def _create_gemini_fallback(model_name: str, step_name: str, temperature: float):
+    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+        logging.warning(f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set.")
+        return None
+    # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
+    if model_name == GEMINI_1_5_FLASH:
+        logging.info(f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
+        model_name = "gemini-2.5-flash"
+    elif model_name == "gemini-1.5-pro":
+        logging.info(f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
+        model_name = "gemini-2.5-pro"
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+
+def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, format: str | None):
+    kwargs = {}
+    if format:
+        kwargs["format"] = format
+    return ChatOllama(
+        model=model_name, 
+        base_url=base_url, 
+        temperature=temperature,
+        num_ctx=8192,
+        **kwargs
+    )
 
 def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
     """
@@ -120,40 +158,14 @@ def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: 
         return None
         
     if model_type == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
-            logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
-            return None
-        kwargs = {}
-        if format == "json":
-            kwargs["response_format"] = {"type": "json_object"}
-        return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
+        return _create_openai_fallback(model_name, step_name, temperature, format)
         
-    elif model_type == "gemini":
-        if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-            logging.warning(f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set.")
-            return None
-        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
-        if model_name == "gemini-1.5-flash":
-            logging.info(f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
-            model_name = "gemini-2.5-flash"
-        elif model_name == "gemini-1.5-pro":
-            logging.info(f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
-            model_name = "gemini-2.5-pro"
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+    if model_type == "gemini":
+        return _create_gemini_fallback(model_name, step_name, temperature)
         
-    elif model_type == "ollama":
-        base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
-        kwargs = {}
-        if format:
-            kwargs["format"] = format
-        return ChatOllama(
-            model=model_name, 
-            base_url=base_url, 
-            temperature=temperature,
-            num_ctx=8192,
-            **kwargs
-        )
+    if model_type == "ollama":
+        base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
+        return _create_ollama_fallback(model_name, base_url, temperature, format)
         
     return None
 

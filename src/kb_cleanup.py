@@ -21,6 +21,18 @@ from kb_config import get_model_for_step, get_wiki_dir
 logger = logging.getLogger(__name__)
 
 
+def validate_path(path: Path | str) -> Path:
+    """
+    Validates and canonicalizes file paths to prevent traversal and security risks.
+    """
+    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    canonical_path = os.path.realpath(os.path.abspath(path))
+    if not canonical_path.startswith(base_dir):
+        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
+    return Path(canonical_path)
+
+
+
 def _llm_text(content: str | list[Any]) -> str:
     """
     Coerce LLM content response into a standard string.
@@ -152,7 +164,7 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
             
             # Simple validation: ensure frontmatter dashes exist
             if cleaned_content.count("---") >= 2:
-                f.write_text(cleaned_content, encoding="utf-8")
+                validate_path(f).write_text(cleaned_content, encoding="utf-8")
                 print(f"  ✅ Successfully cleaned and consolidated: {f.name}")
                 total_processed += 1
             else:

@@ -15,6 +15,8 @@ from kb_config import (
     get_fallback_model_for_step
 )
 
+BRACKET_LINK_PATTERN = re.compile(r'\[\[(.*?)\]\]')
+
 
 def llm_text(content: str | list[Any]) -> str:
     """Coerce a LangChain response.content value to a plain string."""
@@ -369,7 +371,7 @@ def _get_experience_key(name: str, content: str) -> tuple[str, str]:
     """Extract a deduplication key (organization, start_year) from an experience entry."""
     fm = _parse_yaml_frontmatter_from_text(content)
     org_raw = str(fm.get("organization", ""))
-    org_match = re.search(r'\[\[(.*?)\]\]', org_raw)
+    org_match = BRACKET_LINK_PATTERN.search(org_raw)
     org = org_match.group(1) if org_match else org_raw.strip().lower()
     if not org:
         org = name.replace(".md", "").split("-")[0]
@@ -477,13 +479,14 @@ def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
     else:
         org_str = name.replace(".md", "").split("-")[0]
         
-    org_str = re.sub(r'\[\[(.*?)\]\]', r'\1', org_str)
+    org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_str)
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
     org_clean = re.sub(r'[\s\_]+', '-', org_clean)
     if org_clean.startswith("intel"):
         return "intel"
     return org_clean
+
 
 
 def _split_recent_and_old_experiences(
@@ -495,7 +498,7 @@ def _split_recent_and_old_experiences(
     old_entries_by_org = defaultdict(list)
     
     for item in deduplicated:
-        score, name, content, justification = item
+        _, name, content, _ = item
         fm = _parse_yaml_frontmatter_from_text(content)
         if _is_old_role(fm):
             org = _get_org_slug(name, fm)
@@ -711,7 +714,7 @@ def _parse_education_candidate(f: Path) -> dict[str, Any] | None:
         fm = _parse_yaml_frontmatter_from_text(edu_text)
         if fm:
             inst_raw = str(fm.get("institution", ""))
-            inst_match = re.search(r'\[\[(.*?)\]\]', inst_raw)
+            inst_match = BRACKET_LINK_PATTERN.search(inst_raw)
             inst = inst_match.group(1) if inst_match else inst_raw.strip().lower()
             
             dates = fm.get("dates", {})
@@ -920,11 +923,9 @@ def resolve_regional_strategy(wiki_dir: Path, region: str) -> tuple[str, str]:
     if strategy_file.exists():
         strategy_text = strategy_file.read_text(encoding="utf-8")
         if strategy_text.startswith("---"):
-            fm_match = re.search(
-                r'pdf_template:\s*["\']?(.*?)["\']?\s*$', strategy_text, re.MULTILINE
-            )
-            if fm_match:
-                pdf_template = fm_match.group(1)
+            fm = _parse_yaml_frontmatter_from_text(strategy_text)
+            if fm and "pdf_template" in fm:
+                pdf_template = str(fm["pdf_template"]).strip()
     return strategy_text, pdf_template
 
 
@@ -942,6 +943,27 @@ def get_subject_info(wiki_dir: Path) -> str:
     return ""
 
 
+def _parse_start_date(entry_str: str) -> tuple[int, int]:
+    """Parse start date from entry_str, fallback to (1970, 1) on failure."""
+    date_start_match = re.search(r'START_DATE:\s*(\d{4}-\d{2}-\d{2})', entry_str)
+    if date_start_match:
+        try:
+            year, month, _ = map(int, date_start_match.group(1).split('-'))
+            return (year, month)
+        except Exception:
+            pass
+            
+    fallback_match = re.search(r'start:\s*[\'"]?(\d{4}-\d{1,2}-\d{1,2})[\'"]?', entry_str)
+    if fallback_match:
+        try:
+            year, month, _ = map(int, fallback_match.group(1).split('-'))
+            return (year, month)
+        except Exception:
+            pass
+            
+    return (1970, 1)
+
+
 def parse_and_sort_chronological_entries(entries: list[str]) -> str:
     """Parse chronological experience entries, sort them by start date descending, and format them."""
     parsed_entries: list[dict[str, Any]] = []
@@ -953,23 +975,7 @@ def parse_and_sort_chronological_entries(entries: list[str]) -> str:
         score_match = re.search(r'SEMANTIC RELEVANCE SCORE: (\d+)', entry_str)
         score = int(score_match.group(1)) if score_match else 0
         entry_name = name_match.group(1)
-
-        start_date = (1970, 1)
-        date_start_match = re.search(r'START_DATE:\s*(\d{4}-\d{2}-\d{2})', entry_str)
-        if date_start_match:
-            try:
-                year, month, _ = map(int, date_start_match.group(1).split('-'))
-                start_date = (year, month)
-            except Exception:
-                pass
-        else:
-            fallback_match = re.search(r'start:\s*[\'"]?(\d{4}-\d{1,2}-\d{1,2})[\'"]?', entry_str)
-            if fallback_match:
-                try:
-                    year, month, _ = map(int, fallback_match.group(1).split('-'))
-                    start_date = (year, month)
-                except Exception:
-                    pass
+        start_date = _parse_start_date(entry_str)
 
         parsed_entries.append({
             "name": entry_name,

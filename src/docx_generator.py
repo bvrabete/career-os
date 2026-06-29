@@ -51,37 +51,139 @@ def add_hyperlink(paragraph: Any, url: str, text: str) -> Any:
     return hyperlink
 
 
+def _process_part(paragraph: Any, part: str) -> None:
+    """Applies inline formatting styles to a specific token part."""
+    if part.startswith('***') and part.endswith('***'):
+        run = paragraph.add_run(part[3:-3])
+        run.bold = True
+        run.italic = True
+    elif part.startswith('**') and part.endswith('**'):
+        run = paragraph.add_run(part[2:-2])
+        run.bold = True
+    elif part.startswith('*') and part.endswith('*'):
+        run = paragraph.add_run(part[1:-1])
+        run.italic = True
+    elif part.startswith('[') and ']' in part and part.endswith(')'):
+        match = re.match(r'\[([^\]]*)\]\(([^\)]*)\)', part)
+        if match:
+            link_text, url = match.groups()
+            add_hyperlink(paragraph, url, link_text)
+        else:
+            paragraph.add_run(part)
+    else:
+        paragraph.add_run(part)
+
+
 def add_formatted_runs(paragraph: Any, text: str) -> None:
     """
     Parses and appends inline formatting (bold, italic, links) to a paragraph.
     """
-    # Tokenize by bold (*** or **), italic (*), and links [text](url)
+    # Tokenize by bold, italic, and links using non-backtracking negated character classes
     pattern = re.compile(
-        r'(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\))')
+        r'(\*\*\*[^\*]*\*\*\*|\*\*[^\*]*\*\*|\*[^\*]*\*|\[[^\]]*\]\([^\)]*\))')
     parts = pattern.split(text)
 
     for part in parts:
-        if not part:
-            continue
-        if part.startswith('***') and part.endswith('***'):
-            run = paragraph.add_run(part[3:-3])
-            run.bold = True
-            run.italic = True
-        elif part.startswith('**') and part.endswith('**'):
-            run = paragraph.add_run(part[2:-2])
-            run.bold = True
-        elif part.startswith('*') and part.endswith('*'):
-            run = paragraph.add_run(part[1:-1])
-            run.italic = True
-        elif part.startswith('[') and ']' in part and part.endswith(')'):
-            match = re.match(r'\[(.*?)\]\((.*?)\)', part)
-            if match:
-                link_text, url = match.groups()
-                add_hyperlink(paragraph, url, link_text)
-            else:
-                paragraph.add_run(part)
-        else:
-            paragraph.add_run(part)
+        if part:
+            _process_part(paragraph, part)
+
+
+def _add_title_header(doc: Any, text: str, color_primary: RGBColor) -> None:
+    """Formats and adds the main title to the document."""
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(4)
+
+    run = p.add_run(text)
+    run.bold = True
+    run.font.name = 'Calibri'
+    run.font.size = Pt(22)
+    run.font.color.rgb = color_primary
+
+
+def _add_section_header(doc: Any, text: str, color_primary: RGBColor) -> None:
+    """Formats and adds a section header (Heading 2) to the document."""
+    p = doc.add_heading(level=2)
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.space_before = Pt(14)
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.left_indent = Inches(0)
+
+    run = p.add_run(text)
+    run.bold = True
+    run.font.name = 'Calibri'
+    run.font.size = Pt(13)
+    run.font.color.rgb = color_primary
+
+
+def _add_role_header(doc: Any, text: str, color_primary: RGBColor) -> None:
+    """Formats and adds a sub-header or role header to the document."""
+    p = doc.add_paragraph()
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.space_before = Pt(8)
+    p.paragraph_format.space_after = Pt(2)
+
+    run = p.add_run(text)
+    run.bold = True
+    run.font.name = 'Calibri'
+    run.font.size = Pt(11)
+    run.font.color.rgb = color_primary
+
+
+def _add_horizontal_rule(doc: Any) -> None:
+    """Adds an elegant, centered horizontal rule separator."""
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(4)
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.line_spacing = Pt(1)
+
+    run = p.add_run("______________________________________________________________________")
+    run.font.size = Pt(8)
+    run.font.color.rgb = RGBColor(210, 210, 210)
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+
+def _add_bullet_item(doc: Any, text: str, color_text: RGBColor) -> None:
+    """Formats and adds a single list bullet item to the document."""
+    p = doc.add_paragraph(style='List Bullet')
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(3)
+    p.paragraph_format.line_spacing = 1.15
+
+    add_formatted_runs(p, text)
+    for run in p.runs:
+        run.font.name = 'Calibri'
+        run.font.size = Pt(10.5)
+        if not run.font.color.rgb:
+            run.font.color.rgb = color_text
+
+
+def _add_standard_paragraph(
+    doc: Any, line: str, idx: int, color_secondary: RGBColor, color_text: RGBColor
+) -> None:
+    """Formats and adds a standard body paragraph or contact info line."""
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.line_spacing = 1.15
+
+    is_contact_line = any(
+        kw in line.lower() for kw in ["@ ", "phone", "linkedin", "address", "email", "github"]
+    ) or "|" in line or "  " in line
+
+    if is_contact_line and idx < 8:
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_after = Pt(10)
+
+    add_formatted_runs(p, line)
+    for run in p.runs:
+        run.font.name = 'Calibri'
+        run.font.size = Pt(9.5) if is_contact_line else Pt(10.5)
+        if is_contact_line:
+            run.font.color.rgb = color_secondary
+        elif not run.font.color.rgb:
+            run.font.color.rgb = color_text
 
 
 def generate_docx(md_content: str, output_path: str) -> bool:
@@ -112,105 +214,22 @@ def generate_docx(md_content: str, output_path: str) -> bool:
         while idx < len(lines):
             line = lines[idx].strip()
 
-            # Skip completely empty lines to prevent excessive vertical white space
             if not line:
                 idx += 1
                 continue
 
-            # 1. Main Title Header (Markdown: # [Your Name])
             if line.startswith("# "):
-                title_text = line[2:].strip()
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_before = Pt(0)
-                p.paragraph_format.space_after = Pt(4)
-
-                run = p.add_run(title_text)
-                run.bold = True
-                run.font.name = 'Calibri'
-                run.font.size = Pt(22)
-                run.font.color.rgb = color_primary
-
-            # 2. Section Title Header (Markdown: ## Work Experience)
+                _add_title_header(doc, line[2:].strip(), color_primary)
             elif line.startswith("## "):
-                section_text = line[3:].strip()
-                p = doc.add_heading(level=2)
-                p.paragraph_format.keep_with_next = True
-                p.paragraph_format.space_before = Pt(14)
-                p.paragraph_format.space_after = Pt(4)
-
-                # Reset heading default style runs
-                p.paragraph_format.left_indent = Inches(0)
-                run = p.add_run(section_text)
-                run.bold = True
-                run.font.name = 'Calibri'
-                run.font.size = Pt(13)
-                run.font.color.rgb = color_primary
-
-            # 3. Sub-headers/Role Title Header (Markdown: ### Senior Software Engineer)
+                _add_section_header(doc, line[3:].strip(), color_primary)
             elif line.startswith("### "):
-                role_text = line[4:].strip()
-                p = doc.add_paragraph()
-                p.paragraph_format.keep_with_next = True
-                p.paragraph_format.space_before = Pt(8)
-                p.paragraph_format.space_after = Pt(2)
-
-                run = p.add_run(role_text)
-                run.bold = True
-                run.font.name = 'Calibri'
-                run.font.size = Pt(11)
-                run.font.color.rgb = color_primary
-
-            # 4. Horizontal Rule / Divider (Markdown: ---)
-            elif (line.startswith("---") or (line.startswith("***") and len(line) >= 3 and not line.strip("* -"))):
-                p = doc.add_paragraph()
-                p.paragraph_format.space_before = Pt(4)
-                p.paragraph_format.space_after = Pt(4)
-                p.paragraph_format.line_spacing = Pt(1)
-                # Centered, elegant typographic horizontal break representation
-                run = p.add_run(
-                    "______________________________________________________________________")
-                run.font.size = Pt(8)
-                run.font.color.rgb = RGBColor(210, 210, 210)
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-            # 5. Bullet Point List Items (Markdown: - Item Text)
+                _add_role_header(doc, line[4:].strip(), color_primary)
+            elif line.startswith("---") or (line.startswith("***") and len(line) >= 3 and not line.strip("* -")):
+                _add_horizontal_rule(doc)
             elif line.startswith(("- ", "* ", "+ ")):
-                bullet_text = line[2:].strip()
-                p = doc.add_paragraph(style='List Bullet')
-                p.paragraph_format.space_before = Pt(0)
-                p.paragraph_format.space_after = Pt(3)
-                p.paragraph_format.line_spacing = 1.15
-
-                add_formatted_runs(p, bullet_text)
-                for run in p.runs:
-                    run.font.name = 'Calibri'
-                    run.font.size = Pt(10.5)
-                    if not run.font.color.rgb:
-                        run.font.color.rgb = color_text
-
-            # 6. Standard Paragraph / Subtitle / Meta Lines
+                _add_bullet_item(doc, line[2:].strip(), color_text)
             else:
-                p = doc.add_paragraph()
-                p.paragraph_format.space_before = Pt(0)
-                p.paragraph_format.space_after = Pt(4)
-                p.paragraph_format.line_spacing = 1.15
-
-                # Check if this line is part of a centered contact block (e.g. Phone | Email | Address)
-                is_contact_line = any(kw in line.lower() for kw in [
-                                      "@ ", "phone", "linkedin", "address", "email", "github"]) or "|" in line or "  " in line
-                if is_contact_line and idx < 8:
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    p.paragraph_format.space_after = Pt(10)
-
-                add_formatted_runs(p, line)
-                for run in p.runs:
-                    run.font.name = 'Calibri'
-                    run.font.size = Pt(9.5) if is_contact_line else Pt(10.5)
-                    if is_contact_line:
-                        run.font.color.rgb = color_secondary
-                    elif not run.font.color.rgb:
-                        run.font.color.rgb = color_text
+                _add_standard_paragraph(doc, line, idx, color_secondary, color_text)
 
             idx += 1
 

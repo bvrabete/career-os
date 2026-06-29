@@ -13,6 +13,19 @@ SCHEMA_MD = "schema.md"
 PERSONA_MAPPINGS_HEADER = "## Persona Mappings"
 
 
+def validate_path(path: Path | str) -> Path:
+    """
+    Validates and canonicalizes file paths to prevent traversal and security risks.
+    """
+    import os
+    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    canonical_path = os.path.realpath(os.path.abspath(path))
+    if not canonical_path.startswith(base_dir):
+        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
+    return Path(canonical_path)
+
+
+
 def get_wiki_root() -> Path:
     """Get the absolute path to the wiki folder."""
     from kb_config import get_wiki_dir
@@ -242,7 +255,7 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
-    mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    validate_path(mappings_path).write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     logging.info(
         f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
 

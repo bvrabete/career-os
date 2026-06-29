@@ -32,7 +32,10 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run Pipeline Unit Tests with Coverage
-        run: uv run pytest --cov=src --cov-report=xml:coverage.xml
+        run: |
+          uv run pytest --cov=src --cov-report=xml:coverage.xml
+          sed -i "s|${{ github.workspace }}|/github/workspace|g" coverage.xml
+
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v3

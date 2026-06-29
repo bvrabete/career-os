@@ -343,7 +343,8 @@ class TestDOCXGenerator(unittest.TestCase):
             success = generate_docx(md_content, str(out_file))
             self.assertTrue(success)
             self.assertTrue(out_file.exists())
-            self.assertTrue(out_file.stat().st_size > 0)
+            self.assertGreater(out_file.stat().st_size, 0)
+
 
     @patch("docx.Document")
     def test_docx_generation_failure(self, mock_doc):
