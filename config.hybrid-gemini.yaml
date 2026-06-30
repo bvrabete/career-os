@@ -1,15 +1,15 @@
 # Model Selection Definitions
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  gemini: "gemini-1.5-flash" # Default fast API model
+  gemini: "gemini-2.5-flash" # Default fast API model
 
 # Pipeline Step Configurations (Hybrid Gemini-Assisted Setup)
-# Uses high-speed, zero-VRAM Google Gemini cloud APIs (gemini-1.5-flash & gemini-1.5-pro) for complex parsing, reasoning, and auditing,
+# Uses high-speed, zero-VRAM Google Gemini cloud APIs (gemini-2.5-flash & gemini-2.5-pro) for complex parsing, reasoning, and auditing,
 # while retaining light local models (llama3.1:8b & qwen2.5:7b) for fast local steps.
 STEPS:
   EXTRACTION:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-flash" # Blazing fast schema parsing (zero local VRAM, 100% accurate)
+    MODEL_NAME: "gemini-2.5-flash" # Blazing fast schema parsing (zero local VRAM, 100% accurate)
 
   REFINEMENT:
     TYPE: "ollama"
@@ -17,7 +17,7 @@ STEPS:
 
   MERGE:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # High-reasoning enterprise deduplication and syncing
+    MODEL_NAME: "gemini-2.5-pro" # High-reasoning enterprise deduplication and syncing
 
   GAP_ANALYSIS:
     TYPE: "ollama"
@@ -34,7 +34,7 @@ STEPS:
 
   DRAFTING:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
+    MODEL_NAME: "gemini-2.5-pro" # RECOMMENDED: handles >30k token career context with massive window
     # OPTIONAL EXPLICIT FALLBACK (Defined, not assumed):
     # If you encounter API rate limits (e.g. 429), you can define a fallback model here.
     # If no fallback is defined below or if its credentials are missing, the original error is re-raised.
@@ -46,7 +46,7 @@ STEPS:
 
   AUDIT:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-flash" # Brutally honest cloud-based recruiter critic (fast and accurate)
+    MODEL_NAME: "gemini-2.5-flash" # Brutally honest cloud-based recruiter critic (fast and accurate)
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
@@ -55,15 +55,15 @@ STEPS:
 
   INGESTION_EXTRACT:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-flash" # Flawless cloud extraction of candidate data
+    MODEL_NAME: "gemini-2.5-flash" # Flawless cloud extraction of candidate data
 
   INGESTION_GENERATE:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # Perfect schema compliance for frontmatter generation
+    MODEL_NAME: "gemini-2.5-pro" # Perfect schema compliance for frontmatter generation
 
   INGESTION_MERGE:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # Near-perfect deduplication of new experiences into existing nodes
+    MODEL_NAME: "gemini-2.5-pro" # Near-perfect deduplication of new experiences into existing nodes
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 

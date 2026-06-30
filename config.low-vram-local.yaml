@@ -2,7 +2,7 @@
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
   openai: "gpt-4o"
-  gemini: "gemini-1.5-flash" # Default fast API model
+  gemini: "gemini-2.5-flash" # Default fast API model
 
 # Pipeline Step Configurations (6GB VRAM Local-First Setup)
 # Standardized completely on qwen2.5:7b for all local Ollama steps.
@@ -34,8 +34,8 @@ STEPS:
     MODEL_NAME: "qwen2.5:7b"
 
   DRAFTING:
-    TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
 
   AUDIT:
     TYPE: "ollama"

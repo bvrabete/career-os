@@ -2,7 +2,7 @@
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
   openai: "gpt-4o"
-  gemini: "gemini-1.5-flash" # Default fast API model
+  gemini: "gemini-2.5-flash" # Default fast API model
 
 # Pipeline Step Configurations
 # You can specify the TYPE ('ollama', 'openai', or 'gemini') and optionally a specific 'MODEL_NAME' to override the default.
@@ -12,7 +12,7 @@ STEPS:
     MODEL_NAME: "qwen2.5:14b" # Hybrid/Spillover (Accurate schema parsing using 128GB RAM)
     # Secondary Options:
     # TYPE: "ollama" | MODEL_NAME: "qwen2.5:7b" (100% GPU, Fast but less schema-accurate)
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-flash" (API, extremely fast and accurate)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-flash" (API, extremely fast and accurate)
 
   REFINEMENT:
     TYPE: "ollama"
@@ -24,7 +24,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "gemma2:27b" # High-reasoning spillover (Very precise merging using 128GB RAM)
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-pro" (API, near-perfect deduplication)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-pro" (API, near-perfect deduplication)
     # TYPE: "ollama" | MODEL_NAME: "llama3.1:8b" (100% GPU, Fast but may drop complex structures)
 
   GAP_ANALYSIS:
@@ -38,7 +38,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "qwen2.5:7b" # 100% GPU offload, extremely fast
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-flash" (API, near-instant)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-flash" (API, near-instant)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
@@ -48,14 +48,14 @@ STEPS:
     MODEL_NAME: "llama3.1:8b" # 100% GPU offload, fast scoring per experience file
     # Secondary Options:
     # TYPE: "ollama" | MODEL_NAME: "qwen2.5:14b" (More nuanced conceptual bridging)
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-flash" (API, fast & cheap)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-flash" (API, fast & cheap)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
 
   DRAFTING:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-1.5-pro" # RECOMMENDED: handles >30k token career context with massive window
+    MODEL_NAME: "gemini-2.5-pro" # RECOMMENDED: handles >30k token career context with massive window
     # Secondary Options:
     # TYPE: "ollama" | MODEL_NAME: "qwen2.5:14b" (Local, requires running with num_ctx=32768 in Ollama, relies on 128GB RAM)
     # Previous config differed:
@@ -67,7 +67,7 @@ STEPS:
     MODEL_NAME: "gemma2:9b" # Hybrid/Spillover (Strong local critic)
     # Secondary Options:
     # TYPE: "ollama" | MODEL_NAME: "gemma2:27b" (Excellent but slower local critic)
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-pro" (API, exceptional recruiter-like critique)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-pro" (API, exceptional recruiter-like critique)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
@@ -77,7 +77,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "llama3.1:8b" # 100% GPU offload, extremely fast document triage
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-flash" (API)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-flash" (API)
     # Previous config differed:
     # TYPE: "ollama"
     # MODEL_NAME: "gemma4:26b"
@@ -86,7 +86,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "qwen2.5:14b" # Hybrid/Spillover (Handles structured JSON extraction beautifully)
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-flash" (API, lightning fast & very precise)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-flash" (API, lightning fast & very precise)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
@@ -95,7 +95,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "gemma2:27b" # High-reasoning spillover (Ensures strictly schema-compliant YAML frontmatter)
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-pro" (API, perfect compliance)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-pro" (API, perfect compliance)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
@@ -104,7 +104,7 @@ STEPS:
     TYPE: "ollama"
     MODEL_NAME: "gemma2:27b" # High-reasoning spillover
     # Secondary Options:
-    # TYPE: "gemini" | MODEL_NAME: "gemini-1.5-pro" (API, perfect merging)
+    # TYPE: "gemini" | MODEL_NAME: "gemini-2.5-pro" (API, perfect merging)
     # Previous config differed:
     # TYPE: "openai"
     # MODEL_NAME: "gpt-4o"
