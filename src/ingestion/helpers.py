@@ -255,6 +255,12 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
+    import os
+    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
+    resolved_mappings_path = os.path.abspath(mappings_path)
+    if not resolved_mappings_path.startswith(base_trusted_dir):
+        raise PermissionError("Attempted Path Traversal outside home directory")
+
     if mappings_path.name != "mappings.md":
         raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
 
