@@ -5,7 +5,7 @@ import re
 import shutil
 import yaml
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 
 SLUG_PATTERN = r'[^a-z0-9]+'
@@ -280,7 +280,7 @@ def get_persona_slug(profile_name: str) -> str:
     return slug
 
 
-def llm_text(content: Union[str, list[Any]]) -> str:
+def llm_text(content: str | list[Any]) -> str:
     """Coerce a LangChain response.content value to a plain string."""
     if isinstance(content, str):
         return content
