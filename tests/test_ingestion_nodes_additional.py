@@ -15,6 +15,7 @@ from ingestion.nodes import (
     _parse_fallback, node_parser, node_classifier, node_entity_resolver,
     node_merger, node_validator, node_writer, _validate_by_type
 )
+from typing import cast
 from ingestion.state import IngestionState
 
 
@@ -74,7 +75,7 @@ class TestIngestionNodesAdditional(unittest.TestCase):
     @patch("ingestion.nodes._parse_fallback", return_value="Fallback extraction")
     def test_node_parser_pypdf_to_docling_to_fallback(self, mock_fallback, mock_docling, mock_pypdf):
         """Test node_parser falling back all the way to _parse_fallback."""
-        state: IngestionState = {"source_file": "dummy.pdf"}
+        state = cast(IngestionState, {"source_file": "dummy.pdf"})
         res = node_parser(state)
         self.assertEqual(res["raw_text"], "Fallback extraction")
         mock_pypdf.assert_called_once()
@@ -90,7 +91,7 @@ class TestIngestionNodesAdditional(unittest.TestCase):
         mock_llm.invoke.return_value = AIMessage(content="invalid json output")
         mock_get_model.return_value = mock_llm
 
-        state: IngestionState = {"source_file": "dummy.md", "raw_text": "Resume text"}
+        state = cast(IngestionState, {"source_file": "dummy.md", "raw_text": "Resume text"})
         res = node_classifier(state)
         self.assertEqual(res["doc_type"], "skip")
 
@@ -104,19 +105,19 @@ class TestIngestionNodesAdditional(unittest.TestCase):
         mock_get_model.return_value = mock_llm
 
         # Case 1: Outputs with validation errors should skip merging
-        state_err: IngestionState = {
+        state_err = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{"path": "wiki/experiences/org.md", "validation_errors": ["Some error"]}]
-        }
+        })
         res = node_merger(state_err)
-        self.assertEqual(res["wiki_outputs"][0].get("merged"), None)
+        self.assertIsNone(res["wiki_outputs"][0].get("merged"))
 
         # Case 2: New file (no existing page)
         mock_find_page.return_value = None
-        state_new: IngestionState = {
+        state_new = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{"path": "wiki/experiences/org.md", "content": "---\ntype: experience\n---\n"}]
-        }
+        })
         res = node_merger(state_new)
         self.assertNotIn("merged", res["wiki_outputs"][0])
 
@@ -127,13 +128,13 @@ class TestIngestionNodesAdditional(unittest.TestCase):
 
         mock_llm.invoke.return_value = AIMessage(content="---\ntype: experience\ntitle: Merged\n---\nMerged Body")
         
-        state_redirect: IngestionState = {
+        state_redirect = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{
                 "path": str(self.temp_path / "new_org.md"),
                 "content": "---\ntype: experience\ntitle: New Experience\n---\nNew Body"
             }]
-        }
+        })
         res = node_merger(state_redirect)
         output = res["wiki_outputs"][0]
         self.assertEqual(output["path"], str(existing_file))
@@ -142,13 +143,13 @@ class TestIngestionNodesAdditional(unittest.TestCase):
 
         # Case 4: Merge exception path
         mock_llm.invoke.side_effect = Exception("LLM failure")
-        state_fail: IngestionState = {
+        state_fail = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{
                 "path": str(existing_file),
                 "content": "---\ntype: experience\ntitle: New Experience\n---\nNew Body"
             }]
-        }
+        })
         res = node_merger(state_fail)
         output = res["wiki_outputs"][0]
         self.assertFalse(output["merged"])
@@ -160,25 +161,25 @@ class TestIngestionNodesAdditional(unittest.TestCase):
     # 5. Schema Type Validators (via node_validator)
     def test_node_validator_empty_and_yaml_parse_errors(self):
         """Test validator handling empty content and malformed YAML frontmatter."""
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [
                 {"path": "wiki/experiences/test.md", "content": ""},
                 {"path": "wiki/experiences/test2.md", "content": "---\ntype: experience\n  invalid yaml:\n  - unmatched\n---\nBody"}
             ]
-        }
+        })
         res = node_validator(state)
         self.assertIn("Empty content", res["wiki_outputs"][0]["validation_errors"][0])
         self.assertIn("YAML parse error", res["wiki_outputs"][1]["validation_errors"][0])
 
     def test_node_validator_unknown_type(self):
         """Test validator handling unknown page type."""
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [
                 {"path": "wiki/experiences/test.md", "content": "---\ntype: magic_type\n---\nBody"}
             ]
-        }
+        })
         res = node_validator(state)
         self.assertIn("Unknown frontmatter type", res["wiki_outputs"][0]["validation_errors"][0])
 
@@ -269,10 +270,10 @@ class TestIngestionNodesAdditional(unittest.TestCase):
         out_path = self.temp_path / "wiki/experiences/test_writer.md"
 
         # Case 1: Validation errors present
-        state_err: IngestionState = {
+        state_err = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{"path": str(out_path), "content": "Body", "validation_errors": ["Error"]}]
-        }
+        })
         res_err = node_writer(state_err)
         output = res_err["wiki_outputs"][0]
         self.assertFalse(output["written"])
@@ -281,10 +282,10 @@ class TestIngestionNodesAdditional(unittest.TestCase):
         # Case 2: Duplicate file exists on disk and is not merged
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text("Existing body")
-        state_dup: IngestionState = {
+        state_dup = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{"path": str(out_path), "content": "New Body", "validation_errors": [], "merged": False}]
-        }
+        })
         res_dup = node_writer(state_dup)
         output = res_dup["wiki_outputs"][0]
         self.assertFalse(output["written"])
@@ -292,10 +293,10 @@ class TestIngestionNodesAdditional(unittest.TestCase):
 
         # Case 3: Dry run mode enabled
         out_path.unlink()  # Remove existing
-        state_dry: IngestionState = {
+        state_dry = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{"path": str(out_path), "content": "New Body", "validation_errors": [], "merged": False}]
-        }
+        })
         res_dry = node_writer(state_dry, dry_run=True)
         output = res_dry["wiki_outputs"][0]
         self.assertFalse(output["written"])

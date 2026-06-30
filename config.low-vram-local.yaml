@@ -5,33 +5,33 @@ MODELS:
   gemini: "gemini-1.5-flash" # Default fast API model
 
 # Pipeline Step Configurations (6GB VRAM Local-First Setup)
-# Tailored to run entirely within 6GB GPU VRAM using llama3.1:8b and qwen2.5:7b,
-# with drafting offloaded to Gemini-1.5-Pro for context handling.
+# Standardized completely on qwen2.5:7b for all local Ollama steps.
+# This prevents model swapping/VRAM reloading overhead and guarantees 100% GPU offload.
 STEPS:
   EXTRACTION:
     TYPE: "ollama"
-    MODEL_NAME: "qwen2.5:7b" # Replaced 14b -> 7b (runs 100% on GPU under 6GB VRAM)
+    MODEL_NAME: "qwen2.5:7b"
 
   REFINEMENT:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Fits easily in 6GB VRAM
+    MODEL_NAME: "qwen2.5:7b"
 
   MERGE:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Replaced 27b -> 8b (prevents heavy CPU spillover)
+    MODEL_NAME: "qwen2.5:7b"
 
   GAP_ANALYSIS:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Replaced 27b -> 8b
+    MODEL_NAME: "qwen2.5:7b"
 
   # CV Generator LangGraph Steps
   ANALYSIS:
     TYPE: "ollama"
-    MODEL_NAME: "qwen2.5:7b" # Fits perfectly in VRAM, extremely fast
+    MODEL_NAME: "qwen2.5:7b"
 
   RETRIEVAL:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Fits perfectly in VRAM
+    MODEL_NAME: "qwen2.5:7b"
 
   DRAFTING:
     TYPE: "gemini"
@@ -39,24 +39,24 @@ STEPS:
 
   AUDIT:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Replaced gemma2:9b with 8b for safety and speed on 6GB VRAM
+    MODEL_NAME: "qwen2.5:7b"
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Fast local document classification
+    MODEL_NAME: "qwen2.5:7b"
 
   INGESTION_EXTRACT:
     TYPE: "ollama"
-    MODEL_NAME: "qwen2.5:7b" # Replaced 14b -> 7b
+    MODEL_NAME: "qwen2.5:7b"
 
   INGESTION_GENERATE:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Replaced 27b -> 8b
+    MODEL_NAME: "qwen2.5:7b"
 
   INGESTION_MERGE:
     TYPE: "ollama"
-    MODEL_NAME: "llama3.1:8b" # Replaced 27b -> 8b
+    MODEL_NAME: "qwen2.5:7b"
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 

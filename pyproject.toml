@@ -53,5 +53,8 @@ omit = [
     "src/cv_generator_graph.py",
     "src/pdf_generator.py"
 ]
-
-
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+explicit_package_bases = true
+ignore_missing_imports = true

@@ -14,6 +14,7 @@ from ingestion.nodes import (
     _parse_via_pypdf, _parse_via_docling, _parse_fallback,
     node_parser, node_classifier, node_entity_resolver, node_validator
 )
+from typing import cast
 from ingestion.state import IngestionState
 
 
@@ -75,7 +76,7 @@ class TestIngestionNodes(unittest.TestCase):
         mock_reader.pages = [mock_page]
         mock_pdf_reader_cls.return_value = mock_reader
 
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "mock_doc.pdf",
             "raw_text": "",
             "doc_type": "skip",
@@ -89,7 +90,7 @@ class TestIngestionNodes(unittest.TestCase):
             "resolved_entities": {},
             "validation_errors": {},
             "written_paths": []
-        }
+        })
 
         result = node_parser(state)
         self.assertEqual(result["raw_text"], "A" * 300)
@@ -105,7 +106,7 @@ class TestIngestionNodes(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
         mock_get_model.return_value = mock_llm
 
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "doc.md",
             "raw_text": "Experienced Python Developer with deep technical skills.",
             "doc_type": "skip",
@@ -119,7 +120,7 @@ class TestIngestionNodes(unittest.TestCase):
             "resolved_entities": {},
             "validation_errors": {},
             "written_paths": []
-        }
+        })
 
         result = node_classifier(state)
         self.assertEqual(result["doc_type"], "experience")
@@ -127,7 +128,7 @@ class TestIngestionNodes(unittest.TestCase):
     @patch("ingestion.nodes.get_model_for_step")
     def test_node_classifier_empty_text(self, mock_get_model):
         """Test node_classifier handles empty text by skipping."""
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "empty.md",
             "raw_text": "   \n  ",
             "doc_type": "",
@@ -141,7 +142,7 @@ class TestIngestionNodes(unittest.TestCase):
             "resolved_entities": {},
             "validation_errors": {},
             "written_paths": []
-        }
+        })
 
         result = node_classifier(state)
         self.assertEqual(result["doc_type"], "skip")
@@ -154,7 +155,7 @@ class TestIngestionNodes(unittest.TestCase):
             "google inc": "google-inc"
         }
 
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "doc.md",
             "raw_text": "...",
             "doc_type": "experience",
@@ -168,7 +169,7 @@ class TestIngestionNodes(unittest.TestCase):
             "resolved_entities": {},
             "validation_errors": {},
             "written_paths": []
-        }
+        })
 
         result = node_entity_resolver(state)
         resolved = result["resolved_entities"]
@@ -179,7 +180,7 @@ class TestIngestionNodes(unittest.TestCase):
 
     def test_node_validator_success(self):
         """Test node_validator with correct experience frontmatter blocks."""
-        state: IngestionState = {
+        state = cast(IngestionState, {
             "source_file": "doc.md",
             "raw_text": "",
             "doc_type": "experience",
@@ -213,7 +214,7 @@ Some body text.
                     "validation_errors": []
                 }
             ]
-        }
+        })
 
         result = node_validator(state)
         self.assertEqual(result["wiki_outputs"][0]["validation_errors"], [])

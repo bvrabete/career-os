@@ -255,7 +255,10 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
-    validate_path(mappings_path).write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    if ".." in str(mappings_path) or mappings_path.name != "mappings.md":
+        raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
+
+    mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     logging.info(
         f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
 
