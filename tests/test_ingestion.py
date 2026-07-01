@@ -153,7 +153,7 @@ class TestIngestionHelpers(unittest.TestCase):
             shutil.rmtree(temp_dir)
 
     def test_llm_text_str_and_list(self):
-        """Test llm_text coersion for standard str and LangChain list contents."""
+        """Test llm_text conversion for standard str and LangChain list contents."""
         self.assertEqual(llm_text("Direct string"), "Direct string")
         self.assertEqual(llm_text(["part1", 2, "part3"]), "part1 2 part3")
 

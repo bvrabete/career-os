@@ -8,10 +8,13 @@
         "DACH",
         "emea",
         "mypy",
+        "ollama",
         "oxml",
         "pycache",
         "pytest",
+        "qwen",
         "slugified",
+        "qube",
         "venv",
         "Xoft"
     ],

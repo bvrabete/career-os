@@ -155,14 +155,12 @@ def parse_mappings() -> dict[str, str]:
     raw_mappings_path = get_mappings_path()
 
     # Inlined validation to satisfy SonarQube's path injection analysis (S2083)
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(raw_mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
+    base_trusted_dir = Path.home().resolve()
+    mappings_path = Path(raw_mappings_path).resolve()
+    if not str(mappings_path).startswith(str(base_trusted_dir)):
         raise PermissionError(PATH_TRAVERSAL_ERROR)
-    if raw_mappings_path.name != MAPPINGS_FILE_NAME:
+    if mappings_path.name != MAPPINGS_FILE_NAME:
         raise ValueError(INVALID_MAPPINGS_ERROR)
-
-    mappings_path = Path(resolved_mappings_path)
     if not mappings_path.exists():
         return {}
 
@@ -213,14 +211,12 @@ def get_persona_slug_from_mappings() -> str | None:
     raw_mappings_path = get_mappings_path()
 
     # Inlined validation to satisfy SonarQube's path injection analysis (S2083)
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(raw_mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
+    base_trusted_dir = Path.home().resolve()
+    mappings_path = Path(raw_mappings_path).resolve()
+    if not str(mappings_path).startswith(str(base_trusted_dir)):
         raise PermissionError(PATH_TRAVERSAL_ERROR)
-    if raw_mappings_path.name != MAPPINGS_FILE_NAME:
+    if mappings_path.name != MAPPINGS_FILE_NAME:
         raise ValueError(INVALID_MAPPINGS_ERROR)
-
-    mappings_path = Path(resolved_mappings_path)
     if not mappings_path.exists():
         return None
 
@@ -246,14 +242,12 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     raw_mappings_path = get_mappings_path()
 
     # Inlined validation to satisfy SonarQube's path injection analysis (S2083)
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(raw_mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
+    base_trusted_dir = Path.home().resolve()
+    mappings_path = Path(raw_mappings_path).resolve()
+    if not str(mappings_path).startswith(str(base_trusted_dir)):
         raise PermissionError(PATH_TRAVERSAL_ERROR)
-    if raw_mappings_path.name != MAPPINGS_FILE_NAME:
+    if mappings_path.name != MAPPINGS_FILE_NAME:
         raise ValueError(INVALID_MAPPINGS_ERROR)
-
-    mappings_path = Path(resolved_mappings_path)
     if not mappings_path.exists():
         return
 
