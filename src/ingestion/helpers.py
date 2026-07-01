@@ -145,7 +145,15 @@ def bootstrap_wiki_structure(wiki_dir: Path) -> None:
 
 def parse_mappings() -> dict[str, str]:
     """Parse mappings.md into {alias_lower: canonical_slug} dict."""
+    import os
     mappings_path = get_mappings_path()
+    
+    # Path traversal validation to prevent path injection vulnerabilities
+    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
+    resolved_mappings_path = os.path.abspath(mappings_path)
+    if not resolved_mappings_path.startswith(base_trusted_dir):
+        raise PermissionError("Attempted Path Traversal outside home directory")
+
     if not mappings_path.exists():
         return {}
 
@@ -192,7 +200,15 @@ def resolve_org(raw_name: str, mappings: dict[str, str]) -> str:
 
 def get_persona_slug_from_mappings() -> str | None:
     """Parse mappings.md to find the canonical persona slug from ## Persona Mappings section."""
+    import os
     mappings_path = get_mappings_path()
+    
+    # Path traversal validation to prevent path injection vulnerabilities
+    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
+    resolved_mappings_path = os.path.abspath(mappings_path)
+    if not resolved_mappings_path.startswith(base_trusted_dir):
+        raise PermissionError("Attempted Path Traversal outside home directory")
+
     if not mappings_path.exists():
         return None
 
@@ -214,7 +230,18 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
+    import os
     mappings_path = validate_path(get_mappings_path())
+    
+    # Standard security path validation to satisfy SonarQube taint analysis
+    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
+    resolved_mappings_path = os.path.abspath(mappings_path)
+    if not resolved_mappings_path.startswith(base_trusted_dir):
+        raise PermissionError("Attempted Path Traversal outside home directory")
+
+    if mappings_path.name != "mappings.md":
+        raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
+
     if not mappings_path.exists():
         return
 
@@ -255,15 +282,6 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
-    import os
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
-        raise PermissionError("Attempted Path Traversal outside home directory")
-
-    if mappings_path.name != "mappings.md":
-        raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
-
     mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     logging.info(
         f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
@@ -271,6 +289,10 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
 
 def get_persona_slug(profile_name: str) -> str:
     """Robustly find or generate the canonical persona slug, and ensure mappings.md is seeded."""
+    import os
+    # Sanitize inputs with basename to prevent path traversal/injection taint from propagating
+    profile_name = os.path.basename(profile_name).strip()
+
     persona_slug = get_persona_slug_from_mappings()
     if persona_slug:
         return persona_slug
