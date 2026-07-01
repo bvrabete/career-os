@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.2.3"
+version = "1.3.0"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,21 +14,47 @@ dependencies = [
     "langchain-docling>=2.0.0",
     "langchain-ollama>=0.2.1",
     "langchain-openai>=0.2.12",
-    "langflow>=1.3.2",
+    "langflow>=1.10.0",
     "langgraph>=0.3.25",
     "markdown2>=2.5.5",
-    "pypdf>=5.1.0",
+    "pypdf>=6.13.3",
     "python-docx>=1.1.2",
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "transformers>=4.47.0",
     "weasyprint>=68.1",
+    "langchain-google-genai",
 ]
 
 [tool.uv]
 package = true
 
 [project.scripts]
-cv-gen = "generate_cv:main"
 kb-ingest = "kb_ingest:main"
+cv-gen = "generate_cv:main"
 pdf-gen = "generate_pdf_cli:main"
+kb-cleanup = "kb_cleanup:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+]
+
+[tool.coverage.run]
+relative_files = true
+source = ["src"]
+omit = [
+    "src/generate_cv.py",
+    "src/generate_pdf_cli.py",
+    "src/kb_cleanup.py",
+    "src/kb_ingest.py",
+    "src/kb_ingest_graph.py",
+    "src/cv_generator_graph.py",
+    "src/pdf_generator.py"
+]
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+explicit_package_bases = true
+ignore_missing_imports = true

@@ -1,0 +1,20 @@
+You are an expert CV analyst. Score the semantic relevance of the 'Career Entry' below to the 'Job Description', 'Target Persona', and 'Primary Keywords'.
+Return a score from 0-100, where 100 is a perfect match. Also provide a 1-sentence justification.
+
+Return in JSON format:
+{
+  "score": <integer_score>,
+  "justification": "short explanation"
+}
+
+Job Description:
+{JOB_DESCRIPTION}
+
+Target Persona:
+{TARGET_PERSONA}
+
+Primary Keywords: {KEYWORDS}
+
+---
+Career Entry to Score:
+{EXPERIENCE_CONTENT}

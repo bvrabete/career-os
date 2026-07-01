@@ -1,0 +1,65 @@
+# Model Selection Definitions
+MODELS:
+  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
+  openai: "gpt-4o"
+  gemini: "gemini-2.5-flash" # Default fast API model
+
+# Pipeline Step Configurations (6GB VRAM Local-First Setup)
+# Standardized completely on qwen2.5:7b for all local Ollama steps.
+# This prevents model swapping/VRAM reloading overhead and guarantees 100% GPU offload.
+STEPS:
+  EXTRACTION:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  REFINEMENT:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  MERGE:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  GAP_ANALYSIS:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  # CV Generator LangGraph Steps
+  ANALYSIS:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  RETRIEVAL:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  DRAFTING:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  AUDIT:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  # Ingestion pipeline steps
+  INGESTION_CLASSIFY:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  INGESTION_EXTRACT:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  INGESTION_GENERATE:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+  INGESTION_MERGE:
+    TYPE: "ollama"
+    MODEL_NAME: "qwen2.5:7b"
+
+OLLAMA_BASE_URL: "http://localhost:11434"
+
+# Future configurations (e.g., prompt weights, track defaults)
+TRACK_DEFAULT: "Corporate"
+STRATEGY_DEFAULT: "emea"

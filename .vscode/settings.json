@@ -1,0 +1,25 @@
+{
+    "cSpell.language": "en-gb,en",
+    "cSpell.allowCompoundWords": true,
+    "cSpell.words": [
+        "Agentic",
+        "Calibri",
+        "codacy",
+        "DACH",
+        "emea",
+        "mypy",
+        "ollama",
+        "oxml",
+        "pycache",
+        "pytest",
+        "qwen",
+        "slugified",
+        "qube",
+        "venv",
+        "Xoft"
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "bvrabete",
+        "projectKey": "bvrabete_career-os"
+    }
+}

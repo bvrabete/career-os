@@ -1,0 +1,21 @@
+You are an expert technical resume strategist.
+Compare the 'Job Description Keywords' against the candidate's 'Existing Skills Profile'.
+Identify critical required technologies or skills from the Job Description that the candidate does NOT explicitly have in their profile,
+but where they have a close equivalent, direct sibling, or highly transferable skill.
+
+Construct a JSON mapping where:
+- Key: The missing required skill from the Job Description keywords.
+- Value: The closest equivalent or sibling skill from the candidate's profile, appended with " (equivalent)" or " (transferable)".
+
+Example output format:
+{
+  "AWS": "Azure (equivalent)",
+  "React": "Angular (equivalent)"
+}
+
+If there are no missing skills or no good equivalents, return an empty JSON object {}.
+
+Job Description Keywords: {KEYWORDS}
+
+Candidate's Existing Skills Profile:
+{SKILLS_SUMMARY}
