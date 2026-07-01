@@ -9,6 +9,8 @@ from unittest.mock import patch, MagicMock
 # Set up quiet logger during tests
 logging.basicConfig(level=logging.ERROR)
 
+MAPPINGS_FILE_NAME = "mappings.md"
+
 from ingestion.helpers import (
     _bootstrap_templates_and_schema, _bootstrap_css_templates,
     bootstrap_wiki_structure, resolve_org, get_persona_slug_from_mappings,
@@ -37,7 +39,7 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         with patch("shutil.copy", side_effect=Exception("Copy failed")):
             _bootstrap_templates_and_schema(self.wiki_dir, self.wiki_root)
             # Check that mappings.md and log.md were created because those are done afterwards
-            self.assertTrue((self.wiki_dir / "mappings.md").exists())
+            self.assertTrue((self.wiki_dir / MAPPINGS_FILE_NAME).exists())
             self.assertTrue((self.wiki_root / "log.md").exists())
 
     def test_bootstrap_css_templates(self):
@@ -81,7 +83,7 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
     @patch("ingestion.helpers.get_mappings_path")
     def test_get_persona_slug_from_mappings(self, mock_get_mappings_path):
         """Test get_persona_slug_from_mappings with real file scenarios."""
-        mappings_file = self.wiki_dir / "mappings.md"
+        mappings_file = self.wiki_dir / MAPPINGS_FILE_NAME
         self.wiki_dir.mkdir(parents=True, exist_ok=True)
         mock_get_mappings_path.return_value = mappings_file
 
@@ -107,7 +109,7 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
     @patch("ingestion.helpers.get_mappings_path")
     def test_add_persona_mapping_if_missing_edge_cases(self, mock_get_mappings_path):
         """Test add_persona_mapping_if_missing with missing mappings, existing slug, and various insertions."""
-        mappings_file = self.wiki_dir / "mappings.md"
+        mappings_file = self.wiki_dir / MAPPINGS_FILE_NAME
         self.wiki_dir.mkdir(parents=True, exist_ok=True)
         mock_get_mappings_path.return_value = mappings_file
 

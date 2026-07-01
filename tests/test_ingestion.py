@@ -1,4 +1,5 @@
 """Unit tests for the ingestion pipeline helpers and validation logic."""
+
 import unittest
 import tempfile
 import shutil
@@ -9,19 +10,39 @@ import yaml
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from ingestion.helpers import (
-    slugify, resolve_org, get_persona_slug, clean_frontmatter,
-    validate_path, get_wiki_root, get_schema_path, get_mappings_path,
-    load_prompt, _bootstrap_subdirs, _bootstrap_templates_and_schema,
-    get_persona_slug_from_mappings, add_persona_mapping_if_missing,
-    llm_text, strip_fences, _extract_frontmatter_from_fence,
-    _clean_frontmatter_lines, _clean_body_lines,
-    _extract_start_date_from_file, _filter_by_matching_year,
-    _find_existing_wiki_file, find_existing_experience, find_existing_education
+    slugify,
+    resolve_org,
+    get_persona_slug,
+    clean_frontmatter,
+    validate_path,
+    get_wiki_root,
+    get_schema_path,
+    get_mappings_path,
+    load_prompt,
+    _bootstrap_subdirs,
+    _bootstrap_templates_and_schema,
+    get_persona_slug_from_mappings,
+    add_persona_mapping_if_missing,
+    llm_text,
+    strip_fences,
+    _extract_frontmatter_from_fence,
+    _clean_frontmatter_lines,
+    _clean_body_lines,
+    _extract_start_date_from_file,
+    _filter_by_matching_year,
+    _find_existing_wiki_file,
+    find_existing_experience,
+    find_existing_education,
 )
 from ingestion.nodes import (
-    node_validator, _validate_experience, _validate_education, _validate_skill
+    node_validator,
+    _validate_experience,
+    _validate_education,
+    _validate_skill,
 )
 from ingestion.state import IngestionState
+
+MAPPINGS_FILE_NAME = "mappings.md"
 
 
 class TestIngestionHelpers(unittest.TestCase):
@@ -82,8 +103,12 @@ class TestIngestionHelpers(unittest.TestCase):
 
     def test_load_prompt_exists(self):
         """Test load_prompt reads existing file correctly."""
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.read_text", return_value="System Prompt Template") as mock_read:
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch(
+                "pathlib.Path.read_text", return_value="System Prompt Template"
+            ) as mock_read,
+        ):
             text = load_prompt("test_prompt.txt")
             self.assertEqual(text, "System Prompt Template")
 
@@ -100,7 +125,13 @@ class TestIngestionHelpers(unittest.TestCase):
         temp_dir.mkdir(parents=True, exist_ok=True)
         try:
             _bootstrap_subdirs(temp_dir)
-            for subdir in ["experiences", "education", "entities", "projects", "skills"]:
+            for subdir in [
+                "experiences",
+                "education",
+                "entities",
+                "projects",
+                "skills",
+            ]:
                 self.assertTrue((temp_dir / subdir).exists())
                 self.assertTrue((temp_dir / subdir).is_dir())
         finally:
@@ -116,7 +147,7 @@ class TestIngestionHelpers(unittest.TestCase):
             with patch("pathlib.Path.exists", return_value=False):
                 _bootstrap_templates_and_schema(temp_dir, wiki_root)
             self.assertTrue((temp_dir / "schema.md").exists())
-            self.assertTrue((temp_dir / "mappings.md").exists())
+            self.assertTrue((temp_dir / MAPPINGS_FILE_NAME).exists())
             self.assertTrue((wiki_root / "log.md").exists())
         finally:
             shutil.rmtree(temp_dir)
@@ -128,7 +159,7 @@ class TestIngestionHelpers(unittest.TestCase):
 
     def test_strip_fences(self):
         """Test strip_fences removes markdown syntax wrapping."""
-        self.assertEqual(strip_fences("```json\n{\"key\": \"val\"}\n```"), "{\"key\": \"val\"}")
+        self.assertEqual(strip_fences('```json\n{"key": "val"}\n```'), '{"key": "val"}')
         self.assertEqual(strip_fences("```\nplain text\n```"), "plain text")
 
     def test_clean_frontmatter_lines_fences(self):
@@ -181,20 +212,26 @@ Some body text.
     @patch("ingestion.helpers.get_wiki_root")
     def test_find_existing_experience_by_year(self, mock_get_wiki_root):
         mock_get_wiki_root.return_value = self.wiki_dir
-        
+
         # Write candidate file with org slug inside frontmatter
         f_path1 = self.wiki_dir / "experiences" / "company_old.md"
-        f_path1.write_text("---\ntype: experience\norganization: \"[[company-slug]]\"\ndates:\n  start: \"2015-05-15\"\n---\n", encoding="utf-8")
-        
+        f_path1.write_text(
+            '---\ntype: experience\norganization: "[[company-slug]]"\ndates:\n  start: "2015-05-15"\n---\n',
+            encoding="utf-8",
+        )
+
         f_path2 = self.wiki_dir / "experiences" / "company_new.md"
-        f_path2.write_text("---\ntype: experience\norganization: \"[[company-slug]]\"\ndates:\n  start: \"2020-03-20\"\n---\n", encoding="utf-8")
+        f_path2.write_text(
+            '---\ntype: experience\norganization: "[[company-slug]]"\ndates:\n  start: "2020-03-20"\n---\n',
+            encoding="utf-8",
+        )
 
         gen_path = self.wiki_dir / "experiences" / "generated.md"
-        
+
         # Match close to 2020 (start date 2020-01-01)
         found = find_existing_experience("company-slug", gen_path, "2020-01-01")
         self.assertEqual(found, f_path2)
-        
+
         # Match close to 2015 (start date 2014-12-31)
         found_old = find_existing_experience("company-slug", gen_path, "2014-12-31")
         self.assertEqual(found_old, f_path1)
@@ -203,8 +240,11 @@ Some body text.
     def test_find_existing_education_one_candidate(self, mock_get_wiki_root):
         mock_get_wiki_root.return_value = self.wiki_dir
         f_path = self.wiki_dir / "education" / "uni.md"
-        f_path.write_text("---\ntype: education\ninstitution: \"[[uni-slug]]\"\ndates:\n  start: \"2012-09-01\"\n---\n", encoding="utf-8")
-        
+        f_path.write_text(
+            '---\ntype: education\ninstitution: "[[uni-slug]]"\ndates:\n  start: "2012-09-01"\n---\n',
+            encoding="utf-8",
+        )
+
         gen_path = self.wiki_dir / "education" / "generated.md"
         found = find_existing_education("uni-slug", gen_path, "")
         self.assertEqual(found, f_path)
@@ -216,7 +256,7 @@ class TestIngestionPersonaMappings(unittest.TestCase):
     def setUp(self):
         self.temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
-        self.mappings_path = self.temp_dir / "mappings.md"
+        self.mappings_path = self.temp_dir / MAPPINGS_FILE_NAME
         content = """# Entity Aliases & Mappings
 
 ## Organization Mappings
@@ -245,7 +285,7 @@ class TestIngestionPersonaMappings(unittest.TestCase):
     def test_add_persona_mapping_if_missing(self, mock_get_mappings_path):
         mock_get_mappings_path.return_value = self.mappings_path
         add_persona_mapping_if_missing("Staff Person", "staff-person")
-        
+
         # Verify it was added
         updated_content = self.mappings_path.read_text(encoding="utf-8")
         self.assertIn("[[staff-person]]", updated_content)
@@ -269,7 +309,7 @@ class TestIngestionValidation(unittest.TestCase):
             "organization": "[[intel-corporation]]",
             "dates": {"start": "2020-01-01", "end": "Present"},
             "tracks": ["Engineering"],
-            "skills": ["Python"]
+            "skills": ["Python"],
         }
         errors = []
         _validate_experience(fm, errors)
@@ -277,10 +317,7 @@ class TestIngestionValidation(unittest.TestCase):
 
     def test_validate_experience_missing_fields(self):
         """Test _validate_experience fails when required fields are missing."""
-        fm = {
-            "type": "experience",
-            "title": "Staff Manager"
-        }
+        fm = {"type": "experience", "title": "Staff Manager"}
         errors = []
         _validate_experience(fm, errors)
         self.assertGreater(len(errors), 0)
@@ -294,11 +331,13 @@ class TestIngestionValidation(unittest.TestCase):
             "organization": "Intel Corp",
             "dates": {"start": "2020-01-01", "end": "Present"},
             "tracks": ["Engineering"],
-            "skills": ["Python"]
+            "skills": ["Python"],
         }
         errors = []
         _validate_experience(fm, errors)
-        self.assertTrue(any("organization field missing [[slug]]" in err for err in errors))
+        self.assertTrue(
+            any("organization field missing [[slug]]" in err for err in errors)
+        )
 
     def test_validate_experience_invalid_date(self):
         """Test _validate_experience fails on invalid date format."""
@@ -308,7 +347,7 @@ class TestIngestionValidation(unittest.TestCase):
             "organization": "[[intel-corp]]",
             "dates": {"start": "2020/01/01", "end": "Present"},
             "tracks": ["Engineering"],
-            "skills": ["Python"]
+            "skills": ["Python"],
         }
         errors = []
         _validate_experience(fm, errors)
@@ -323,7 +362,7 @@ class TestIngestionValidation(unittest.TestCase):
             "dates": {"start": "2015-09-01", "end": "2018-06-30"},
             "status": "Completed",
             "major": "Computer Science",
-            "minor": "Mathematics"
+            "minor": "Mathematics",
         }
         errors = []
         _validate_education(fm, errors)
@@ -335,7 +374,7 @@ class TestIngestionValidation(unittest.TestCase):
             "type": "skill",
             "title": "Python Programming",
             "category": "Language-Code",
-            "proficiency": "Expert"
+            "proficiency": "Expert",
         }
         errors = []
         _validate_skill(fm, errors)

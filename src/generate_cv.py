@@ -11,6 +11,8 @@ from generation import build_graph
 # Suppress annoying logging from httpx if possible
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+SUGGESTION_STR = "💡 Suggestion:"
+
 
 def validate_path(path: Path | str) -> Path:
     """
@@ -157,14 +159,14 @@ def main() -> None:
     try:
         final_state = app.invoke(initial_state)
     except Exception as e:
-        print(f"\n❌ Pipeline execution failed with an unhandled exception:")
+        print("\n❌ Pipeline execution failed with an unhandled exception:")
         print(f"   Error: {e}\n")
         
         err_msg = str(e).lower()
         
         # Analyze the error and provide actionable suggestions
         if any(keyword in err_msg for keyword in ["resource_exhausted", "429", "billing", "credits", "quota", "prepayment"]):
-            print("💡 Suggestion:")
+            print(SUGGESTION_STR)
             print("   The cloud API rate limit or billing/prepayment credits have been exhausted.")
             print("   - To continue running locally & offline, ensure you configure the step to use a local model.")
             print("     Update the corresponding step (e.g., DRAFTING) inside config.yaml to:")
@@ -173,29 +175,29 @@ def main() -> None:
             print("   - Alternatively, check your cloud provider console (e.g., Google AI Studio or OpenAI dashboard) to top up credits.")
             
         elif any(keyword in err_msg for keyword in ["api_key", "api key", "apikey", "unauthorized", "credentials", "invalid_api_key", "api-key"]):
-            print("💡 Suggestion:")
+            print(SUGGESTION_STR)
             print("   There is an issue with your API credentials.")
             print("   - Check that your .env file contains the correct keys: OPENAI_API_KEY or GEMINI_API_KEY.")
             print("   - To run 100% offline without API keys, update config.yaml to use TYPE: \"ollama\" for all steps.")
             
         elif any(keyword in err_msg for keyword in ["connection", "refused", "connect", "11434", "localhost", "httpx"]):
-            print("💡 Suggestion:")
+            print(SUGGESTION_STR)
             print("   Could not connect to the local Ollama instance.")
             print("   - Verify that Ollama is currently running on your system (e.g., run `ollama serve` in a terminal).")
             print("   - Check that the OLLAMA_BASE_URL in config.yaml is correct (default: http://localhost:11434).")
             
         elif any(keyword in err_msg for keyword in ["model not found", "not found", "does not exist", "pull"]):
-            print("💡 Suggestion:")
+            print(SUGGESTION_STR)
             print("   The specified local model was not found in Ollama.")
             print("   - Run `ollama pull <model_name>` (e.g., `ollama pull qwen2.5:7b`) to download the required model.")
             print("   - Check the MODEL_NAME settings in your config.yaml.")
             
         else:
-            print("💡 Suggestion:")
+            print(SUGGESTION_STR)
             print("   - Double-check your config.yaml configuration and ensure that local services (like Ollama) are fully operational.")
             print("   - Review your log files or run with verbose logging for more details.")
             
-        print(f"\n🧹 Gracefully exiting...")
+        print("\n🧹 Gracefully exiting...")
         import sys
         sys.exit(1)
 

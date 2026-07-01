@@ -11,6 +11,8 @@ from typing import Any
 SLUG_PATTERN = r'[^a-z0-9]+'
 SCHEMA_MD = "schema.md"
 PERSONA_MAPPINGS_HEADER = "## Persona Mappings"
+MAPPINGS_FILE_NAME = "mappings.md"
+PATH_TRAVERSAL_ERROR = "Attempted Path Traversal outside home directory"
 
 
 def validate_path(path: Path | str) -> Path:
@@ -23,6 +25,18 @@ def validate_path(path: Path | str) -> Path:
     if not canonical_path.startswith(base_dir):
         raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
     return Path(canonical_path)
+
+
+def _validate_mappings_path(path: Path) -> Path:
+    """Validate mappings path to prevent traversal and security risks to satisfy SonarQube."""
+    import os
+    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
+    resolved_path = os.path.abspath(path)
+    if not resolved_path.startswith(base_trusted_dir):
+        raise PermissionError(PATH_TRAVERSAL_ERROR)
+    if path.name != MAPPINGS_FILE_NAME:
+        raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
+    return path
 
 
 
@@ -41,7 +55,7 @@ def get_schema_path() -> Path:
 def get_mappings_path() -> Path:
     """Get the absolute path to the mappings.md file."""
     from kb_config import get_wiki_dir
-    return get_wiki_dir() / "mappings.md"
+    return get_wiki_dir() / MAPPINGS_FILE_NAME
 
 
 def load_prompt(filename: str) -> str:
@@ -79,7 +93,7 @@ def _bootstrap_templates_and_schema(wiki_dir: Path, wiki_root: Path) -> None:
         target_schema.write_text(
             "# Wiki Schema\n\nEmpty placeholder schema.\n", encoding="utf-8")
 
-    target_mappings = wiki_dir / "mappings.md"
+    target_mappings = wiki_dir / MAPPINGS_FILE_NAME
     if not target_mappings.exists():
         mappings_template = """# Entity Aliases & Mappings
 
@@ -145,15 +159,7 @@ def bootstrap_wiki_structure(wiki_dir: Path) -> None:
 
 def parse_mappings() -> dict[str, str]:
     """Parse mappings.md into {alias_lower: canonical_slug} dict."""
-    import os
-    mappings_path = get_mappings_path()
-    
-    # Path traversal validation to prevent path injection vulnerabilities
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
-        raise PermissionError("Attempted Path Traversal outside home directory")
-
+    mappings_path = _validate_mappings_path(get_mappings_path())
     if not mappings_path.exists():
         return {}
 
@@ -200,15 +206,7 @@ def resolve_org(raw_name: str, mappings: dict[str, str]) -> str:
 
 def get_persona_slug_from_mappings() -> str | None:
     """Parse mappings.md to find the canonical persona slug from ## Persona Mappings section."""
-    import os
-    mappings_path = get_mappings_path()
-    
-    # Path traversal validation to prevent path injection vulnerabilities
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
-        raise PermissionError("Attempted Path Traversal outside home directory")
-
+    mappings_path = _validate_mappings_path(get_mappings_path())
     if not mappings_path.exists():
         return None
 
@@ -230,18 +228,7 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
-    import os
-    mappings_path = validate_path(get_mappings_path())
-    
-    # Standard security path validation to satisfy SonarQube taint analysis
-    base_trusted_dir = os.path.abspath(os.path.expanduser("~"))
-    resolved_mappings_path = os.path.abspath(mappings_path)
-    if not resolved_mappings_path.startswith(base_trusted_dir):
-        raise PermissionError("Attempted Path Traversal outside home directory")
-
-    if mappings_path.name != "mappings.md":
-        raise ValueError("Security Warning: Invalid mappings path or directory traversal detected")
-
+    mappings_path = _validate_mappings_path(get_mappings_path())
     if not mappings_path.exists():
         return
 
