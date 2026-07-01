@@ -28,5 +28,9 @@ tips/
 # Utility scripts
 scratch/
 
-#Ignore vscode AI rules
+# Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+
+# Coverage files
+.coverage
+coverage.xml
