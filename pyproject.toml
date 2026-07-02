@@ -32,7 +32,7 @@ package = true
 [project.scripts]
 kb-ingest = "kb_ingest:main"
 cv-gen = "generate_cv:main"
-pdf-gen = "generate_pdf_cli:main"
+doc-gen = "generate_document_cli:main"
 kb-cleanup = "kb_cleanup:main"
 
 [dependency-groups]
@@ -46,7 +46,7 @@ relative_files = true
 source = ["src"]
 omit = [
     "src/generate_cv.py",
-    "src/generate_pdf_cli.py",
+    "src/generate_document_cli.py",
     "src/kb_cleanup.py",
     "src/kb_ingest.py",
     "src/kb_ingest_graph.py",

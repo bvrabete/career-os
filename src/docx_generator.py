@@ -186,18 +186,7 @@ def _add_standard_paragraph(
             run.font.color.rgb = color_text
 
 
-def _clean_markdown_wrapper(md_content: str) -> str:
-    """
-    Strips surrounding markdown code blocks (e.g. ```markdown ... ```) if present.
-    """
-    cleaned = md_content.strip()
-    lines = cleaned.splitlines()
-    if len(lines) >= 2:
-        first_line = lines[0].strip()
-        last_line = lines[-1].strip()
-        if (first_line.startswith("```markdown") or first_line.startswith("```md") or first_line == "```") and last_line == "```":
-            return "\n".join(lines[1:-1]).strip()
-    return cleaned
+from utils import clean_markdown_wrapper as _clean_markdown_wrapper
 
 
 def generate_docx(md_content: str, output_path: str) -> bool:

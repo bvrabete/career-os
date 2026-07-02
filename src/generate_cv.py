@@ -14,16 +14,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 SUGGESTION_STR = "💡 Suggestion:"
 
 
-def validate_path(path: Path | str) -> Path:
-    """
-    Validates and canonicalizes file paths to prevent traversal and security risks.
-    """
-    import os
-    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
-    canonical_path = os.path.realpath(os.path.abspath(path))
-    if not canonical_path.startswith(base_dir):
-        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
-    return Path(canonical_path)
+from utils import validate_path
 
 
 def parse_arguments() -> argparse.Namespace:
