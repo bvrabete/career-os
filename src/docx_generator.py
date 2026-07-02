@@ -186,6 +186,20 @@ def _add_standard_paragraph(
             run.font.color.rgb = color_text
 
 
+def _clean_markdown_wrapper(md_content: str) -> str:
+    """
+    Strips surrounding markdown code blocks (e.g. ```markdown ... ```) if present.
+    """
+    cleaned = md_content.strip()
+    lines = cleaned.splitlines()
+    if len(lines) >= 2:
+        first_line = lines[0].strip()
+        last_line = lines[-1].strip()
+        if (first_line.startswith("```markdown") or first_line.startswith("```md") or first_line == "```") and last_line == "```":
+            return "\n".join(lines[1:-1]).strip()
+    return cleaned
+
+
 def generate_docx(md_content: str, output_path: str) -> bool:
     """
     Converts Markdown content to a Word Document (.docx) using pure-Python python-docx library,
@@ -208,7 +222,9 @@ def generate_docx(md_content: str, output_path: str) -> bool:
         color_secondary = RGBColor(80, 80, 80)     # Muted grey
         color_text = RGBColor(30, 30, 30)          # Charcoal dark body
 
-        lines = md_content.splitlines()
+        # Clean leading/trailing markdown code blocks if the entire content is wrapped
+        cleaned_md = _clean_markdown_wrapper(md_content)
+        lines = cleaned_md.splitlines()
 
         idx = 0
         while idx < len(lines):
