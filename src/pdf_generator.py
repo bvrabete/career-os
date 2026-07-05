@@ -45,9 +45,13 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
     if fallback_path.exists():
         return fallback_path
 
-    fallback_name_path = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
+    fallback_name_path = Path(__file__).parent.parent / "llm-wiki" / "templates" / Path(css_template_path).name
     if fallback_name_path.exists():
         return fallback_name_path
+
+    legacy_fallback = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
+    if legacy_fallback.exists():
+        return legacy_fallback
 
     return None
 

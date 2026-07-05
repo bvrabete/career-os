@@ -35,8 +35,18 @@ def main() -> None:
         "--template",
         help="Path to the CSS template (only applicable for PDF format; overrides default/detected templates)",
     )
+    parser.add_argument(
+        "--wiki-dir",
+        "--llm-wiki",
+        dest="wiki_dir",
+        help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')",
+    )
 
     args = parser.parse_args()
+
+    import os
+    if args.wiki_dir:
+        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
     # Validate input path
     try:

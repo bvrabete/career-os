@@ -2,6 +2,7 @@
 
 import logging
 import json
+import re
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -11,7 +12,7 @@ from kb_config import (
     get_strategy_default,
     get_wiki_dir,
 )
-from generation.state import CVPipelineState
+from generation.state import CVPipelineState, RegionalStrategy
 from generation.helpers import (
     llm_text,
     robust_json_loads,
@@ -128,6 +129,7 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     skill_bridging_map = generate_skill_bridging_map(llm, skills_content, keywords)
     strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
+    strategy_obj = RegionalStrategy.from_markdown(strategy_text)
     subject_info = get_subject_info(wiki_dir)
 
     context_info = f"""
@@ -152,6 +154,7 @@ CV Format Expectations: {expectations}
         "few_shot_examples": few_shot_examples,
         "skill_bridging_map": skill_bridging_map,
         "strategy_info": context_info,
+        "strategy_metadata": strategy_obj,
         "pdf_template": pdf_template
     }
 
@@ -224,13 +227,40 @@ def node_refiner(state: CVPipelineState) -> dict[str, Any]:
     char_count = len(draft)
     logging.info(f"Current CV length: {char_count} characters.")
 
-    # 8500 chars is approx 2 full pages with standard formatting
-    if char_count > 8500:
+    # Try to find the strongly-typed strategy metadata in the state
+    strategy_meta = state.get("strategy_metadata")
+    if strategy_meta:
+        max_pages = strategy_meta.max_pages
+        logging.info(f"Using strongly-typed max pages limit from strategy metadata: {max_pages}")
+    else:
+        # Fallback to textual description matching for backwards compatibility (e.g., legacy test state)
+        max_pages = 2
+        strategy_text = state.get("strategy_info", "").lower()
+        if "3 pages" in strategy_text or "3-page" in strategy_text:
+            max_pages = 3
+            logging.info("Regional strategy indicates a 3-page limit from text description (fallback).")
+        elif "1 page" in strategy_text or "1-page" in strategy_text:
+            max_pages = 1
+            logging.info("Regional strategy indicates a 1-page limit from text description (fallback).")
+
+    # Calculate dynamic character limit based on page count
+    if max_pages == 1:
+        char_limit = 4500
+    elif max_pages == 3:
+        char_limit = 12500
+    elif max_pages >= 4:
+        char_limit = 12500 + (max_pages - 3) * 4000
+    else:
+        char_limit = 8500  # Default to 2 pages (8500 characters)
+
+    logging.info(f"Target page limit: {max_pages}. Dynamically computed character budget: {char_limit}.")
+
+    if char_count > char_limit:
         feedback = (
-            f"DENSITY ERROR: The CV is too long ({char_count} characters). "
-            "Please compress older roles (pre-2015) to single-line summaries. "
-            "In your current and recent roles, keep only the 2-3 most impactful bullets that "
-            "demonstrate direct technical leadership and agentic AI experience."
+            f"DENSITY ERROR: The CV is too long ({char_count} characters, limit is {char_limit}). "
+            "Please compress older roles to single-line summaries. "
+            "In current and recent roles, keep only the most impactful bullets that directly "
+            "align with the target job description to maximize the ATS score and relevance."
         )
         return {"refiner_feedback": feedback}
 

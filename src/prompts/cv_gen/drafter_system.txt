@@ -13,22 +13,21 @@ CORE RULES:
 3. CHRONOLOGY & DENSITY CONTROL (CRITICAL - PREVENT GAPS & OMISSION):
    - SPLIT WORK EXPERIENCE INTO TWO SUBSECTIONS: Inside your single "Work Experience" section, you MUST create precisely two level-3 Markdown subsections to separate your dual-track career paths:
      A. `### Core Corporate Experience`:
-        - Include all primary, non-startup employment entries (where `IS_STARTUP_TRACK: False`, such as Virgin Media, Everyangle, Intel, Ei Electronics, Dell).
+        - Include all primary, non-startup employment entries (where `IS_STARTUP_TRACK: False`).
         - These roles must be in strict reverse chronological order.
-        - RECENT ROLES (Last 10 Years, 2016 - present): Fully detail these roles with 3-4 high-impact STAR achievements. Never omit or summarize recent roles.
-        - HISTORICAL ROLES (Older than 10 Years, pre-2016): To respect page/token budgets, list all older corporate experiences (such as older Intel engineering roles, DALSA, Dapredi-Soft, etc.) at the end of this subsection under a `#### Earlier Career History` heading. For multiple historical roles at the same company (specifically your earlier 2007–2017 roles at Intel Corporation), do NOT list them as flat, separate lines. Instead, use a HYBRID NESTED structure where you group them under a single company header with nested sub-bullets for each role:
-           - **Intel Corporation (Permanent) | September 2007 – July 2017**
-             - *Senior Engineering, Architecture, and Technical Leadership Roles* | June 2016 – July 2017
-             - *Intelligent Vending Platform Architect* | January 2014 – March 2017
-             - *Digital Signage Platform Architect* | July 2009 – July 2013
-             - *Technical Team Leader* | September 2007 – July 2009
-           Other independent earlier roles (like DALSA, BioRad, Tecnomen, etc.) should be listed as standard flat single-line entries: "- **Job Title at Company Name (Employment Type)** | Month YYYY – Month YYYY". Do NOT omit any older role—every role must be represented.
+        - RECENT ROLES (Last 10 Years): Fully detail these roles with 3-4 high-impact STAR achievements. Never omit or summarize recent corporate roles.
+        - HISTORICAL ROLES (Older than 10 Years): To respect page/token budgets, list all older corporate experiences at the end of this subsection under a `#### Earlier Career History` heading. For multiple historical roles held sequentially at the same company, do NOT list them as flat, separate lines. Instead, use a HYBRID NESTED structure where you group them under a single company header with nested sub-bullets for each role:
+           - **Company Name (Permanent) | Start Date – End Date**
+             - *Role Title 1* | Date Range
+             - *Role Title 2* | Date Range
+             - *Role Title 3* | Date Range
+           Other independent earlier corporate roles should be listed as standard flat single-line entries: "- **Job Title at Company Name (Employment Type)** | Month YYYY – Month YYYY". Do NOT omit any older role—every role must be represented.
      B. `### Parallel Entrepreneurial & Startup Ventures`:
-        - Include all co-founded startups and side projects (where `IS_STARTUP_TRACK: True`, such as Allwayswithyou, SmartRS, ShareMy, Arcovation).
-        - These roles must be in strict reverse chronological order.
-        - For recent startup ventures (2016 - present), provide 2-3 concise, high-impact STAR bullets highlighting architectural strategy, scalability, IoT, and leadership.
-        - For any older startup ventures (pre-2016, if any), use clean single-line entries.
-        - NEVER omit these roles. These startups must be represented in this dedicated parallel subsection to showcase your entrepreneurial leadership and hands-on CTO competence.
+         - Include all co-founded startups and side projects (where `IS_STARTUP_TRACK: True`).
+         - These roles must be in strict reverse chronological order.
+         - IF THE ACTIVE REGIONAL STRATEGY DIRECTS STARTUP COMPRESSION: You MUST strictly compress all older, completed startup/entrepreneurial ventures (where there is an end date or the venture is inactive) into a clean, single-line entry or a 1-2 sentence description without ANY bullets. Only the active current startup (where there is no end date or it is marked as 'Present') is allowed to have detailed STAR bullets.
+         - OTHERWISE, for recent startup ventures (within the last 10 years), provide 2-3 concise, high-impact STAR bullets, and for older ones, use clean single-line entries.
+         - NEVER OMIT ANY STARTUP. Every single startup venture provided to you in the career entries MUST be listed in this section. Do not skip any startup role under any circumstances.
    - INTEGRATE CAREER BREAKS: If there are any career breaks, integrate them directly into the appropriate reverse-chronological position inside the `Core Corporate Experience` timeline.
    - NO ROLE OMISSION: Every single career entry provided to you must be represented in either Subsection A or B. Absolutely no role can be completely omitted.
 4. DEDUPLICATION:

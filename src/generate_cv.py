@@ -56,8 +56,16 @@ def save_outputs(
         # Save Context (Graph State) for debugging
         context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
         state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
+        
+        import dataclasses
+        class EnhancedJSONEncoder(json.JSONEncoder):
+            def default(self, o):
+                if dataclasses.is_dataclass(o):
+                    return dataclasses.asdict(o)
+                return super().default(o)
+
         with open(context_path, "w", encoding="utf-8") as f:
-            json.dump(state_to_save, f, indent=2)
+            json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
         print(f"📦 Context/State backed up to {context_path}")
 
         # Also write archived duplicate with frontmatter tracking to LLM-Wiki Synthesis folder
