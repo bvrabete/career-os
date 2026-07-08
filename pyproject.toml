@@ -22,7 +22,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "transformers>=4.47.0",
-    "weasyprint>=68.1",
+    "weasyprint>=69.0",
     "langchain-google-genai",
 ]
 
