@@ -215,7 +215,7 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
 
 
 def _select_top_achievements(body: str, keywords: list[str]) -> str:
-    """Extract, score, and select only the top 4 STAR achievements based on keyword overlap."""
+    """Extract, score, and select only the top 7 STAR achievements based on keyword overlap."""
     achievements, clean_body = _extract_and_clean_achievements(body)
     
     if achievements:
@@ -225,7 +225,7 @@ def _select_top_achievements(body: str, keywords: list[str]) -> str:
             scored_ach.append((score, ach))
         # Sort by score descending
         scored_ach.sort(key=lambda x: x[0], reverse=True)
-        top_ach = [x[1] for x in scored_ach[:4]]
+        top_ach = [x[1] for x in scored_ach[:5]]
         
         # Clean up multi-newlines in body and append achievements
         clean_body = re.sub(r'\n{3,}', '\n\n', clean_body).strip()
@@ -398,19 +398,25 @@ def _deduplicate_scored_experiences(
 
 
 def _detect_employment_type(fm: dict[str, Any], content: str) -> str:
-    """Detect if the role is Contract or Permanent based on YAML frontmatter, tags, title, or body."""
+    """Detect if the role is Contract, Permanent, or Self-Employed based on YAML frontmatter, tags, title, or body."""
     # First check explicit frontmatter field
     emp_type = fm.get("employment_type")
     if emp_type:
         emp_type_str = str(emp_type).strip().capitalize()
-        if emp_type_str in ["Contract", "Permanent"]:
+        if emp_type_str in ["Contract", "Permanent", "Self-employed"]:
             return emp_type_str
 
     tags = [str(t).lower() for t in fm.get("tags", [])]
+    tracks = [str(tr).lower() for tr in fm.get("tracks", [])]
+    title = str(fm.get("title", "")).lower()
+
+    # Check for startup/co-founding tracks
+    if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks or any(x in title for x in ["co-founder", "cofounder", "co founder"]):
+        return "Self-Employed"
+
     if "contract" in tags:
         return "Contract"
     
-    title = str(fm.get("title", "")).lower()
     if "contract" in title:
         return "Contract"
         

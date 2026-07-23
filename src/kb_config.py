@@ -1,18 +1,22 @@
 import yaml
 import os
 import logging
+import warnings
 from pathlib import Path
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 
+# Suppress LangChain's pending deprecation warnings regarding cache allowed_objects
+warnings.filterwarnings("ignore", message=".*allowed_objects.*")
+
 from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env
 
 # Enable caching to speed up iterative runs and save costs
-set_llm_cache(SQLiteCache(database_path=".langchain.db"))
+# set_llm_cache(SQLiteCache(database_path=".langchain.db"))
 
 CONFIG_PATH = Path("config.yaml")
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
@@ -85,7 +89,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
             model=model_name, 
             base_url=base_url, 
             temperature=temperature,
-            num_ctx=8192, # Increased for large CV context
+            num_ctx=12288, # Optimized to 12k to guarantee 100% GPU offload under 6GB VRAM without truncating large CV context
             **kwargs
         )
     

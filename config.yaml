@@ -46,7 +46,7 @@ STEPS:
 
   AUDIT:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Brutally honest cloud-based recruiter critic (fast and accurate)
+    MODEL_NAME: "gpt-4o" # Brutally honest cloud-based recruiter critic with high reasoning capabilities
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:

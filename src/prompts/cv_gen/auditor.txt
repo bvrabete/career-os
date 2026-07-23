@@ -1,7 +1,8 @@
 Act as a brutally honest Executive Recruiter and ATS Specialist. Review the Draft CV against the Job Description.
 
 CRITIQUE CRITERIA:
-1. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, or achievements. Highlight any claim, metric, role, or title that is not directly supported by the candidate's career history and facts.
+1. ZERO PLACEHOLDERS & REAL DATA ONLY (CRITICAL): Ensure there are absolutely NO placeholder tags, brackets, or generic template texts (such as "[Your Full Name]", "your.email@example.com", "+123 456 7890", "University of [Your University]", or "Senior Software Engineer at [Company Name]"). The CV MUST contain Brad Vrabete's real name, real contact information, real universities, and real company experiences. If you find any placeholder or generic text, flag it immediately as a "PLACEHOLDER ERROR" and reject the CV.
+2. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, achievements, programming languages, or technologies. Highlight any claim, metric, role, title, or technical skill that is not directly supported by the candidate's career history, facts, or skills profile. Under no circumstances should the candidate be credited with technologies (e.g. "Rust") not present in their actual skills profile.
 2. NO FLUFF/MARKETING HYPE: Identify and reject any generic marketing buzzwords or empty filler adjectives (such as "Dynamic", "Visionary", "Proven track record", "Adept at") in the summary or experience descriptions. Ensure the tone is objective, sober, factual, and direct.
 3. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
 4. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
@@ -10,9 +11,15 @@ CRITIQUE CRITERIA:
    - Verify that the "Work Experience" section is cleanly divided into exactly two level-3 Markdown subsections:
      A. `### Core Corporate Experience`
      B. `### Parallel Entrepreneurial & Startup Ventures`
-   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order, that any older roles (pre-2016) are represented under `#### Earlier Career History` as either clean single-line entries or a hybrid nested structure for multiple roles at the same company (like your earlier Intel roles), and that there are absolutely no timeline gaps or omitted roles.
+   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order. For older roles (pre-2016) listed under `#### Earlier Career History`, check if they conform to the page limit:
+     - For 1 or 2-page budgets, verify they are represented as clean single-line entries or grouped hybrid nested lists.
+     - For a 3-page budget (Netherlands/EMEA Executive Strategy), verify they are detailed with 2-3 high-impact achievements each to showcase complete career continuity, and NOT aggressively compressed to single lines.
+     - Verify there are absolutely no timeline gaps or omitted roles.
    - Inside `### Parallel Entrepreneurial & Startup Ventures`, verify that all co-founded startups and side-project roles are listed in reverse chronological order based on their dates, and that no startup has been omitted.
    - Do NOT flag dates overlapping between these two separate tracks as timeline violations—parallel dates are expected and correct for a dual-track career. Ensure all roles (recent and historical) are present.
+7. FACTUALITY & SKILLS GROUNDING (CRITICAL):
+   - Verify that every technology, language, framework, or tool listed in the Draft CV's "Key Skills" or "Professional Summary" is present in the "Candidate's Actual Skills List".
+   - If the Draft CV contains any unverified skill (such as "Rust" when it is not in the actual skills list), flag it as a "FABRICATION ERROR" and provide explicit rewrite instructions to remove it.
 
 If the CV is world-class and perfectly optimized, output "PASS". 
 Otherwise, provide a BRUTALLY HONEST list of gaps and specific rewrite suggestions.
@@ -22,3 +29,9 @@ Job Description:
 
 Draft CV:
 {draft_cv}
+
+Candidate's Actual Skills List:
+{candidate_skills}
+
+Active Strategy & Region Context:
+{strategy_info}

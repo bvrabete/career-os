@@ -118,9 +118,8 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     education_content = retrieve_and_deduplicate_education(wiki_dir)
     
     skills_dir = wiki_dir / "wiki" / "skills"
-    skills_content = []
-    if skills_dir.exists():
-        skills_content = [f.read_text(encoding="utf-8") for f in skills_dir.glob("*.md")]
+    from generation.skills_helper import get_compact_skills_list
+    skills_content = get_compact_skills_list(skills_dir, retrieved_exp_slugs)
 
     projects_entries = retrieve_and_score_projects(wiki_dir, keywords, retrieved_exp_slugs)
     patents_entries = retrieve_and_score_patents(wiki_dir, keywords, retrieved_exp_slugs)
@@ -180,7 +179,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     skill_bridge = state.get("skill_bridging_map", {})
 
     education_text = "\n\n".join(education)
-    skills_text = "\n\n".join(skills)
+    skills_text = "\n".join(skills)
 
     projects_text = "\n\n".join(projects)
     patents_text = "\n\n".join(patents)
@@ -214,6 +213,16 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         education_text=education_text,
         skills_text=skills_text
     )
+
+    # Debug: dump prompts to file
+    try:
+        from pathlib import Path
+        debug_path = Path("/home/bvrabete/Documents/CV/ai-generated-cvs/drafter_prompt_debug.txt")
+        debug_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(debug_path, "w", encoding="utf-8") as debug_file:
+            debug_file.write(f"=== SYSTEM PROMPT ===\n{system_prompt}\n\n=== USER PROMPT ===\n{prompt}\n")
+    except Exception as e:
+        logging.warning(f"Failed to write debug prompts: {e}")
 
     import json as _json_hack  # Re-import just in case JSON is needed in helpers
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
@@ -275,11 +284,16 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
     jd = state.get("job_description", "")
     draft = state.get("draft_cv", "")
     current_iterations = state.get("iteration_count", 0)
+    strategy = state.get("strategy_info", "")
 
     auditor_template = load_prompt("auditor.txt")
+    skills = state.get("skills_entries", [])
+    skills_text = "\n".join(skills)
     prompt = auditor_template.format(
         job_description=jd,
-        draft_cv=draft
+        draft_cv=draft,
+        candidate_skills=skills_text,
+        strategy_info=strategy
     )
 
     response = llm.invoke([HumanMessage(content=prompt)])
