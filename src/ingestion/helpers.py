@@ -137,6 +137,17 @@ The LLM Wiki tool must consult this file during ingestion to prevent duplicate o
                 "# Wiki Activity Log\n\nAll ingestion actions are logged here.\n", encoding="utf-8")
             logging.info("Created default log.md (fallback)")
 
+    # 4. Purpose
+    target_purpose = wiki_dir / "purpose.md"
+    if not target_purpose.exists():
+        repo_purpose = repo_llm_wiki / "purpose.md"
+        if repo_purpose.exists():
+            try:
+                shutil.copy(repo_purpose, target_purpose)
+                logging.info(f"Copied purpose.md template from {repo_purpose}")
+            except Exception as e:
+                logging.warning(f"Failed to copy purpose.md: {e}")
+
 
 def _bootstrap_css_templates(wiki_dir: Path) -> None:
     """Bootstrap default CSS templates from the repository."""

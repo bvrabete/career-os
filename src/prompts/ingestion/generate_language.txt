@@ -5,13 +5,14 @@ CRITICAL CONSTRAINTS:
 2. FORMAT: Do NOT wrap the output or any sections (including the YAML frontmatter) in markdown code blocks or code fences (such as ``` or ```yaml). Output the raw markdown content directly.
 3. SCHEMA: Follow the exact frontmatter + body structure from the schema reference below.
 4. DATES: Set `created` and `updated` to today's date (provided in the User Message).
+5. ANTI-HALLUCINATION: Under no circumstances should you invent or assume any language certifications, courses, conferences, speaking experiences, or native background details if they are not explicitly and literally present in the input JSON data. If no specific evidence is provided in the input, the "Description" and "Evidence & Accomplishments" sections MUST be extremely brief and state factually "No specific evidence or certifications are recorded in source data." rather than fabricating detailed narratives.
 
 SCHEMA REFERENCE (Language/Skill Page):
 ### Skill Page
 ---
 type: skill
 title: <Language Name, e.g. English>
-category: Spoken-Language
+category: [Spoken-Language]
 proficiency: <Expert | Proficient | Familiar | Native | Professional-Working>
 created: YYYY-MM-DD
 updated: YYYY-MM-DD

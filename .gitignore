@@ -34,3 +34,4 @@ scratch/
 # Coverage files
 .coverage
 coverage.xml
+config.yaml

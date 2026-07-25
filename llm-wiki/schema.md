@@ -53,7 +53,7 @@ dates:
   start: YYYY-MM-DD
   end: YYYY-MM-DD | Present
 employment_type: Permanent | Contract  # Optional, defaults to Permanent
-tracks: [Management, Architecture, Engineering, Entrepreneurial]
+tracks: [Track-A, Track-B] # Functional specializations tailored to your industry (e.g. Management, Engineering, Sales, Medical, etc.)
 skills: [skill-slug-1, skill-slug-2]
 tags: [role-level, industry]
 created: YYYY-MM-DD
@@ -460,10 +460,8 @@ Jane Doe
 [High-level summary of the Career Single Source of Truth project.]
 
 ## Core Tracks Covered
-- **Management:** [Summary]
-- **Architecture:** [Summary]
-- **Engineering:** [Summary]
-- **Entrepreneurial:** [Summary]
+- **[Track-A]:** [Dynamic Summary of specialization A]
+- **[Track-B]:** [Dynamic Summary of specialization B]
 ```
 
 ---

@@ -6,6 +6,7 @@ CRITICAL CONSTRAINTS:
 3. FORMAT: Output raw markdown directly, NO markdown code blocks or fences.
 4. SCHEMA: Follow note page template.
 5. DATES: Set `created` and `updated` to today's date (provided in the User Message).
+6. ANTI-HALLUCINATION: Under no circumstances should you invent, assume, extrapolate, or estimate any metrics, accomplishments, responsibilities, dates, or skills that are not explicitly and literally present in the raw input JSON. If a detail is not provided, do not attempt to guess or fill it in. Every section of the output markdown must be 100% grounded in the input data. Do NOT append ".md" or any other file extension to skill names inside frontmatter or body.
 
 CANONICAL ENTITY MAPPING:
 [Provided in the User Message]

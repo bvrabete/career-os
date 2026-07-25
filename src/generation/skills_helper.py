@@ -23,6 +23,8 @@ COMMON_SLUGS = {
 def get_skill_slug(name: str) -> str:
     """Get a clean, safe filename slug for a skill."""
     cleaned = name.strip().lower()
+    if cleaned.endswith(".md"):
+        cleaned = cleaned[:-3].strip()
     if cleaned in COMMON_SLUGS:
         return COMMON_SLUGS[cleaned]
     slug = re.sub(r"[^a-z0-9\s_\-\.#\+]+", "", cleaned)
@@ -91,6 +93,9 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
             for skill in skills:
                 if not skill:
                     continue
+                # Sanitize the skill name itself if it ends with .md
+                if skill.lower().endswith(".md"):
+                    skill = skill[:-3].strip()
                 skill_slug = get_skill_slug(skill)
                 if skill_slug not in skill_sources:
                     skill_sources[skill_slug] = {
