@@ -132,6 +132,33 @@ def main() -> None:
     """
     args = parse_arguments()
 
+    # Configure dual-target logging
+    log_file = Path("cv_generation.log")
+    
+    # Root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Formatter
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    
+    # File handler (detailed logging)
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+    
+    # Console handler (warnings & errors only to keep console clean)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+    root_logger.addHandler(console_handler)
+
+    # Suppress httpx and third-party chatty logs in the file too
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     import os
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir

@@ -214,8 +214,8 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
     return achievements, clean_body
 
 
-def _select_top_achievements(body: str, keywords: list[str]) -> str:
-    """Extract, score, and select only the top 7 STAR achievements based on keyword overlap."""
+def _select_top_achievements(body: str, keywords: list[str], max_pages: int = 1) -> str:
+    """Extract, score, and select only the top achievements based on keyword overlap and page budget."""
     achievements, clean_body = _extract_and_clean_achievements(body)
     
     if achievements:
@@ -225,7 +225,16 @@ def _select_top_achievements(body: str, keywords: list[str]) -> str:
             scored_ach.append((score, ach))
         # Sort by score descending
         scored_ach.sort(key=lambda x: x[0], reverse=True)
-        top_ach = [x[1] for x in scored_ach[:5]]
+        
+        # Budget-aware achievement limits
+        if max_pages >= 3:
+            limit = len(scored_ach)  # Keep all achievements for large budgets
+        elif max_pages == 2:
+            limit = 7                # Relaxed pruning for mid budgets
+        else:
+            limit = 4                # Tighter pruning for 1-page budgets
+            
+        top_ach = [x[1] for x in scored_ach[:limit]]
         
         # Clean up multi-newlines in body and append achievements
         clean_body = re.sub(r'\n{3,}', '\n\n', clean_body).strip()
@@ -234,13 +243,13 @@ def _select_top_achievements(body: str, keywords: list[str]) -> str:
     return body
 
 
-def prune_recent_experience(content: str, keywords: list[str] = [], employment_type: str = "Permanent") -> str:
+def prune_recent_experience(content: str, keywords: list[str] = [], employment_type: str = "Permanent", max_pages: int = 1) -> str:
     """
     Prunes a recent experience file to reduce token bloat before sending it to the DRAFTER.
     - Strips comments (<!-- ... -->)
     - Removes unnecessary YAML fields (created, updated, sources, tags, tracks)
-    - Strips the 'Narrative & Reflections' section to preserve token budget for Achievements.
-    - Scores and retains only the top 4 achievements based on keyword overlap.
+    - Strips the 'Narrative & Reflections' section to preserve token budget ONLY for 1 and 2-page budgets.
+    - Scores and retains achievements based on keyword overlap and target page budget.
     """
     # 1. Strip HTML comments
     content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
@@ -257,17 +266,18 @@ def prune_recent_experience(content: str, keywords: list[str] = [], employment_t
             # Get body
             body = content[fm_match.end():].strip()
             
-            # 3. Strip 'Narrative & Reflections' section if present
-            narrative_header = "## Narrative & Reflections"
-            idx = body.find(narrative_header)
-            if idx != -1:
-                next_header_idx = body.find("##", idx + len(narrative_header))
-                if next_header_idx != -1:
-                    body = body[:idx] + body[next_header_idx:]
-                else:
-                    body = body[:idx]
+            # 3. Strip 'Narrative & Reflections' section if present (ONLY for 1 and 2 page budgets)
+            if max_pages < 3:
+                narrative_header = "## Narrative & Reflections"
+                idx = body.find(narrative_header)
+                if idx != -1:
+                    next_header_idx = body.find("##", idx + len(narrative_header))
+                    if next_header_idx != -1:
+                        body = body[:idx] + body[next_header_idx:]
+                    else:
+                        body = body[:idx]
                     
-            body = _select_top_achievements(body, keywords)
+            body = _select_top_achievements(body, keywords, max_pages)
             
             # Reconstruct content
             content = f"---\n{pruned_fm_str}---\n\n{body.strip()}"
@@ -657,7 +667,7 @@ def compress_grouped_experience_llm(content: str) -> str:
 
 
 def _compress_and_wrap_single_experience(
-    score: int, name: str, content: str, justification: str, keywords: list[str]
+    score: int, name: str, content: str, justification: str, keywords: list[str], max_pages: int = 1
 ) -> str:
     """Helper to smart-compress or prune a single experience entry and return wrapped string."""
     fm = _parse_yaml_frontmatter_from_text(content)
@@ -669,7 +679,7 @@ def _compress_and_wrap_single_experience(
     elif _is_old_role(fm):
         content = compress_experience_llm(content)
     else:
-        content = prune_recent_experience(content, keywords, emp_type)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages)
 
     start_date_str = _extract_start_date_normalized(fm)
     return (
@@ -681,7 +691,7 @@ def _compress_and_wrap_single_experience(
 
 
 def _compress_and_wrap_experiences(
-    deduplicated: list[tuple[int, str, str, str]], keywords: list[str]
+    deduplicated: list[tuple[int, str, str, str]], keywords: list[str], max_pages: int = 1
 ) -> tuple[list[str], list[str]]:
     """Helper to perform smart-compression or pruning on deduplicated experiences."""
     selected_content: list[str] = []
@@ -693,21 +703,21 @@ def _compress_and_wrap_experiences(
     for score, name, content, justification in grouped_deduplicated:
         slug = name.replace(".md", "")
         retrieved_exp_slugs.append(slug)
-        wrapped = _compress_and_wrap_single_experience(score, name, content, justification, keywords)
+        wrapped = _compress_and_wrap_single_experience(score, name, content, justification, keywords, max_pages)
         selected_content.append(wrapped)
 
     return selected_content, retrieved_exp_slugs
 
 
 def retrieve_and_score_experiences(
-    llm: Any, keywords: list[str], persona: str, jd: str
+    llm: Any, keywords: list[str], persona: str, jd: str, max_pages: int = 1
 ) -> tuple[list[str], list[str]]:
     """Retrieve, score, deduplicate, and smart-compress candidate experiences."""
     score_template = load_prompt("retriever_score.txt")
     scored = _score_experiences_list(llm, keywords, persona, jd, score_template)
     scored.sort(key=lambda x: x[0], reverse=True)
     deduplicated = _deduplicate_scored_experiences(scored)
-    return _compress_and_wrap_experiences(deduplicated, keywords)
+    return _compress_and_wrap_experiences(deduplicated, keywords, max_pages)
 
 
 def _parse_education_candidate(f: Path) -> dict[str, Any] | None:

@@ -113,8 +113,14 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     wiki_dir = get_wiki_dir()
 
-    # Sub-retrievals
-    selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(llm, keywords, persona, jd)
+    # Load strategy first to determine page budget
+    strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
+    strategy_obj = RegionalStrategy.from_markdown(strategy_text)
+
+    # Sub-retrievals (with budget-aware pruning)
+    selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(
+        llm, keywords, persona, jd, max_pages=strategy_obj.max_pages
+    )
     education_content = retrieve_and_deduplicate_education(wiki_dir)
     
     skills_dir = wiki_dir / "wiki" / "skills"
@@ -127,8 +133,6 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     few_shot_examples = retrieve_few_shots(wiki_dir, keywords)
 
     skill_bridging_map = generate_skill_bridging_map(llm, skills_content, keywords)
-    strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
-    strategy_obj = RegionalStrategy.from_markdown(strategy_text)
     subject_info = get_subject_info(wiki_dir)
 
     context_info = f"""
@@ -299,4 +303,39 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
     response = llm.invoke([HumanMessage(content=prompt)])
     feedback = llm_text(response.content).strip()
 
-    return {"audit_feedback": feedback, "iteration_count": current_iterations + 1}
+    # Clean markdown json code blocks if present and parse the scorecard
+    json_str = feedback
+    if "```" in json_str:
+        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', json_str, re.DOTALL)
+        if blocks:
+            json_str = blocks[0].strip()
+
+    import json
+    try:
+        audit_data = json.loads(json_str)
+        is_pass = audit_data.get("pass", False)
+        ats_score = audit_data.get("ats_score", {})
+        checklist = audit_data.get("rewrite_checklist", [])
+
+        total_score = ats_score.get("total_score", 0)
+        logging.info(f"--- ATS SCORECARD: {total_score}/100 ---")
+        print(f"\n📊 [ATS SCORECARD: {total_score}/100]")
+        for dimension, details in ats_score.items():
+            if isinstance(details, dict):
+                score_val = details.get("score", 0)
+                max_val = details.get("max", 100)
+                justification = details.get("justification", "")
+                print(f"  - {dimension.replace('_', ' ').title()}: {score_val}/{max_val}")
+                logging.info(f"    * {dimension}: {score_val}/{max_val} - {justification}")
+
+        if is_pass:
+            stored_feedback = "PASS"
+            print("✅ [ATS AUDIT: PASS]")
+        else:
+            stored_feedback = "REWRITE REQUIRED:\n" + "\n".join([f"- [ ] {item}" for item in checklist])
+            print(f"❌ [ATS AUDIT: REWRITE REQUIRED] - {len(checklist)} items to address.")
+    except Exception as e:
+        logging.warning(f"Failed to parse structured auditor JSON: {e}. Falling back to raw text.")
+        stored_feedback = feedback
+
+    return {"audit_feedback": stored_feedback, "iteration_count": current_iterations + 1}
