@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from tools.external_auditor import AffindaParserClient
+from utils import validate_path
 
 # Set up module-level logging
 logger = logging.getLogger(__name__)
@@ -282,9 +283,13 @@ def main() -> None:
     
     args = parser.parse_args()
     
-    resume_path = Path(args.resume)
-    jd_path = Path(args.jd)
-    out_path = Path(args.out) if args.out else Path("ai-generated-cvs/affinda_ats_report.md")
+    try:
+        resume_path = validate_path(args.resume)
+        jd_path = validate_path(args.jd)
+        out_path = validate_path(args.out) if args.out else validate_path("ai-generated-cvs/affinda_ats_report.md")
+    except ValueError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
     
     print("🚀 Starting Standalone External ATS Audit Tool...")
     

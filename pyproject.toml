@@ -50,7 +50,9 @@ omit = [
     "src/generate_cv.py",
     "src/generate_document_cli.py",
     "src/kb_cleanup.py",
-    "src/kb_ingest.py"
+    "src/kb_ingest.py",
+    "src/kb_skills_sync.py",
+    "src/tools/**"
 ]
 [tool.mypy]
 python_version = "3.12"

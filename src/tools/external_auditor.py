@@ -11,6 +11,8 @@ import requests
 from pathlib import Path
 from typing import Any, Dict
 
+from utils import validate_path
+
 logger = logging.getLogger(__name__)
 
 AFFINDA_API_URL = "https://api.eu1.affinda.com/v3/documents"
@@ -50,8 +52,9 @@ class AffindaParserClient:
         if doc_type_val:
             data["documentType"] = doc_type_val
 
-        with open(file_path, "rb") as f:
-            files = {"file": (file_path.name, f, "application/octet-stream")}
+        safe_path = validate_path(file_path)
+        with open(safe_path, "rb") as f:
+            files = {"file": (safe_path.name, f, "application/octet-stream")}
             response = requests.post(AFFINDA_API_URL, headers=headers, files=files, data=data)
 
         if response.status_code not in (200, 201):
@@ -103,7 +106,9 @@ class AffindaParserClient:
         document_data = self._upload_doc_payload(file_path, doc_type_val, is_jd)
         
         try:
-            with open(f"ai-generated-cvs/{debug_filename}", "w") as f_debug:
+            debug_path = validate_path(Path("ai-generated-cvs") / debug_filename)
+            debug_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(debug_path, "w") as f_debug:
                 json.dump(document_data, f_debug, indent=2)
         except Exception as ex:
             logger.warning(f"Could not dump debug file: {ex}")
