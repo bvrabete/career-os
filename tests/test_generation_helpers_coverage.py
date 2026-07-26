@@ -10,6 +10,7 @@ from generation.helpers import (
     _prune_recent_frontmatter,
     compress_experience_llm
 )
+from utils import sanitize_slug, sanitize_entity_name
 
 
 class TestGenerationHelpersCoverage(unittest.TestCase):
@@ -93,6 +94,16 @@ class TestGenerationHelpersCoverage(unittest.TestCase):
         res = compress_experience_llm("Original heavy content")
         # Should fallback to returning original content
         self.assertEqual(res, "Original heavy content")
+
+    def test_sanitize_slug(self) -> None:
+        self.assertEqual(sanitize_slug("hello-world-123"), "hello-world-123")
+        self.assertEqual(sanitize_slug("hello/world../test"), "helloworld..test")
+        self.assertEqual(sanitize_slug("malicious_dir_traversal\\path"), "malicious_dir_traversalpath")
+
+    def test_sanitize_entity_name(self) -> None:
+        # Since parens are removed, " (" and ")" become empty space, which strip/collapsing handles
+        self.assertEqual(sanitize_entity_name("Google LLC (Corp)"), "Google LLC Corp")
+        self.assertEqual(sanitize_entity_name("malicious/path../inject"), "maliciouspath..inject")
 
 
 if __name__ == "__main__":

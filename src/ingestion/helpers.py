@@ -18,7 +18,7 @@ PATH_TRAVERSAL_ERROR = "Attempted Path Traversal outside home directory"
 INVALID_MAPPINGS_ERROR = "Security Warning: Invalid mappings path or directory traversal detected"
 
 
-from utils import validate_path
+from utils import validate_path, sanitize_slug, sanitize_entity_name
 
 
 
@@ -320,9 +320,8 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
-    # Sanitize parameter variables to prevent any directory traversal characters
-    name = os.path.basename(name).strip()
-    slug = os.path.basename(slug).strip()
+    name = sanitize_entity_name(name)
+    slug = sanitize_slug(slug)
 
     mappings_path = get_safe_mappings_path()
 

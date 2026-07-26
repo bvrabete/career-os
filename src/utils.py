@@ -48,3 +48,25 @@ def validate_path(path: Path | str) -> Path:
     if not canonical_path.startswith(base_dir):
         raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
     return Path(canonical_path)
+
+
+def sanitize_slug(text: str) -> str:
+    """
+    Strips any characters that are not lowercase/uppercase alphanumeric, hyphens, periods, or underscores.
+    This guarantees that the slug cannot contain path traversal or special shell sequence characters.
+    """
+    import re
+    cleaned = re.sub(r'[^a-zA-Z0-9_\-\.]', '', text)
+    return cleaned.strip()
+
+
+def sanitize_entity_name(text: str) -> str:
+    """
+    Strips any characters that are not alphanumeric, spaces, hyphens, periods, or underscores.
+    This ensures entity names (like persona names or organization names) are fully safe for file-writing.
+    """
+    import re
+    cleaned = re.sub(r'[^a-zA-Z0-9_\-\.\s]', '', text)
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned.strip()
+

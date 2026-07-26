@@ -165,6 +165,39 @@ class TestSkillsHelper(unittest.TestCase):
         with patch("pathlib.Path.read_text", side_effect=Exception("Read failure")):
             self.assertEqual(get_compact_skills_list(skills_dir), [])
 
+    def test_run_skills_sync_heuristic_and_merging(self) -> None:
+        """Test capitalization heuristic, empty skill skipping, and existing file merging/updating."""
+        exp_dir = self.wiki_dir / "wiki" / "experiences"
+        exp_dir.mkdir(parents=True, exist_ok=True)
+        skills_dir = self.wiki_dir / "wiki" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
+        # Pre-seed an existing skill file 'python.md' with custom content to test parsing/merging
+        py_file = skills_dir / "python.md"
+        py_file.write_text(
+            "---\ntitle: Python\ntype: skill\ncategory: Language\nrelated_experiences:\n  - '[[google]]'\n---\n\nExisting body text here.",
+            encoding="utf-8"
+        )
+
+        # Write experiences that trigger:
+        # 1. Nicer capitalization heuristic: python vs Python -> should use 'Python'
+        # 2. Empty skills skipping
+        # 3. New relations (intel) to merge with existing relation (google)
+        f1 = exp_dir / "intel.md"
+        f1.write_text("---\nskills:\n  - python\n  - Python\n  - \n---", encoding="utf-8")
+
+        run_skills_sync(self.wiki_dir, dry_run=False)
+
+        self.assertTrue(py_file.exists())
+        content = py_file.read_text(encoding="utf-8")
+        
+        # Verify both google and intel are in related experiences list
+        self.assertIn("- '[[google]]'", content)
+        self.assertIn("- '[[intel]]'", content)
+        self.assertIn("Existing body text here.", content)
+        self.assertIn("category: Language", content)  # Retains custom pre-seeded properties
+
+
 
 if __name__ == "__main__":
     unittest.main()
