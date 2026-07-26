@@ -191,6 +191,8 @@ class TestGenerationNodes(unittest.TestCase):
         result = node_analyzer(state)
         self.assertEqual(result["target_region"], "eu")
 
+    @patch("generation.nodes.retrieve_languages")
+    @patch("generation.skills_helper.get_compact_skills_list")
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.retrieve_and_score_experiences")
@@ -215,6 +217,8 @@ class TestGenerationNodes(unittest.TestCase):
         mock_retrieve_experiences,
         mock_get_model,
         mock_get_wiki_dir,
+        mock_get_compact_skills,
+        mock_retrieve_languages,
     ):
         """Test node_retriever pulls and formats all relevant files."""
         mock_get_wiki_dir.return_value = Path("mock-wiki")
@@ -236,26 +240,10 @@ class TestGenerationNodes(unittest.TestCase):
         )
         mock_get_subject_info.return_value = "Name: John Doe\nEmail: john@doe.com"
 
-        # Mock reading skills files
-        mock_skills_dir = MagicMock()
-        mock_skills_dir.exists.return_value = True
-        mock_file1 = MagicMock()
-        mock_file1.read_text.return_value = "skill1 content"
-        mock_skills_dir.glob.return_value = [mock_file1]
+        mock_get_compact_skills.return_value = ["skill1"]
+        mock_retrieve_languages.return_value = ["English (Fluent)"]
 
-        real_exists = Path.exists
-
-        def exists_side_effect(*args, **kwargs):
-            if args:
-                self_path = args[0]
-                if "config.yaml" in str(self_path):
-                    return real_exists(self_path)
-            return True
-
-        with (
-            patch("pathlib.Path.exists", side_effect=exists_side_effect),
-            patch("pathlib.Path.glob", return_value=[mock_file1]),
-        ):
+        if True:
             state: CVPipelineState = {
                 "job_description": "JD",
                 "target_persona": "Persona",
