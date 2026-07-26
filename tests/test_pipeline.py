@@ -133,7 +133,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "target_organization_slug": "",
             "target_role": "",
             "strategy_metadata": [],
-            "languages_entries": "",
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -208,7 +208,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "target_role": "role",
             "strategy_metadata": [],
             "strategy_override": "",
-            "languages_entries": "",
+            "languages_entries": [],
         }
 
         result = node_drafter(state)
@@ -225,7 +225,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
-        mock_openai_llm.invoke.side_effect = Exception(
+        mock_openai_llm.invoke.side_effect = RuntimeError(
             "rate_limit_exceeded: TPM limit reached"
         )
         mock_get_model.return_value = mock_openai_llm
@@ -258,10 +258,10 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "target_role": "role",
             "strategy_metadata": [],
             "strategy_override": "",
-            "languages_entries": "",
+            "languages_entries": [],
         }
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(RuntimeError) as context:
             node_drafter(state)
         self.assertIn("rate_limit_exceeded", str(context.exception))
 
@@ -385,6 +385,54 @@ class TestDOCXGenerator(unittest.TestCase):
 
         success = generate_docx("# Dummy", "dummy.docx")
         self.assertFalse(success)
+
+
+class TestSynthesisFileReuse(unittest.TestCase):
+    """Unit tests for active synthesis file reuse logic."""
+
+    def test_parse_synthesis_metadata(self):
+        """Test parsing of status and created date from a synthesis file."""
+        from generate_cv import _parse_synthesis_metadata
+        with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as f:
+            f.write("---\ntype: synthesis\nstatus: Generated\ncreated: 2026-07-01\n---\nDraft content")
+            f_path = Path(f.name)
+        try:
+            meta = _parse_synthesis_metadata(f_path)
+            self.assertEqual(meta.get("status"), "Generated")
+            self.assertEqual(meta.get("created"), "2026-07-01")
+        finally:
+            f_path.unlink(missing_ok=True)
+
+
+class TestOutputFolderHandling(unittest.TestCase):
+    """Unit tests for output folder handling logic."""
+
+    def test_save_outputs_folder_append(self):
+        """Test that save_outputs correctly appends the JD's name with .md if out is a folder."""
+        from generate_cv import save_outputs
+        import argparse
+
+        with tempfile.TemporaryDirectory(dir=str(Path.home())) as tmp_dir:
+            out_dir = Path(tmp_dir) / "output_folder"
+            args = argparse.Namespace(
+                out=str(out_dir),
+                jd="job-descriptions/my_jumbo_jd.txt",
+                generate_pdf=False,
+                generate_docx=False,
+            )
+
+            draft = "Draft content"
+            final_state = {}
+            synthesis_path = Path(tmp_dir) / "synthesis.md"
+            synthesis_content = "synthesis"
+
+            out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
+            
+            expected_path = out_dir / "my_jumbo_jd.md"
+            self.assertEqual(out_path, expected_path)
+            self.assertTrue(out_path.exists())
+            with open(out_path, "r", encoding="utf-8") as f:
+                self.assertEqual(f.read(), draft)
 
 
 if __name__ == "__main__":

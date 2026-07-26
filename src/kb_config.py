@@ -78,7 +78,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         # Check step-specific MODEL_NAME first, fallback to global mapping
         model_name = step_config.get("MODEL_NAME", models_map.get("openai", "gpt-4o"))
         if format == "json":
-            kwargs["response_format"] = {"type": "json_object"}
+            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
         # OpenAI reasoning models (e.g., o1, o3-mini) do not support setting a temperature parameter
         if model_name.startswith("o1") or model_name.startswith("o3"):
             return ChatOpenAI(model=model_name, **kwargs)

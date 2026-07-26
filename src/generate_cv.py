@@ -57,6 +57,12 @@ def save_outputs(
     """
     if args.out:
         out_path = validate_path(args.out)
+        
+        # Check if the output path is a directory or has no file extension
+        if out_path.is_dir() or args.out.endswith("/") or args.out.endswith("\\") or not out_path.suffix:
+            jd_filename = Path(args.jd).with_suffix(".md").name
+            out_path = out_path / jd_filename
+            
         out_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Write clean draft to specified path
@@ -112,13 +118,39 @@ def compile_optional_formats(args: argparse.Namespace, draft: str, out_path: Pat
             print(f"⚠️ DOCX Generation failed: {e}")
 
 
-def main() -> None:
+def _parse_synthesis_metadata(file_path: Path) -> dict[str, str]:
     """
-    Main entry point orchestrating state execution and error recovery.
+    Parses status and created date from an existing synthesis file's frontmatter.
     """
-    args = parse_arguments()
-    
-    # Simple direct file logging, no extra complex configurations
+    metadata = {"status": "", "created": ""}
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        return metadata
+
+    if not content.startswith("---"):
+        return metadata
+
+    end_idx = content.find("---", 3)
+    if end_idx == -1:
+        return metadata
+
+    frontmatter = content[3:end_idx]
+    for line in frontmatter.splitlines():
+        if ":" not in line:
+            continue
+        parts = line.split(":", 1)
+        key = parts[0].strip().lower()
+        if key not in metadata:
+            continue
+        metadata[key] = parts[1].strip()
+
+    return metadata
+
+
+def _setup_logging() -> None:
+    """Configures the root logging handlers and logging levels."""
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     
@@ -130,29 +162,129 @@ def main() -> None:
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     root_logger.addHandler(file_handler)
     
-    # Console handler (warnings & errors only to keep console clean)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
     root_logger.addHandler(console_handler)
 
-    # Suppress httpx and third-party chatty logs in the file too
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+
+def _load_job_description(args: argparse.Namespace) -> str | None:
+    """Validates the JD file and returns its content, or None if not found."""
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
     jd_path = validate_path(args.jd)
     if not jd_path.exists():
         print(f"❌ Error: Job Description file not found at {jd_path}")
-        return
+        return None
 
     with open(jd_path, "r", encoding="utf-8") as f:
-        jd_content = f.read()
+        return f.read()
 
-    print(f"🚀 Initializing LangGraph CV Generator Pipeline against `{jd_path.name}`...")
+
+def _triage_pipeline_exception(e: Exception) -> None:
+    """Analyzes pipeline exception and prints user-friendly suggestion triage."""
+    err_msg = str(e).lower()
+    print(f"\n❌ Pipeline failed with exception: {e}")
+    
+    if any(keyword in err_msg for keyword in ["api_key", "unauthorized", "credentials", "401"]):
+        print(SUGGESTION_STR)
+        print("   Your API keys might be invalid or expired.")
+        print("   - Verify that OPENAI_API_KEY and GEMINI_API_KEY are correctly set in your environment or .env file.")
+        
+    elif any(keyword in err_msg for keyword in ["connection", "timeout", "rate limit", "429"]):
+        print(SUGGESTION_STR)
+        print("   Network connection timeout or API rate limits exceeded.")
+        print("   - Wait a moment and retry.")
+        print("   - Check if Ollama is running (`curl http://localhost:11434`) if you are using local models.")
+        
+    elif any(keyword in err_msg for keyword in ["model not found", "not found", "does not exist", "pull"]):
+        print(SUGGESTION_STR)
+        print("   The specified local model was not found in Ollama.")
+        print("   - Run `ollama pull <model_name>` (e.g., `ollama pull qwen2.5:7b`) to download the required model.")
+        print("   - Check the MODEL_NAME settings in your config.yaml.")
+        
+    else:
+        print(SUGGESTION_STR)
+        print("   - Double-check your config.yaml configuration and ensure that local services (like Ollama) are fully operational.")
+        print("   - Review your log files or run with verbose logging for more details.")
+
+
+def _resolve_synthesis_path(company_clean: str, role_clean: str, today_str: str) -> tuple[Path, str]:
+    """Finds or constructs the appropriate synthesis file path and its creation date."""
+    synthesis_dir = get_wiki_dir() / "wiki" / "synthesis"
+    synthesis_dir.mkdir(parents=True, exist_ok=True)
+
+    existing_path: Path | None = None
+    created_date = today_str
+
+    prefix = f"synthesis-cv-{company_clean}-{role_clean}"
+    for child in synthesis_dir.glob(f"{prefix}*.md"):
+        meta = _parse_synthesis_metadata(child)
+        if meta.get("status") == "Generated":
+            existing_path = child
+            if meta.get("created"):
+                created_date = meta["created"]
+            break
+
+    if existing_path:
+        print(f"🔄 Reusing active 'Generated' synthesis file: {existing_path.name}")
+        return existing_path, created_date
+
+    synthesis_filename = f"synthesis-cv-{company_clean}-{role_clean}-{today_str}.md"
+    return synthesis_dir / synthesis_filename, created_date
+
+
+def _save_and_compile_outputs(
+    args: argparse.Namespace,
+    final_state: dict[str, Any],
+    synthesis_path: Path,
+    created_date: str,
+    today_str: str,
+) -> None:
+    """Formats and writes the final CV draft and its synthesis file, then compiles other outputs."""
+    draft = final_state.get("draft_cv", "")
+    company = final_state.get("target_organization_slug", "unknown-company")
+    role = final_state.get("target_role", "unknown-role")
+    track_val = final_state.get("target_region", "general").upper()
+
+    synthesis_content = f"""---
+type: synthesis
+title: "Tailored CV for {role} at {company}"
+track: {track_val}
+target_role: "{role}"
+target_organization: [[{company}]]
+status: Generated
+created: {created_date}
+updated: {today_str}
+---
+
+{draft}
+"""
+
+    out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
+    print(f"🔄 Audit iterations required: {final_state.get('iteration_count')}")
+    compile_optional_formats(args, draft, out_path, final_state)
+
+
+def main() -> None:
+    """
+    Main entry point orchestrating state execution and error recovery.
+    """
+    args = parse_arguments()
+    _setup_logging()
+
+    jd_content = _load_job_description(args)
+    if jd_content is None:
+        return
+
+    # Use args.jd to print actual file name from argparse namespace
+    jd_name = Path(args.jd).name
+    print(f"🚀 Initializing LangGraph CV Generator Pipeline against `{jd_name}`...")
     app = build_graph()
     
     inputs = {
@@ -165,36 +297,9 @@ def main() -> None:
     try:
         final_state = app.invoke(inputs)
     except Exception as e:
-        err_msg = str(e).lower()
-        print(f"\n❌ Pipeline failed with exception: {e}")
-        
-        # User-friendly triage guide
-        if any(keyword in err_msg for keyword in ["api_key", "unauthorized", "credentials", "401"]):
-            print(SUGGESTION_STR)
-            print("   Your API keys might be invalid or expired.")
-            print("   - Verify that OPENAI_API_KEY and GEMINI_API_KEY are correctly set in your environment or .env file.")
-            
-        elif any(keyword in err_msg for keyword in ["connection", "timeout", "rate limit", "429"]):
-            print(SUGGESTION_STR)
-            print("   Network connection timeout or API rate limits exceeded.")
-            print("   - Wait a moment and retry.")
-            print("   - Check if Ollama is running (`curl http://localhost:11434`) if you are using local models.")
-            
-        elif any(keyword in err_msg for keyword in ["model not found", "not found", "does not exist", "pull"]):
-            print(SUGGESTION_STR)
-            print("   The specified local model was not found in Ollama.")
-            print("   - Run `ollama pull <model_name>` (e.g., `ollama pull qwen2.5:7b`) to download the required model.")
-            print("   - Check the MODEL_NAME settings in your config.yaml.")
-            
-        else:
-            print(SUGGESTION_STR)
-            print("   - Double-check your config.yaml configuration and ensure that local services (like Ollama) are fully operational.")
-            print("   - Review your log files or run with verbose logging for more details.")
-            
+        _triage_pipeline_exception(e)
         print("\n🧹 Gracefully exiting...")
         sys.exit(1)
-
-    draft = final_state.get("draft_cv", "")
 
     company: str = final_state.get("target_organization_slug", "unknown-company")
     role: str = final_state.get("target_role", "unknown-role")
@@ -203,32 +308,8 @@ def main() -> None:
     role_clean = "".join(c if c.isalnum() or c in "-_" else "_" for c in role).lower()
     today_str = datetime.now().date().isoformat()
 
-    synthesis_filename = f"synthesis-cv-{company_clean}-{role_clean}-{today_str}.md"
-    synthesis_dir = get_wiki_dir() / "wiki" / "synthesis"
-    synthesis_dir.mkdir(parents=True, exist_ok=True)
-    synthesis_path = synthesis_dir / synthesis_filename
-
-    track_val = final_state.get("target_region", "general").upper()
-
-    synthesis_content = f"""---
-type: synthesis
-title: "Tailored CV for {role} at {company}"
-track: {track_val}
-target_role: "{role}"
-target_organization: [[{company}]]
-status: Generated
-created: {today_str}
-updated: {today_str}
----
-
-{draft}
-"""
-
-    out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
-
-    print(f"🔄 Audit iterations required: {final_state.get('iteration_count')}")
-
-    compile_optional_formats(args, draft, out_path, final_state)
+    synthesis_path, created_date = _resolve_synthesis_path(company_clean, role_clean, today_str)
+    _save_and_compile_outputs(args, final_state, synthesis_path, created_date, today_str)
 
 
 if __name__ == "__main__":

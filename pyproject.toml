@@ -60,3 +60,4 @@ python_version = "3.12"
 mypy_path = "src"
 explicit_package_bases = true
 ignore_missing_imports = true
+check_untyped_defs = true

@@ -15,9 +15,11 @@
         "oxml",
         "pycache",
         "pytest",
+        "Pythoneer",
         "qube",
         "qwen",
         "slugified",
+        "tsdir",
         "venv",
         "Xoft"
     ],

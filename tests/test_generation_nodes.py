@@ -2,6 +2,7 @@
 
 import unittest
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
 
@@ -32,14 +33,14 @@ class TestGenerationNodes(unittest.TestCase):
         """Test node_analyzer successfully analyzes job description and suggest strategy."""
         mock_load_prompt.return_value = "System template with {AVAILABLE_STRATEGIES}, {DEFAULT_STRATEGY}, and {JOB_DESCRIPTION}"
         mock_wiki = MagicMock()
-        mock_strat_dir = MagicMock()
-        mock_strat_dir.exists.return_value = True
+        mock_strategy_dir = MagicMock()
+        mock_strategy_dir.exists.return_value = True
         mock_file1 = MagicMock()
         mock_file1.stem = "strategy-us"
         mock_file2 = MagicMock()
         mock_file2.stem = "strategy-eu"
-        mock_strat_dir.glob.return_value = [mock_file1, mock_file2]
-        mock_wiki.__truediv__.return_value.__truediv__.return_value = mock_strat_dir
+        mock_strategy_dir.glob.return_value = [mock_file1, mock_file2]
+        mock_wiki.__truediv__.return_value.__truediv__.return_value = mock_strategy_dir
         mock_get_wiki_dir.return_value = mock_wiki
 
         mock_llm = MagicMock()
@@ -73,8 +74,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -128,8 +129,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -183,8 +184,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -270,8 +271,8 @@ class TestGenerationNodes(unittest.TestCase):
                 "skill_bridging_map": {},
                 "target_organization_slug": "",
                 "target_role": "",
-                "strategy_metadata": [],
-                "languages_entries": "",
+                "strategy_metadata": cast(Any, {}),
+                "languages_entries": [],
             }
 
             result = node_retriever(state)
@@ -333,8 +334,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {"python": "expert"},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_drafter(state)
@@ -366,8 +367,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_refiner(state)
@@ -399,8 +400,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_refiner(state)
@@ -439,8 +440,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
-            "strategy_metadata": [],
-            "languages_entries": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_auditor(state)

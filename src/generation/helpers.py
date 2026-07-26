@@ -164,6 +164,24 @@ def compress_experience_llm(content: str) -> str:
         return content
 
 
+def compress_experience_to_one_liner_llm(content: str) -> str:
+    """
+    Compresses an extremely historic experience entry into a single highly optimized,
+    ATS-aligned sentence while retaining its YAML frontmatter.
+    """
+    try:
+        llm = get_model_for_step("RETRIEVAL")
+        system_template = load_prompt("compress_to_one_liner.txt")
+        prompt = system_template.replace("{CONTENT}", content)
+        
+        response = llm.invoke([HumanMessage(content=prompt)])
+        return llm_text(response.content)
+    except Exception as e:
+        logging.warning(f"Failed to compress experience to one-liner via LLM: {e}")
+        return content
+
+
+
 def _prune_recent_frontmatter(fm: dict[str, Any], employment_type: str = "Permanent") -> str:
     """Heal dates if needed and prune to essential fields, returning YAML string."""
     # Heal dates if start/end are at top-level (common indentation error)
@@ -664,6 +682,44 @@ def compress_grouped_experience_llm(content: str) -> str:
         return content
 
 
+def calculate_experience_weight(score: int, fm: dict[str, Any]) -> float:
+    """
+    Calculate a normalized weight (0.0 to 1.0) for an experience entry based on:
+    1. ATS Score Factor (50%)
+    2. Recency Factor (30%) - decays linearly over a 15-year period
+    3. Duration Factor (20%) - scales linearly up to a 3-year cap
+    """
+    # 1. ATS Score Factor (0.0 to 1.0)
+    score_factor = max(0.0, min(1.0, score / 100.0))
+
+    # 2. Recency Factor
+    end_date_str = _extract_end_date_normalized(fm)
+    try:
+        end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except Exception:
+        end_date = datetime.date.today()
+    
+    current_year = datetime.date.today().year
+    end_year = end_date.year
+    years_since_end = max(0, current_year - end_year)
+    recency_factor = max(0.0, 1.0 - (years_since_end / 15.0))
+
+    # 3. Duration Factor
+    start_date_str = _extract_start_date_normalized(fm)
+    try:
+        start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except Exception:
+        start_date = datetime.date.today()
+        
+    duration_days = (end_date - start_date).days
+    duration_years = max(0.0, duration_days / 365.25)
+    duration_factor = min(duration_years / 3.0, 1.0)
+
+    # Compute weighted sum
+    weight = 0.5 * score_factor + 0.3 * recency_factor + 0.2 * duration_factor
+    return weight
+
+
 def _compress_and_wrap_single_experience(
     score: int, name: str, content: str, justification: str, keywords: list[str], max_pages: int = 1
 ) -> str:
@@ -672,12 +728,36 @@ def _compress_and_wrap_single_experience(
     emp_type = _detect_employment_type(fm, content)
     is_startup = _is_parallel_startup_track(fm)
     
+    # Calculate role-specific weight
+    weight = calculate_experience_weight(score, fm)
+    logging.info(f"Experience '{name}' calculated weight: {weight:.3f} (Score: {score})")
+
+    # Extract years since end date to determine if extremely historic
+    end_date_str = _extract_end_date_normalized(fm)
+    try:
+        end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except Exception:
+        end_date = datetime.date.today()
+    current_year = datetime.date.today().year
+    years_since_end = max(0, current_year - end_date.year)
+
     if name.startswith("grouped-"):
         content = compress_grouped_experience_llm(content)
-    elif _is_old_role(fm):
-        content = compress_experience_llm(content)
+    elif "group" in name.lower() or "grouped" in name.lower():
+        # Do not compress pre-grouped files to preserve their detailed nested sub-roles
+        pass
+    elif years_since_end >= 15 or weight < 0.30:
+        # Tier 4: Extremely historic (15+ years) or low weight -> Meaningful One-Liner
+        content = compress_experience_to_one_liner_llm(content)
+    elif weight >= 0.70 and years_since_end < 10:
+        # Tier 1: Full Detail (No LLM compression, apply light pruning)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=3)
+    elif weight >= 0.45 and years_since_end < 15:
+        # Tier 2: Light Compression (Apply tighter pruning, limit achievements)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=2)
     else:
-        content = prune_recent_experience(content, keywords, emp_type, max_pages)
+        # Tier 3: Aggressive Summary (Compress to paragraph via LLM)
+        content = compress_experience_llm(content)
 
     start_date_str = _extract_start_date_normalized(fm)
     return (
@@ -686,6 +766,7 @@ def _compress_and_wrap_single_experience(
         f"{content}\n"
         f"--- END CAREER ENTRY ---\n"
     )
+
 
 
 def _compress_and_wrap_experiences(
@@ -950,7 +1031,15 @@ def get_subject_info(wiki_dir: Path) -> str:
         for ent in entities_dir.glob("*.md"):
             try:
                 c = ent.read_text(encoding="utf-8")
-                if 'tags: ["person"' in c or 'tags: ["person",' in c:
+                if c.startswith("---"):
+                    fm = _parse_yaml_frontmatter_from_text(c)
+                    if fm:
+                        category = str(fm.get("category", "")).lower()
+                        tags = [str(t).lower() for t in fm.get("tags", []) if t]
+                        if category == "person" or "person" in tags:
+                            return c
+                # Fallback to broad substring patterns if yaml parsing is skipped
+                if any(x in c for x in ['tags: ["person"', 'tags: ["person",', '- "person"', '- person']):
                     return c
             except Exception:
                 pass

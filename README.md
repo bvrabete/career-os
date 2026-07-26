@@ -104,6 +104,11 @@ To ensure a perfectly structured, compact, and compliant CV, the generation pipe
 *   **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
 *   **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
 *   **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
+*   **Multi-Factor Experience Weighting (4-Tier Routing Engine)**: Evaluates each role based on *ATS Score Relevance* (50%), *Recency Decay* over 15 years (30%), and *Duration Factor* up to 3 years (20%). It dynamically routes roles to four distinct compression tiers:
+    *   *Tier 1 (High Weight & Recent)*: Full detail with custom pruning.
+    *   *Tier 2 (Medium-High Weight)*: Light compression keeping up to 4 key achievements.
+    *   *Tier 3 (Medium Weight)*: Aggressive LLM summary collapsed into a short paragraph.
+    *   *Tier 4 (Historic / Low Weight)*: Ultra-historic (15+ years) or low-relevance roles are pre-compressed into exactly one highly optimized, keyword-rich ATS-aligned sentence, guaranteeing zero chronological gaps or omissions while saving massive page budget.
 
 ---
 

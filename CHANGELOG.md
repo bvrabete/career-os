@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.5.0] - 2026-07-26
 
 ### Added
+- **Multi-Factor Experience Weighting (4-Tier Routing)**: Engineered a dynamic, multi-factor weighting algorithm (`calculate_experience_weight`) based on *ATS Score Relevance* (50%), *Recency Decay* (30%), and *Service Duration* (20%).
+- **Tier 4 Historical One-Liner Compressor**: Introduced a pre-drafting compression step (`compress_experience_to_one_liner_llm`) that automatically compiles extremely historical roles (15+ years old) or ultra-low weight roles into a single high-impact, keyword-rich, ATS-aligned sentence, preventing page-budget exhaustion while fully avoiding chronological role omissions.
 - **Dynamic JD-Aligned Side-Project Selection**: Re-engineered the drafting guidelines to dynamically evaluate side projects and startup ventures against the target Job Description's keywords, automatically expanding them with STAR bullets to capture the ATS match, or compressing them to single-line entries to maximize page budget.
 - **Standalone Document Conversion CLI**: Fully documented and registered the `doc-gen` CLI script shortcut to compile existing Markdown resumes into production-ready PDF and high-compatibility Microsoft Word (`.docx`) formats.
 - **Standalone ATS Parser Auditor CLI**: Registered and documented the `ats-audit` CLI script shortcut to upload and stress-test compiled resumes against target Job Descriptions using real-world parsing engines.

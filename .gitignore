@@ -40,3 +40,4 @@ config.yaml
 
 # Generated files
 ai-generated-cvs/*
+plans/*
