@@ -243,7 +243,7 @@ def get_safe_mappings_path() -> Path:
         if not re.match(r'^[a-zA-Z0-9_\-\.]+$', part):
             raise ValueError(INVALID_MAPPINGS_ERROR)
 
-    return base_dir.joinpath(*parts)
+    return validate_path(base_dir.joinpath(*parts))
 
 
 
@@ -320,7 +320,7 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
-    mappings_path = get_safe_mappings_path()
+    mappings_path = validate_path(get_safe_mappings_path())
 
     if not mappings_path.exists():
         return
