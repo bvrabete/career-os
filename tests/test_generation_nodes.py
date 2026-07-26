@@ -243,8 +243,17 @@ class TestGenerationNodes(unittest.TestCase):
         mock_file1.read_text.return_value = "skill1 content"
         mock_skills_dir.glob.return_value = [mock_file1]
 
+        real_exists = Path.exists
+
+        def exists_side_effect(*args, **kwargs):
+            if args:
+                self_path = args[0]
+                if "config.yaml" in str(self_path):
+                    return real_exists(self_path)
+            return True
+
         with (
-            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.exists", side_effect=exists_side_effect),
             patch("pathlib.Path.glob", return_value=[mock_file1]),
         ):
             state: CVPipelineState = {
