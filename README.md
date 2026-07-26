@@ -104,6 +104,11 @@ To ensure a perfectly structured, compact, and compliant CV, the generation pipe
 *   **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
 *   **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
 *   **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
+*   **Multi-Factor Experience Weighting (4-Tier Routing Engine)**: Evaluates each role based on *ATS Score Relevance* (50%), *Recency Decay* over 15 years (30%), and *Duration Factor* up to 3 years (20%). It dynamically routes roles to four distinct compression tiers:
+    *   *Tier 1 (High Weight & Recent)*: Full detail with custom pruning.
+    *   *Tier 2 (Medium-High Weight)*: Light compression keeping up to 4 key achievements.
+    *   *Tier 3 (Medium Weight)*: Aggressive LLM summary collapsed into a short paragraph.
+    *   *Tier 4 (Historic / Low Weight)*: Ultra-historic (15+ years) or low-relevance roles are pre-compressed into exactly one highly optimized, keyword-rich ATS-aligned sentence, guaranteeing zero chronological gaps or omissions while saving massive page budget.
 
 ---
 
@@ -165,6 +170,32 @@ The generation pipeline supports direct override of region strategy selection, a
 *   `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
 *   `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
 *   `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
+
+### 6. Standalone Document Compiler (`doc-gen`)
+If you have already generated and customized a Markdown CV (`.md`) file, you can convert it directly to PDF or Microsoft Word (`.docx`) format at any time without re-running the heavy drafting LLMs.
+
+```bash
+# Compile to Microsoft Word (DOCX)
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format docx
+
+# Compile to styled PDF
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format pdf
+```
+
+### 7. Standalone ATS Parser Auditor (`ats-audit`)
+Run an independent, commercial-grade resume-parsing audit against your compiled resume using the real-world **Affinda API**. This tool uploads your document, programmatically indexes it in an isolated testing search database, extracts technical keywords, parses the chronological timeline, and requests a live native machine-learning match score against a target Job Description.
+
+> [!TIP]
+> Commercial ATS parsers are highly layout-dependent. Always convert your Markdown CV to a PDF or Microsoft Word (`.docx`) document first using `doc-gen` before auditing it to ensure perfect chronological segmentation and high extraction rates!
+
+```bash
+uv run ats-audit \
+  --resume ai-generated-cvs/jumbo_tech_lead_cv_enhanced.docx \
+  --jd job-descriptions/target_jd.txt \
+  --out ai-generated-cvs/affinda_ats_report.md
+```
+
+The tool generates a detailed Markdown scorecard (`affinda_ats_report.md`) outlining contact extraction, matched/missed skills, and the full parsed work experience timeline exactly as a corporate recruiter would see it in their internal software.
 
 ---
 

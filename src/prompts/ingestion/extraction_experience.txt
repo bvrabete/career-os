@@ -11,13 +11,13 @@ CRITICAL CONSTRAINTS:
 Output format:
 {
   "profile": {
-    "name": "<full legal or preferred candidate name, e.g. Amalia Vrabete>",
+    "name": "<full legal or preferred candidate name, e.g. John Doe>",
     "email": "<email address>",
     "phone": "<phone number>",
     "linkedin": "<linkedin profile URL or empty string>",
-    "location": "<address, city, country, or location, e.g. Veldleeuwerik 8, IJsselstein, Utrecht, Netherlands>",
+    "location": "<address, city, country, or location, e.g. 43 No Name str, Town, County, Country>",
     "overview": "<overview/professional summary paragraph from the resume or a concise 1-2 sentence career description if no explicit summary is found>",
-    "tags": ["<relevant high-level skill/domain tags like 'supply chain', 'logistics', 'data analytics', etc.>"]
+    "tags": ["<relevant high-level skill/domain tags like 'supply chain', 'software development', 'welding', etc.>"]
   },
   "roles": [
     {

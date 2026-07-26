@@ -90,7 +90,7 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
 
 ## Code Standards (src/)
 
-- **Style**: PEP 8, 120 char limit. Imports: stdlib → third-party → local.
+- **Style**: PEP 8 is a strict, mandatory requirement. 120 char limit. Imports must always reside at the top of the file; inline imports (importing inside functions or methods) are strictly forbidden. Import ordering: stdlib → third-party → local.
 - **Typing**: Pylance strict mode. Full annotations on all parameters and return types (comprehensive type checking). Use generic type aliases and standard collection types (e.g., `list[str]`, `dict[str, Any]`, `str | None`).
 - **File Length & Structure Limits**:
   - No single Python source file should exceed **500 lines** to maintain readability and ease of maintenance.
@@ -106,6 +106,7 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
 - **Docstrings & Comments**: Required for every module, class, function, and method. Plain text format. Include descriptive inline comments for complex steps.
 - **Design Principles**:
   - **DRY (Don't Repeat Yourself)**: Extract shared logic into modular helper functions or utility classes.
+  - **Security & Path Validation (pythonsecurity:S8707)**: To prevent path injection and directory traversal attacks, ALL file-system read/write operations (including opening, reading, or writing files from user-controlled or command-line parameters) MUST first sanitize and canonicalize inputs using the shared `validate_path()` helper function in `src/utils.py`. Never read or write files directly from unvalidated paths.
   - **Modularity**: Code must be well-structured, clean, and highly modular.
   - **Complexity & Cognitive Load (SonarQube python:S3776 translation)**: Keep SonarQube cognitive/cyclomatic complexity STRICTLY below 15 per function/method. Cognitive Complexity measures how difficult the control flow of a function is for a human to follow. Every control structure (`if`, `elif`, `else`, `for`, `while`, `except`, etc.) and sequence of logical operators (`and`, `or`, `not`) increments the complexity score, and nesting multiplies this cost exponentially (each level of nesting adds a penalty of +1 on top of the structural increment). Follow these strict, non-negotiable prescriptions to keep code simple:
     - **Limit Nesting to Max 2 Levels**: Never nest control structures (loops, conditionals, try-except blocks) deeper than 2 levels. If a block requires more nesting, extract the inner block into a dedicated helper function.
@@ -125,6 +126,15 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
   - **CLI Entrypoint/Command Scripts** (e.g., `src/generate_cv.py`, `src/kb_ingest.py`, `src/kb_cleanup.py`):
     - May configure the root logger (via `logging.basicConfig`) in `main()` or the `if __name__ == "__main__":` block.
     - May use `print()` statements adorned with emojis (🚀, ✅, ❌, 📦, 🧹, ✨) *exclusively* for highly legible, user-facing console interactions and progress reporting.
+- **Strict Pre-Finalization Verification Mandate (Definition of Done)**:
+  Before declaring any task, modification, or bug fix complete and asking for final user approval, the agent **MUST** run and pass the following checklist:
+  1. **Automated Unit Tests**: Execute `uv run pytest` to ensure all existing and new tests pass with 100% success.
+  2. **Strict Type Compliance (Pylance/Pyright)**: Ensure all functions have full parameter and return type annotations. Proactively run `uv run pyright` on all modified files to ensure zero static type-checking errors (no untyped parameters, unbound variables, or type mismatches).
+  3. **SonarQube Quality Scan**: Proactively run a SonarQube code analysis (using the `sonar-analyze` skill or MCP tools) targeting the modified files. There must be:
+     - Zero new blocker or critical bugs.
+     - Zero security hotspots.
+     - Cognitive complexity score STRICTLY below 15 per function.
+  4. **Validation Summary**: The agent's final response must explicitly summarize the outputs of these checks, providing the test status, typing validation confirmation, and SonarQube analysis results.
 
 
 ## Legacy Note

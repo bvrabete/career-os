@@ -2,6 +2,7 @@
 
 import logging
 import json
+import re
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -11,7 +12,7 @@ from kb_config import (
     get_strategy_default,
     get_wiki_dir,
 )
-from generation.state import CVPipelineState
+from generation.state import CVPipelineState, RegionalStrategy
 from generation.helpers import (
     llm_text,
     robust_json_loads,
@@ -19,6 +20,7 @@ from generation.helpers import (
     generate_skill_bridging_map,
     retrieve_and_score_experiences,
     retrieve_and_deduplicate_education,
+    retrieve_languages,
     retrieve_and_score_projects,
     retrieve_and_score_patents,
     retrieve_and_score_notes,
@@ -112,22 +114,28 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     wiki_dir = get_wiki_dir()
 
-    # Sub-retrievals
-    selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(llm, keywords, persona, jd)
+    # Load strategy first to determine page budget
+    strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
+    strategy_obj = RegionalStrategy.from_markdown(strategy_text)
+
+    # Sub-retrievals (with budget-aware pruning)
+    selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(
+        llm, keywords, persona, jd, max_pages=strategy_obj.max_pages
+    )
     education_content = retrieve_and_deduplicate_education(wiki_dir)
     
     skills_dir = wiki_dir / "wiki" / "skills"
-    skills_content = []
-    if skills_dir.exists():
-        skills_content = [f.read_text(encoding="utf-8") for f in skills_dir.glob("*.md")]
+    from generation.skills_helper import get_compact_skills_list
+    skills_content = get_compact_skills_list(skills_dir, retrieved_exp_slugs)
 
     projects_entries = retrieve_and_score_projects(wiki_dir, keywords, retrieved_exp_slugs)
     patents_entries = retrieve_and_score_patents(wiki_dir, keywords, retrieved_exp_slugs)
     notes_entries = retrieve_and_score_notes(wiki_dir, keywords, retrieved_exp_slugs)
     few_shot_examples = retrieve_few_shots(wiki_dir, keywords)
 
+    languages_content = retrieve_languages(wiki_dir)
+
     skill_bridging_map = generate_skill_bridging_map(llm, skills_content, keywords)
-    strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
     subject_info = get_subject_info(wiki_dir)
 
     context_info = f"""
@@ -146,12 +154,14 @@ CV Format Expectations: {expectations}
         "selected_entries": selected_content,
         "education_entries": education_content,
         "skills_entries": skills_content,
+        "languages_entries": languages_content,
         "projects_entries": projects_entries,
         "patents_entries": patents_entries,
         "notes_entries": notes_entries,
         "few_shot_examples": few_shot_examples,
         "skill_bridging_map": skill_bridging_map,
         "strategy_info": context_info,
+        "strategy_metadata": strategy_obj,
         "pdf_template": pdf_template
     }
 
@@ -176,8 +186,13 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     few_shots = state.get("few_shot_examples", [])
     skill_bridge = state.get("skill_bridging_map", {})
 
+    languages = state.get("languages_entries", [])
+    languages_text = "\n".join(languages)
+
     education_text = "\n\n".join(education)
-    skills_text = "\n\n".join(skills)
+    skills_text = "\n".join(skills)
+    if languages_text:
+        skills_text += "\n\nSPOKEN LANGUAGES:\n" + languages_text
 
     projects_text = "\n\n".join(projects)
     patents_text = "\n\n".join(patents)
@@ -212,7 +227,6 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         skills_text=skills_text
     )
 
-    import json as _json_hack  # Re-import just in case JSON is needed in helpers
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
     return {"draft_cv": llm_text(response.content)}
 
@@ -224,13 +238,40 @@ def node_refiner(state: CVPipelineState) -> dict[str, Any]:
     char_count = len(draft)
     logging.info(f"Current CV length: {char_count} characters.")
 
-    # 8500 chars is approx 2 full pages with standard formatting
-    if char_count > 8500:
+    # Try to find the strongly-typed strategy metadata in the state
+    strategy_meta = state.get("strategy_metadata")
+    if strategy_meta:
+        max_pages = strategy_meta.max_pages
+        logging.info(f"Using strongly-typed max pages limit from strategy metadata: {max_pages}")
+    else:
+        # Fallback to textual description matching for backwards compatibility (e.g., legacy test state)
+        max_pages = 2
+        strategy_text = state.get("strategy_info", "").lower()
+        if "3 pages" in strategy_text or "3-page" in strategy_text:
+            max_pages = 3
+            logging.info("Regional strategy indicates a 3-page limit from text description (fallback).")
+        elif "1 page" in strategy_text or "1-page" in strategy_text:
+            max_pages = 1
+            logging.info("Regional strategy indicates a 1-page limit from text description (fallback).")
+
+    # Calculate dynamic character limit based on page count
+    if max_pages == 1:
+        char_limit = 4500
+    elif max_pages == 3:
+        char_limit = 12500
+    elif max_pages >= 4:
+        char_limit = 12500 + (max_pages - 3) * 4000
+    else:
+        char_limit = 8500  # Default to 2 pages (8500 characters)
+
+    logging.info(f"Target page limit: {max_pages}. Dynamically computed character budget: {char_limit}.")
+
+    if char_count > char_limit:
         feedback = (
-            f"DENSITY ERROR: The CV is too long ({char_count} characters). "
-            "Please compress older roles (pre-2015) to single-line summaries. "
-            "In your current and recent roles, keep only the 2-3 most impactful bullets that "
-            "demonstrate direct technical leadership and agentic AI experience."
+            f"DENSITY ERROR: The CV is too long ({char_count} characters, limit is {char_limit}). "
+            "Please compress older roles to single-line summaries. "
+            "In current and recent roles, keep only the most impactful bullets that directly "
+            "align with the target job description to maximize the ATS score and relevance."
         )
         return {"refiner_feedback": feedback}
 
@@ -245,14 +286,54 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
     jd = state.get("job_description", "")
     draft = state.get("draft_cv", "")
     current_iterations = state.get("iteration_count", 0)
+    strategy = state.get("strategy_info", "")
 
     auditor_template = load_prompt("auditor.txt")
-    prompt = auditor_template.format(
-        job_description=jd,
-        draft_cv=draft
+    skills = state.get("skills_entries", [])
+    skills_text = "\n".join(skills)
+    prompt = (
+        auditor_template
+        .replace("{job_description}", jd)
+        .replace("{draft_cv}", draft)
+        .replace("{candidate_skills}", skills_text)
+        .replace("{strategy_info}", strategy)
     )
 
     response = llm.invoke([HumanMessage(content=prompt)])
     feedback = llm_text(response.content).strip()
 
-    return {"audit_feedback": feedback, "iteration_count": current_iterations + 1}
+    # Clean markdown json code blocks if present and parse the scorecard
+    json_str = feedback
+    if "```" in json_str:
+        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', json_str, re.DOTALL)
+        if blocks:
+            json_str = blocks[0].strip()
+
+    try:
+        audit_data = json.loads(json_str)
+        is_pass = audit_data.get("pass", False)
+        ats_score = audit_data.get("ats_score", {})
+        checklist = audit_data.get("rewrite_checklist", [])
+
+        total_score = ats_score.get("total_score", 0)
+        logging.info(f"--- ATS SCORECARD: {total_score}/100 ---")
+        print(f"\n📊 [ATS SCORECARD: {total_score}/100]")
+        for dimension, details in ats_score.items():
+            if isinstance(details, dict):
+                score_val = details.get("score", 0)
+                max_val = details.get("max", 100)
+                justification = details.get("justification", "")
+                print(f"  - {dimension.replace('_', ' ').title()}: {score_val}/{max_val}")
+                logging.info(f"    * {dimension}: {score_val}/{max_val} - {justification}")
+
+        if is_pass:
+            stored_feedback = "PASS"
+            print("✅ [ATS AUDIT: PASS]")
+        else:
+            stored_feedback = "REWRITE REQUIRED:\n" + "\n".join([f"- [ ] {item}" for item in checklist])
+            print(f"❌ [ATS AUDIT: REWRITE REQUIRED] - {len(checklist)} items to address.")
+    except Exception as e:
+        logging.warning(f"Failed to parse structured auditor JSON: {e}. Falling back to raw text.")
+        stored_feedback = feedback
+
+    return {"audit_feedback": stored_feedback, "iteration_count": current_iterations + 1}

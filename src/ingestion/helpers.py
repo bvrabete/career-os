@@ -1,8 +1,10 @@
 """Pure Python helpers and utilities for the Ingestion Pipeline."""
 import json
 import logging
+import os
 import re
 import shutil
+import tempfile
 import yaml
 from pathlib import Path
 from typing import Any
@@ -16,16 +18,7 @@ PATH_TRAVERSAL_ERROR = "Attempted Path Traversal outside home directory"
 INVALID_MAPPINGS_ERROR = "Security Warning: Invalid mappings path or directory traversal detected"
 
 
-def validate_path(path: Path | str) -> Path:
-    """
-    Validates and canonicalizes file paths to prevent traversal and security risks.
-    """
-    import os
-    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
-    canonical_path = os.path.realpath(os.path.abspath(path))
-    if not canonical_path.startswith(base_dir):
-        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
-    return Path(canonical_path)
+from utils import validate_path, sanitize_slug, sanitize_entity_name, safe_read_text, safe_write_text
 
 
 
@@ -72,22 +65,50 @@ def _bootstrap_subdirs(wiki_root: Path) -> None:
 
 def _bootstrap_templates_and_schema(wiki_dir: Path, wiki_root: Path) -> None:
     """Bootstrap schemas, mappings, and log file."""
-    template_schema = Path(__file__).resolve(
-    ).parent.parent.parent / "templates" / SCHEMA_MD
-    target_schema = wiki_dir / SCHEMA_MD
-    if template_schema.exists() and not target_schema.exists():
-        try:
-            shutil.copy(template_schema, target_schema)
-            logging.info(f"Copied schema.md template from {template_schema}")
-        except Exception as e:
-            logging.warning(f"Failed to copy schema.md: {e}")
-    elif not target_schema.exists():
-        target_schema.write_text(
-            "# Wiki Schema\n\nEmpty placeholder schema.\n", encoding="utf-8")
+    repo_llm_wiki = Path(__file__).resolve().parent.parent.parent / "llm-wiki"
 
+    # 1. Schema
+    target_schema = wiki_dir / SCHEMA_MD
+    if not target_schema.exists():
+        copied_schema = False
+        repo_schema = repo_llm_wiki / SCHEMA_MD
+        if repo_schema.exists():
+            try:
+                shutil.copy(repo_schema, target_schema)
+                logging.info(f"Copied schema.md template from {repo_schema}")
+                copied_schema = True
+            except Exception as e:
+                logging.warning(f"Failed to copy schema.md: {e}")
+
+        if not copied_schema:
+            legacy_schema = Path(__file__).resolve().parent.parent.parent / "templates" / SCHEMA_MD
+            if legacy_schema.exists():
+                try:
+                    shutil.copy(legacy_schema, target_schema)
+                    logging.info(f"Copied schema.md template from {legacy_schema}")
+                    copied_schema = True
+                except Exception as e:
+                    logging.warning(f"Failed to copy schema.md from legacy templates: {e}")
+
+        if not copied_schema and not target_schema.exists():
+            target_schema.write_text(
+                "# Wiki Schema\n\nEmpty placeholder schema.\n", encoding="utf-8")
+
+    # 2. Mappings
     target_mappings = wiki_dir / MAPPINGS_FILE_NAME
     if not target_mappings.exists():
-        mappings_template = """# Entity Aliases & Mappings
+        copied_mappings = False
+        repo_mappings = repo_llm_wiki / MAPPINGS_FILE_NAME
+        if repo_mappings.exists():
+            try:
+                shutil.copy(repo_mappings, target_mappings)
+                logging.info(f"Copied mappings.md template from {repo_mappings}")
+                copied_mappings = True
+            except Exception as e:
+                logging.warning(f"Failed to copy mappings.md: {e}")
+
+        if not copied_mappings and not target_mappings.exists():
+            mappings_template = """# Entity Aliases & Mappings
 
 Use this file to define known typos, variations, and aliases for entities in the Knowledge Graph. 
 The LLM Wiki tool must consult this file during ingestion to prevent duplicate or erroneous entity creation.
@@ -97,20 +118,46 @@ The LLM Wiki tool must consult this file during ingestion to prevent duplicate o
 - **Canonical:** [[example-corporation]]
   - Aliases: `Example Corp`, `Example Inc`, `Example`
 """
-        target_mappings.write_text(mappings_template, encoding="utf-8")
-        logging.info("Created clean, generic mappings.md template")
+            target_mappings.write_text(mappings_template, encoding="utf-8")
+            logging.info("Created clean, generic mappings.md template (fallback)")
 
+    # 3. Log
     target_log = wiki_root / "log.md"
     if not target_log.exists():
-        target_log.write_text(
-            "# Wiki Activity Log\n\nAll ingestion actions are logged here.\n", encoding="utf-8")
-        logging.info("Created default log.md")
+        copied_log = False
+        repo_log = repo_llm_wiki / "wiki" / "log.md"
+        if repo_log.exists():
+            try:
+                shutil.copy(repo_log, target_log)
+                logging.info(f"Copied log.md template from {repo_log}")
+                copied_log = True
+            except Exception as e:
+                logging.warning(f"Failed to copy log.md: {e}")
+
+        if not copied_log and not target_log.exists():
+            target_log.write_text(
+                "# Wiki Activity Log\n\nAll ingestion actions are logged here.\n", encoding="utf-8")
+            logging.info("Created default log.md (fallback)")
+
+    # 4. Purpose
+    target_purpose = wiki_dir / "purpose.md"
+    if not target_purpose.exists():
+        repo_purpose = repo_llm_wiki / "purpose.md"
+        if repo_purpose.exists():
+            try:
+                shutil.copy(repo_purpose, target_purpose)
+                logging.info(f"Copied purpose.md template from {repo_purpose}")
+            except Exception as e:
+                logging.warning(f"Failed to copy purpose.md: {e}")
 
 
 def _bootstrap_css_templates(wiki_dir: Path) -> None:
     """Bootstrap default CSS templates from the repository."""
     repo_templates_dir = Path(__file__).resolve(
-    ).parent.parent.parent / "templates"
+    ).parent.parent.parent / "llm-wiki" / "templates"
+    if not repo_templates_dir.exists():
+        repo_templates_dir = Path(__file__).resolve(
+        ).parent.parent.parent / "templates"
     target_templates_dir = wiki_dir / "templates"
     if repo_templates_dir.exists():
         target_templates_dir.mkdir(parents=True, exist_ok=True)
@@ -125,6 +172,23 @@ def _bootstrap_css_templates(wiki_dir: Path) -> None:
                 except Exception as e:
                     logging.warning(
                         f"Failed to copy CSS template {css_file.name}: {e}")
+
+
+def _bootstrap_strategies(wiki_root: Path) -> None:
+    """Bootstrap default, generic, strongly-typed regional strategies from the llm-wiki repository directory."""
+    repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki" / "wiki" / "strategies"
+    target_strategies_dir = wiki_root / "strategies"
+
+    if repo_strategies_dir.exists():
+        target_strategies_dir.mkdir(parents=True, exist_ok=True)
+        for strategy_file in repo_strategies_dir.glob("strategy-*.md"):
+            target_file = target_strategies_dir / strategy_file.name
+            if not target_file.exists():
+                try:
+                    shutil.copy(strategy_file, target_file)
+                    logging.info(f"Bootstrapped regional strategy: {strategy_file.name}")
+                except Exception as e:
+                    logging.warning(f"Failed to copy strategy template {strategy_file.name}: {e}")
 
 
 def bootstrap_wiki_structure(wiki_dir: Path) -> None:
@@ -147,15 +211,11 @@ def bootstrap_wiki_structure(wiki_dir: Path) -> None:
     _bootstrap_subdirs(wiki_root)
     _bootstrap_templates_and_schema(wiki_dir, wiki_root)
     _bootstrap_css_templates(wiki_dir)
+    _bootstrap_strategies(wiki_root)
 
 
 def get_safe_mappings_path() -> Path:
     """Securely resolve mappings.md, validating against path traversal and satisfying SonarQube taint analysis."""
-    import os
-    import re
-    import tempfile
-    from pathlib import Path
-
     raw_path = get_mappings_path().resolve()
 
     # Identify the matching trusted parent directory to support various environments and unit testing
@@ -183,7 +243,7 @@ def get_safe_mappings_path() -> Path:
         if not re.match(r'^[a-zA-Z0-9_\-\.]+$', part):
             raise ValueError(INVALID_MAPPINGS_ERROR)
 
-    return base_dir.joinpath(*parts)
+    return validate_path(base_dir.joinpath(*parts))
 
 
 
@@ -260,12 +320,15 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
+    name = sanitize_entity_name(name)
+    slug = sanitize_slug(slug)
+
     mappings_path = get_safe_mappings_path()
 
     if not mappings_path.exists():
         return
 
-    content = mappings_path.read_text(encoding="utf-8")
+    content = safe_read_text(mappings_path)
     if f"[[{slug}]]" in content:
         return
 
@@ -302,14 +365,13 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
-    mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    safe_write_text(mappings_path, "\n".join(new_lines) + "\n")
     logging.info(
         f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
 
 
 def get_persona_slug(profile_name: str) -> str:
     """Robustly find or generate the canonical persona slug, and ensure mappings.md is seeded."""
-    import os
     # Sanitize inputs with basename to prevent path traversal/injection taint from propagating
     profile_name = os.path.basename(profile_name).strip()
 
@@ -324,7 +386,8 @@ def get_persona_slug(profile_name: str) -> str:
         return resolved
 
     slug = slugify(profile_name)
-    if not slug.endswith("-person") and slug != "brad-vrabete":
+    persona_slug_canonical = get_persona_slug_from_mappings()
+    if not slug.endswith("-person") and slug != persona_slug_canonical:
         slug = f"{slug}-person"
 
     add_persona_mapping_if_missing(profile_name, slug)

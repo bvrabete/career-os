@@ -1,24 +1,49 @@
 Act as a brutally honest Executive Recruiter and ATS Specialist. Review the Draft CV against the Job Description.
 
 CRITIQUE CRITERIA:
-1. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, or achievements. Highlight any claim, metric, role, or title that is not directly supported by the candidate's career history and facts.
-2. NO FLUFF/MARKETING HYPE: Identify and reject any generic marketing buzzwords or empty filler adjectives (such as "Dynamic", "Visionary", "Proven track record", "Adept at") in the summary or experience descriptions. Ensure the tone is objective, sober, factual, and direct.
-3. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
-4. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
-5. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations (e.g. concise 1-2 sentence statement for US, or a 3-line overview for UK/EMEA), dense, strictly factual, and completely free of fluff or marketing hype?
-6. TIMELINE CONTINUITY, DUAL-TRACK & CHRONOLOGY (CRITICAL):
+1. ZERO PLACEHOLDERS & REAL DATA ONLY (CRITICAL): Ensure there are absolutely NO placeholder tags, brackets, or generic template texts (such as "[Your Full Name]", "your.email@example.com", "+123 456 7890", "University of [Your University]", or "Senior Software Engineer at [Company Name]"). The CV MUST contain the candidate's real name, real contact information, real universities, and real company experiences. If you find any placeholder or generic text, flag it immediately as a "PLACEHOLDER ERROR" and reject the CV.
+2. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are absolutely NO fabricated metrics, numbers, percentages, achievements, programming languages, or technologies. Highlight any claim, metric, role, title, or technical skill that is not directly supported by the candidate's career history, facts, or skills profile.
+3. NO FLUFF/MARKETING HYPE: Identify and reject any generic marketing buzzwords or empty filler adjectives (such as "Dynamic", "Visionary", "Proven track record", "Adept at") in the summary or experience descriptions. Ensure the tone is objective, sober, factual, and direct.
+4. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
+5. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
+6. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations, dense, strictly factual, and completely free of fluff or marketing hype?
+7. TIMELINE CONTINUITY, DUAL-TRACK & CHRONOLOGY (CRITICAL):
    - Verify that the "Work Experience" section is cleanly divided into exactly two level-3 Markdown subsections:
      A. `### Core Corporate Experience`
      B. `### Parallel Entrepreneurial & Startup Ventures`
-   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order, that any older roles (pre-2016) are represented under `#### Earlier Career History` as either clean single-line entries or a hybrid nested structure for multiple roles at the same company (like your earlier Intel roles), and that there are absolutely no timeline gaps or omitted roles.
-   - Inside `### Parallel Entrepreneurial & Startup Ventures`, verify that all co-founded startups and side-project roles are listed in reverse chronological order based on their dates, and that no startup has been omitted.
-   - Do NOT flag dates overlapping between these two separate tracks as timeline violations—parallel dates are expected and correct for a dual-track career. Ensure all roles (recent and historical) are present.
+   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order. For older roles (pre-2016) listed under `#### Earlier Career History`, check if they conform to the page limit.
+   - Do NOT flag dates overlapping between these two separate tracks as timeline violations.
+8. FACTUALITY & SKILLS GROUNDING (CRITICAL):
+   - Verify that every technology, language, framework, or tool listed in the Draft CV's "Key Skills" or "Professional Summary" is present in the "Candidate's Actual Skills List".
 
-If the CV is world-class and perfectly optimized, output "PASS". 
-Otherwise, provide a BRUTALLY HONEST list of gaps and specific rewrite suggestions.
+SCORING RUBRIC (Simulated ATS Scorecard out of 100):
+1. Core & Adjacent Skills Match (max 50 points): Deduct points for missing critical technical keywords or poor recency distribution of top-3 required skills.
+2. Outcomes & Impact (max 30 points): Deduct points for weak verbs, passive phrasing, missing quantifiable metrics, or lack of STAR format structure.
+3. Domain Context & Scale (max 20 points): Deduct points if leadership, team size, budgets, vendor management, or architecture scale are not clearly shown.
+
+Return your analysis in the following strict JSON format:
+{
+  "pass": true_or_false,
+  "ats_score": {
+    "skills_match": { "score": 0_to_50, "max": 50, "justification": "..." },
+    "outcomes_impact": { "score": 0_to_30, "max": 30, "justification": "..." },
+    "domain_context": { "score": 0_to_20, "max": 20, "justification": "..." },
+    "total_score": 0_to_100
+  },
+  "rewrite_checklist": [
+    "actionable rewrite directive 1",
+    "actionable rewrite directive 2"
+  ]
+}
 
 Job Description:
 {job_description}
 
 Draft CV:
 {draft_cv}
+
+Candidate's Actual Skills List:
+{candidate_skills}
+
+Active Strategy & Region Context:
+{strategy_info}

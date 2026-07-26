@@ -117,6 +117,21 @@ def _add_section_header(doc: Any, text: str, color_primary: RGBColor) -> None:
     run.font.color.rgb = color_primary
 
 
+def _add_subsection_header(doc: Any, text: str, color_primary: RGBColor) -> None:
+    """Formats and adds a subsection header (Heading 3) to the document."""
+    p = doc.add_paragraph()
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.space_before = Pt(10)
+    p.paragraph_format.space_after = Pt(2)
+
+    run = p.add_run(text)
+    run.bold = True
+    run.italic = True
+    run.font.name = 'Calibri'
+    run.font.size = Pt(12)
+    run.font.color.rgb = color_primary
+
+
 def _add_role_header(doc: Any, text: str, color_primary: RGBColor) -> None:
     """Formats and adds a sub-header or role header to the document."""
     p = doc.add_paragraph()
@@ -186,6 +201,9 @@ def _add_standard_paragraph(
             run.font.color.rgb = color_text
 
 
+from utils import clean_markdown_wrapper as _clean_markdown_wrapper
+
+
 def generate_docx(md_content: str, output_path: str) -> bool:
     """
     Converts Markdown content to a Word Document (.docx) using pure-Python python-docx library,
@@ -208,7 +226,9 @@ def generate_docx(md_content: str, output_path: str) -> bool:
         color_secondary = RGBColor(80, 80, 80)     # Muted grey
         color_text = RGBColor(30, 30, 30)          # Charcoal dark body
 
-        lines = md_content.splitlines()
+        # Clean leading/trailing markdown code blocks if the entire content is wrapped
+        cleaned_md = _clean_markdown_wrapper(md_content)
+        lines = cleaned_md.splitlines()
 
         idx = 0
         while idx < len(lines):
@@ -223,7 +243,9 @@ def generate_docx(md_content: str, output_path: str) -> bool:
             elif line.startswith("## "):
                 _add_section_header(doc, line[3:].strip(), color_primary)
             elif line.startswith("### "):
-                _add_role_header(doc, line[4:].strip(), color_primary)
+                _add_subsection_header(doc, line[4:].strip(), color_primary)
+            elif line.startswith("#### "):
+                _add_role_header(doc, line[5:].strip(), color_primary)
             elif line.startswith("---") or (line.startswith("***") and len(line) >= 3 and not line.strip("* -")):
                 _add_horizontal_rule(doc)
             elif line.startswith(("- ", "* ", "+ ")):

@@ -1,0 +1,9 @@
+You are an expert resume compressor. Compress the following historical 'Career Entry' into exactly one meaningful, highly optimized, ATS-aligned sentence.
+
+CRITICAL REQUIREMENTS:
+- Retain the exact YAML frontmatter (dates, title, organization, location, skills) in full.
+- Underneath the frontmatter, write exactly one highly impactful, keyword-rich sentence that encapsulates their primary architectural or technical achievement in the context of modern software/cloud architectures.
+- Do NOT use any personal names or hardcoded company names in your response.
+
+Career Entry to Compress:
+{CONTENT}

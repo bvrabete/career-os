@@ -9,16 +9,7 @@ from typing import Any
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-def validate_path(path: Path | str) -> Path:
-    """
-    Validates and canonicalizes file paths to prevent traversal and security risks.
-    """
-    import os
-    base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
-    canonical_path = os.path.realpath(os.path.abspath(path))
-    if not canonical_path.startswith(base_dir):
-        raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
-    return Path(canonical_path)
+from utils import validate_path
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".md", ".txt"}
@@ -205,6 +196,8 @@ def main() -> None:
         "--file", help="Path to a single raw document to ingest")
     group.add_argument(
         "--dir", help="Path to a directory of raw documents to ingest")
+    parser.add_argument("--skip-skills-sync", action="store_true",
+                        help="Skip automatic compilation of skills in wiki/skills/ directory")
     parser.add_argument("--dry-run", action="store_true",
                         help="Parse and extract but do not write wiki files")
     parser.add_argument("--force", action="store_true",
@@ -256,6 +249,15 @@ def main() -> None:
     print(f"\n{'=' * 50}")
     print(
         f"✅ Written: {total_written}  ⏭️ Skipped: {total_skipped}  ❌ Errors: {total_errors}")
+
+    if total_written > 0 and not args.dry_run and not args.skip_skills_sync:
+        print("\n✨ Synchronizing knowledge-graph skills...")
+        try:
+            from generation.skills_helper import run_skills_sync
+            run_skills_sync(get_wiki_dir())
+        except Exception as ex:
+            print(f"⚠️  Skills synchronization failed: {ex}")
+
     if args.dry_run:
         print("ℹ️  Dry-run mode — no files were written")
 

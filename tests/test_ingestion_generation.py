@@ -110,7 +110,7 @@ class TestIngestionGeneration(unittest.TestCase):
         _generate_languages(self.mock_llm, languages, "2026-06-30", wiki_outputs)
 
         self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/skills/lang-spanish.md")
+        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/languages/lang-spanish.md")
         self.assertEqual(wiki_outputs[0]["org_slug"], "lang-spanish")
 
     @patch("ingestion.generation.load_prompt")
@@ -382,7 +382,7 @@ class TestIngestionGeneration(unittest.TestCase):
         # Test language empty slug
         languages = [{"language": "$$$"}]
         _generate_languages(self.mock_llm, languages, "2026-06-30", wiki_outputs)
-        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/skills/lang-unknown.md")
+        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/languages/lang-unknown.md")
 
         # Test project empty title slug
         projects = [{"raw_org_name": "Google", "title": "$$$"}]

@@ -1,0 +1,64 @@
+# Model Selection Definitions
+MODELS:
+  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
+  gemini: "gemini-2.5-flash" # Default fast API model
+
+# Pipeline Step Configurations (Pure Gemini-Assisted Setup)
+# Optimized to run exclusively using a Google Gemini API Key, leveraging the absolute latest models.
+# Uses lightweight gemini-2.5-flash for cost/speed efficiency and gemini-2.5-pro for high-reasoning tasks.
+STEPS:
+  EXTRACTION:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Blazing fast, zero VRAM schema parsing
+
+  REFINEMENT:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Cost-efficient narrative verification
+
+  MERGE:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-pro" # High-reasoning enterprise deduplication and syncing
+
+  GAP_ANALYSIS:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Fast structural mismatch analysis
+
+  # CV Generator LangGraph Steps
+  ANALYSIS:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Rapid region and intent analyzer
+
+  RETRIEVAL:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Fast semantic relevance scoring per experience
+
+  DRAFTING:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-pro" # Massive 2-million context window to hold entire career wiki
+
+  AUDIT:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Cloud-based recruiter critic (fast and accurate)
+
+  # Ingestion pipeline steps
+  INGESTION_CLASSIFY:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Fast document classification
+
+  INGESTION_EXTRACT:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-flash" # Flawless extraction of candidate raw data
+
+  INGESTION_GENERATE:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-pro" # Perfect schema compliance for frontmatter generation
+
+  INGESTION_MERGE:
+    TYPE: "gemini"
+    MODEL_NAME: "gemini-2.5-pro" # High-reasoning deduplication of experiences into existing nodes
+
+OLLAMA_BASE_URL: "http://localhost:11434"
+
+# Configuration Defaults
+TRACK_DEFAULT: "Corporate"
+STRATEGY_DEFAULT: "emea"

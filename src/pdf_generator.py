@@ -6,6 +6,8 @@ using WeasyPrint and customizable CSS templates.
 import logging
 import os
 from pathlib import Path
+from typing import Any
+import yaml
 
 import markdown2
 from weasyprint import CSS, HTML
@@ -43,11 +45,75 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
     if fallback_path.exists():
         return fallback_path
 
-    fallback_name_path = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
+    fallback_name_path = Path(__file__).parent.parent / "llm-wiki" / "templates" / Path(css_template_path).name
     if fallback_name_path.exists():
         return fallback_name_path
 
+    legacy_fallback = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
+    if legacy_fallback.exists():
+        return legacy_fallback
+
     return None
+
+
+from utils import clean_markdown_wrapper as _clean_markdown_wrapper
+
+
+def _extract_frontmatter(content: str) -> tuple[str, dict[str, Any]]:
+    """
+    Extracts and returns (remaining_content, frontmatter_dict).
+    Supports multiple frontmatters sequentially without regex.
+    """
+    remaining = content.strip()
+    combined_metadata: dict[str, Any] = {}
+
+    while remaining.startswith("---"):
+        lines = remaining.splitlines()
+        if len(lines) < 2:
+            break
+
+        # Find the index of the line that closes this frontmatter block
+        closing_idx = -1
+        for idx in range(1, len(lines)):
+            if lines[idx].strip() == "---":
+                closing_idx = idx
+                break
+
+        if closing_idx == -1:
+            break
+
+        yaml_content = "\n".join(lines[1:closing_idx])
+        try:
+            metadata = yaml.safe_load(yaml_content)
+            if isinstance(metadata, dict):
+                combined_metadata.update(metadata)
+        except Exception as e:
+            logger.warning(f"Failed to parse YAML frontmatter: {e}")
+
+        # The remaining content starts after the closing "---" line
+        remaining = "\n".join(lines[closing_idx + 1:]).strip()
+
+    return remaining, combined_metadata
+
+
+def _build_header_html(metadata: dict[str, Any]) -> str:
+    """
+    Constructs a styled HTML header from metadata if personal details are present.
+    """
+    if not metadata or "name" not in metadata:
+        return ""
+
+    name = metadata["name"]
+    contact_keys = ["position", "position_title", "role", "email", "phone", "location", "linkedin", "github", "website", "web"]
+    contact_parts = []
+
+    for key in contact_keys:
+        value = metadata.get(key)
+        if value:
+            contact_parts.append(str(value))
+
+    contact_line = " &nbsp;|&nbsp; ".join(contact_parts)
+    return f"<h1>{name}</h1>\n<p>{contact_line}</p>\n"
 
 
 def generate_pdf(md_content: str, output_path: str, css_template_path: str | None = None) -> bool:
@@ -64,10 +130,19 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str | Non
     """
     logger.info(f"Generating PDF for {output_path}...")
 
+    # Clean leading/trailing markdown code blocks if the entire content is wrapped
+    cleaned_md = _clean_markdown_wrapper(md_content)
+
+    # Extract and parse YAML frontmatter
+    body_md, metadata = _extract_frontmatter(cleaned_md)
+
     # 1. Convert Markdown to HTML
     # Use extras for common MD features (tables, code blocks, etc.)
     html_body: str = markdown2.markdown(
-        md_content, extras=["fenced-code-blocks", "tables", "header-ids"])
+        body_md, extras=["fenced-code-blocks", "tables", "header-ids"])
+
+    # Build header HTML from frontmatter
+    header_html = _build_header_html(metadata)
 
     # 2. Wrap in basic HTML structure
     full_html = f"""
@@ -79,7 +154,7 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str | Non
     </head>
     <body>
         <div class="cv-container">
-            {html_body}
+            {header_html}{html_body}
         </div>
     </body>
     </html>

@@ -164,6 +164,24 @@ def compress_experience_llm(content: str) -> str:
         return content
 
 
+def compress_experience_to_one_liner_llm(content: str) -> str:
+    """
+    Compresses an extremely historic experience entry into a single highly optimized,
+    ATS-aligned sentence while retaining its YAML frontmatter.
+    """
+    try:
+        llm = get_model_for_step("RETRIEVAL")
+        system_template = load_prompt("compress_to_one_liner.txt")
+        prompt = system_template.replace("{CONTENT}", content)
+        
+        response = llm.invoke([HumanMessage(content=prompt)])
+        return llm_text(response.content)
+    except Exception as e:
+        logging.warning(f"Failed to compress experience to one-liner via LLM: {e}")
+        return content
+
+
+
 def _prune_recent_frontmatter(fm: dict[str, Any], employment_type: str = "Permanent") -> str:
     """Heal dates if needed and prune to essential fields, returning YAML string."""
     # Heal dates if start/end are at top-level (common indentation error)
@@ -214,8 +232,8 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
     return achievements, clean_body
 
 
-def _select_top_achievements(body: str, keywords: list[str]) -> str:
-    """Extract, score, and select only the top 4 STAR achievements based on keyword overlap."""
+def _select_top_achievements(body: str, keywords: list[str], max_pages: int = 1) -> str:
+    """Extract, score, and select only the top achievements based on keyword overlap and page budget."""
     achievements, clean_body = _extract_and_clean_achievements(body)
     
     if achievements:
@@ -225,7 +243,16 @@ def _select_top_achievements(body: str, keywords: list[str]) -> str:
             scored_ach.append((score, ach))
         # Sort by score descending
         scored_ach.sort(key=lambda x: x[0], reverse=True)
-        top_ach = [x[1] for x in scored_ach[:4]]
+        
+        # Budget-aware achievement limits
+        if max_pages >= 3:
+            limit = len(scored_ach)  # Keep all achievements for large budgets
+        elif max_pages == 2:
+            limit = 7                # Relaxed pruning for mid budgets
+        else:
+            limit = 4                # Tighter pruning for 1-page budgets
+            
+        top_ach = [x[1] for x in scored_ach[:limit]]
         
         # Clean up multi-newlines in body and append achievements
         clean_body = re.sub(r'\n{3,}', '\n\n', clean_body).strip()
@@ -234,13 +261,13 @@ def _select_top_achievements(body: str, keywords: list[str]) -> str:
     return body
 
 
-def prune_recent_experience(content: str, keywords: list[str] = [], employment_type: str = "Permanent") -> str:
+def prune_recent_experience(content: str, keywords: list[str] = [], employment_type: str = "Permanent", max_pages: int = 1) -> str:
     """
     Prunes a recent experience file to reduce token bloat before sending it to the DRAFTER.
     - Strips comments (<!-- ... -->)
     - Removes unnecessary YAML fields (created, updated, sources, tags, tracks)
-    - Strips the 'Narrative & Reflections' section to preserve token budget for Achievements.
-    - Scores and retains only the top 4 achievements based on keyword overlap.
+    - Strips the 'Narrative & Reflections' section to preserve token budget ONLY for 1 and 2-page budgets.
+    - Scores and retains achievements based on keyword overlap and target page budget.
     """
     # 1. Strip HTML comments
     content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
@@ -257,17 +284,18 @@ def prune_recent_experience(content: str, keywords: list[str] = [], employment_t
             # Get body
             body = content[fm_match.end():].strip()
             
-            # 3. Strip 'Narrative & Reflections' section if present
-            narrative_header = "## Narrative & Reflections"
-            idx = body.find(narrative_header)
-            if idx != -1:
-                next_header_idx = body.find("##", idx + len(narrative_header))
-                if next_header_idx != -1:
-                    body = body[:idx] + body[next_header_idx:]
-                else:
-                    body = body[:idx]
+            # 3. Strip 'Narrative & Reflections' section if present (ONLY for 1 and 2 page budgets)
+            if max_pages < 3:
+                narrative_header = "## Narrative & Reflections"
+                idx = body.find(narrative_header)
+                if idx != -1:
+                    next_header_idx = body.find("##", idx + len(narrative_header))
+                    if next_header_idx != -1:
+                        body = body[:idx] + body[next_header_idx:]
+                    else:
+                        body = body[:idx]
                     
-            body = _select_top_achievements(body, keywords)
+            body = _select_top_achievements(body, keywords, max_pages)
             
             # Reconstruct content
             content = f"---\n{pruned_fm_str}---\n\n{body.strip()}"
@@ -398,19 +426,25 @@ def _deduplicate_scored_experiences(
 
 
 def _detect_employment_type(fm: dict[str, Any], content: str) -> str:
-    """Detect if the role is Contract or Permanent based on YAML frontmatter, tags, title, or body."""
+    """Detect if the role is Contract, Permanent, or Self-Employed based on YAML frontmatter, tags, title, or body."""
     # First check explicit frontmatter field
     emp_type = fm.get("employment_type")
     if emp_type:
         emp_type_str = str(emp_type).strip().capitalize()
-        if emp_type_str in ["Contract", "Permanent"]:
+        if emp_type_str in ["Contract", "Permanent", "Self-employed"]:
             return emp_type_str
 
     tags = [str(t).lower() for t in fm.get("tags", [])]
+    tracks = [str(tr).lower() for tr in fm.get("tracks", [])]
+    title = str(fm.get("title", "")).lower()
+
+    # Check for startup/co-founding tracks
+    if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks or any(x in title for x in ["co-founder", "cofounder", "co founder"]):
+        return "Self-Employed"
+
     if "contract" in tags:
         return "Contract"
     
-    title = str(fm.get("title", "")).lower()
     if "contract" in title:
         return "Contract"
         
@@ -483,8 +517,6 @@ def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
     org_clean = re.sub(r'[\s\_]+', '-', org_clean)
-    if org_clean.startswith("intel"):
-        return "intel"
     return org_clean
 
 
@@ -650,20 +682,82 @@ def compress_grouped_experience_llm(content: str) -> str:
         return content
 
 
+def calculate_experience_weight(score: int, fm: dict[str, Any]) -> float:
+    """
+    Calculate a normalized weight (0.0 to 1.0) for an experience entry based on:
+    1. ATS Score Factor (50%)
+    2. Recency Factor (30%) - decays linearly over a 15-year period
+    3. Duration Factor (20%) - scales linearly up to a 3-year cap
+    """
+    # 1. ATS Score Factor (0.0 to 1.0)
+    score_factor = max(0.0, min(1.0, score / 100.0))
+
+    # 2. Recency Factor
+    end_date_str = _extract_end_date_normalized(fm)
+    try:
+        end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except Exception:
+        end_date = datetime.date.today()
+    
+    current_year = datetime.date.today().year
+    end_year = end_date.year
+    years_since_end = max(0, current_year - end_year)
+    recency_factor = max(0.0, 1.0 - (years_since_end / 15.0))
+
+    # 3. Duration Factor
+    start_date_str = _extract_start_date_normalized(fm)
+    try:
+        start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except Exception:
+        start_date = datetime.date.today()
+        
+    duration_days = (end_date - start_date).days
+    duration_years = max(0.0, duration_days / 365.25)
+    duration_factor = min(duration_years / 3.0, 1.0)
+
+    # Compute weighted sum
+    weight = 0.5 * score_factor + 0.3 * recency_factor + 0.2 * duration_factor
+    return weight
+
+
 def _compress_and_wrap_single_experience(
-    score: int, name: str, content: str, justification: str, keywords: list[str]
+    score: int, name: str, content: str, justification: str, keywords: list[str], max_pages: int = 1
 ) -> str:
     """Helper to smart-compress or prune a single experience entry and return wrapped string."""
     fm = _parse_yaml_frontmatter_from_text(content)
     emp_type = _detect_employment_type(fm, content)
     is_startup = _is_parallel_startup_track(fm)
     
+    # Calculate role-specific weight
+    weight = calculate_experience_weight(score, fm)
+    logging.info(f"Experience '{name}' calculated weight: {weight:.3f} (Score: {score})")
+
+    # Extract years since end date to determine if extremely historic
+    end_date_str = _extract_end_date_normalized(fm)
+    try:
+        end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except Exception:
+        end_date = datetime.date.today()
+    current_year = datetime.date.today().year
+    years_since_end = max(0, current_year - end_date.year)
+
     if name.startswith("grouped-"):
         content = compress_grouped_experience_llm(content)
-    elif _is_old_role(fm):
-        content = compress_experience_llm(content)
+    elif "group" in name.lower() or "grouped" in name.lower():
+        # Do not compress pre-grouped files to preserve their detailed nested sub-roles
+        pass
+    elif years_since_end >= 15 or weight < 0.30:
+        # Tier 4: Extremely historic (15+ years) or low weight -> Meaningful One-Liner
+        content = compress_experience_to_one_liner_llm(content)
+    elif weight >= 0.70 and years_since_end < 10:
+        # Tier 1: Full Detail (No LLM compression, apply light pruning)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=3)
+    elif weight >= 0.45 and years_since_end < 15:
+        # Tier 2: Light Compression (Apply tighter pruning, limit achievements)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=2)
     else:
-        content = prune_recent_experience(content, keywords, emp_type)
+        # Tier 3: Aggressive Summary (Compress to paragraph via LLM)
+        content = compress_experience_llm(content)
 
     start_date_str = _extract_start_date_normalized(fm)
     return (
@@ -674,8 +768,9 @@ def _compress_and_wrap_single_experience(
     )
 
 
+
 def _compress_and_wrap_experiences(
-    deduplicated: list[tuple[int, str, str, str]], keywords: list[str]
+    deduplicated: list[tuple[int, str, str, str]], keywords: list[str], max_pages: int = 1
 ) -> tuple[list[str], list[str]]:
     """Helper to perform smart-compression or pruning on deduplicated experiences."""
     selected_content: list[str] = []
@@ -687,21 +782,21 @@ def _compress_and_wrap_experiences(
     for score, name, content, justification in grouped_deduplicated:
         slug = name.replace(".md", "")
         retrieved_exp_slugs.append(slug)
-        wrapped = _compress_and_wrap_single_experience(score, name, content, justification, keywords)
+        wrapped = _compress_and_wrap_single_experience(score, name, content, justification, keywords, max_pages)
         selected_content.append(wrapped)
 
     return selected_content, retrieved_exp_slugs
 
 
 def retrieve_and_score_experiences(
-    llm: Any, keywords: list[str], persona: str, jd: str
+    llm: Any, keywords: list[str], persona: str, jd: str, max_pages: int = 1
 ) -> tuple[list[str], list[str]]:
     """Retrieve, score, deduplicate, and smart-compress candidate experiences."""
     score_template = load_prompt("retriever_score.txt")
     scored = _score_experiences_list(llm, keywords, persona, jd, score_template)
     scored.sort(key=lambda x: x[0], reverse=True)
     deduplicated = _deduplicate_scored_experiences(scored)
-    return _compress_and_wrap_experiences(deduplicated, keywords)
+    return _compress_and_wrap_experiences(deduplicated, keywords, max_pages)
 
 
 def _parse_education_candidate(f: Path) -> dict[str, Any] | None:
@@ -936,7 +1031,15 @@ def get_subject_info(wiki_dir: Path) -> str:
         for ent in entities_dir.glob("*.md"):
             try:
                 c = ent.read_text(encoding="utf-8")
-                if 'tags: ["person"' in c or 'tags: ["person",' in c:
+                if c.startswith("---"):
+                    fm = _parse_yaml_frontmatter_from_text(c)
+                    if fm:
+                        category = str(fm.get("category", "")).lower()
+                        tags = [str(t).lower() for t in fm.get("tags", []) if t]
+                        if category == "person" or "person" in tags:
+                            return c
+                # Fallback to broad substring patterns if yaml parsing is skipped
+                if any(x in c for x in ['tags: ["person"', 'tags: ["person",', '- "person"', '- person']):
                     return c
             except Exception:
                 pass
@@ -1026,3 +1129,29 @@ def invoke_drafter_llm_with_fallback(llm: Any, system_prompt: str, prompt: str) 
                 "Configured fallback model failed. Re-raising original rate limit error."
             )
             raise e
+
+
+def retrieve_languages(wiki_dir: Path) -> list[str]:
+    """Retrieve and format spoken languages from wiki/languages."""
+    languages_dir = wiki_dir / "wiki" / "languages"
+    if not languages_dir.exists():
+        return []
+        
+    languages_content = []
+    for f in sorted(languages_dir.glob("*.md")):
+        try:
+            content = f.read_text(encoding="utf-8")
+            fm = _parse_yaml_frontmatter_from_text(content)
+            title = fm.get("title", f.stem.replace("lang-", "").capitalize())
+            proficiency = fm.get("proficiency", "")
+            cefr = fm.get("cefr", "")
+            
+            detail = f" ({cefr})" if cefr else ""
+            if proficiency:
+                languages_content.append(f"- **{title}**: {proficiency}{detail}")
+            else:
+                languages_content.append(f"- **{title}**")
+        except Exception as e:
+            logging.error("Error parsing language file %s: %s", f.name, e)
+            
+    return languages_content

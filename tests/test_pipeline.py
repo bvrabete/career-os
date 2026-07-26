@@ -1,8 +1,11 @@
 import unittest
+import tempfile
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 import json
 import sys
+
+from docx_generator import generate_docx
 
 # Ensure src is in python path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
@@ -12,7 +15,7 @@ from generation.nodes import node_analyzer
 from generation.helpers import (
     score_by_keywords as _score_by_keywords,
     generate_skill_bridging_map as _generate_skill_bridging_map,
-    _detect_employment_type
+    _detect_employment_type,
 )
 
 
@@ -38,7 +41,9 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         text = "We use Pythoneer and AzureDevOps daily."
         keywords = ["Python", "Azure"]
         score = _score_by_keywords(text, keywords)
-        self.assertEqual(score, 0)  # "Python" does not match "Pythoneer", "Azure" does not match "AzureDevOps"
+        self.assertEqual(
+            score, 0
+        )  # "Python" does not match "Pythoneer", "Azure" does not match "AzureDevOps"
 
     def test_score_by_keywords_empty_inputs(self):
         """Test _score_by_keywords handles empty inputs gracefully."""
@@ -57,9 +62,9 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
         skills = ["Azure Cloud Platform", "Angular 17 Frontend"]
         keywords = ["AWS", "React"]
-        
+
         bridge_map = _generate_skill_bridging_map(mock_llm, skills, keywords)
-        
+
         self.assertEqual(bridge_map.get("AWS"), "Azure (equivalent)")
         self.assertEqual(bridge_map.get("React"), "Angular (equivalent)")
 
@@ -77,24 +82,28 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.get_wiki_dir")
-    def test_node_analyzer_with_strategy_override(self, mock_get_wiki_dir, mock_get_model):
+    def test_node_analyzer_with_strategy_override(
+        self, mock_get_wiki_dir, mock_get_model
+    ):
         """Test node_analyzer respects strategy_override and bypasses suggested_region."""
         # Mock strategy directory
         mock_wiki_path = Path("/mock/wiki")
         mock_get_wiki_dir.return_value = mock_wiki_path
-        
+
         mock_llm = MagicMock()
         mock_response = MagicMock()
         # Analyzer LLM suggestions
-        mock_response.content = json.dumps({
-            "persona": "Staff Engineer",
-            "keywords": ["Python", "K8s"],
-            "locations": ["Remote"],
-            "expectations": "Standard CV",
-            "suggested_region": "emea",
-            "target_organization_slug": "mock-org",
-            "target_role": "Mock Role"
-        })
+        mock_response.content = json.dumps(
+            {
+                "persona": "Staff Engineer",
+                "keywords": ["Python", "K8s"],
+                "locations": ["Remote"],
+                "expectations": "Standard CV",
+                "suggested_region": "emea",
+                "target_organization_slug": "mock-org",
+                "target_role": "Mock Role",
+            }
+        )
         mock_llm.invoke.return_value = mock_response
         mock_get_model.return_value = mock_llm
 
@@ -122,11 +131,13 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "few_shot_examples": [],
             "skill_bridging_map": {},
             "target_organization_slug": "",
-            "target_role": ""
+            "target_role": "",
+            "strategy_metadata": [],
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
-        
+
         # Verify region is the overridden value "ireland" instead of suggested "emea"
         self.assertEqual(result["target_region"], "ireland")
         self.assertEqual(result["target_organization_slug"], "mock-org")
@@ -135,7 +146,10 @@ class TestCVGeneratorPipeline(unittest.TestCase):
     @patch("generation.helpers.get_model_for_step")
     def test_compress_experience_llm_success(self, mock_get_model):
         """Test that _compress_experience_llm correctly calls retrieval model and compresses."""
-        from generation.helpers import compress_experience_llm as _compress_experience_llm
+        from generation.helpers import (
+            compress_experience_llm as _compress_experience_llm,
+        )
+
         mock_llm = MagicMock()
         mock_response = MagicMock()
         mock_response.content = "Compressed content summary."
@@ -149,13 +163,17 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.helpers.get_fallback_model_for_step")
-    def test_node_drafter_fallback_on_rate_limit(self, mock_get_fallback, mock_get_model):
+    def test_node_drafter_fallback_on_rate_limit(
+        self, mock_get_fallback, mock_get_model
+    ):
         """Test that node_drafter falls back to configured fallback model when OpenAI raises rate limit exception."""
         from generation.nodes import node_drafter
-        
+
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
-        mock_openai_llm.invoke.side_effect = Exception("rate_limit_exceeded: TPM limit reached")
+        mock_openai_llm.invoke.side_effect = Exception(
+            "rate_limit_exceeded: TPM limit reached"
+        )
         mock_get_model.return_value = mock_openai_llm
 
         # Mock fallback LLM
@@ -187,7 +205,10 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "few_shot_examples": [],
             "skill_bridging_map": {},
             "target_organization_slug": "org",
-            "target_role": "role"
+            "target_role": "role",
+            "strategy_metadata": [],
+            "strategy_override": "",
+            "languages_entries": [],
         }
 
         result = node_drafter(state)
@@ -196,13 +217,17 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.helpers.get_fallback_model_for_step")
-    def test_node_drafter_no_fallback_configured(self, mock_get_fallback, mock_get_model):
+    def test_node_drafter_no_fallback_configured(
+        self, mock_get_fallback, mock_get_model
+    ):
         """Test that node_drafter raises the original exception when no fallback is configured."""
         from generation.nodes import node_drafter
-        
+
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
-        mock_openai_llm.invoke.side_effect = Exception("rate_limit_exceeded: TPM limit reached")
+        mock_openai_llm.invoke.side_effect = RuntimeError(
+            "rate_limit_exceeded: TPM limit reached"
+        )
         mock_get_model.return_value = mock_openai_llm
 
         # Mock fallback loader to return None (no fallback configured)
@@ -230,17 +255,22 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "few_shot_examples": [],
             "skill_bridging_map": {},
             "target_organization_slug": "org",
-            "target_role": "role"
+            "target_role": "role",
+            "strategy_metadata": [],
+            "strategy_override": "",
+            "languages_entries": [],
         }
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(RuntimeError) as context:
             node_drafter(state)
         self.assertIn("rate_limit_exceeded", str(context.exception))
 
     def test_prune_recent_experience_top_achievements(self):
         """Test that _prune_recent_experience ranks and limits achievements to the top 4."""
-        from generation.helpers import prune_recent_experience as _prune_recent_experience
-        
+        from generation.helpers import (
+            prune_recent_experience as _prune_recent_experience,
+        )
+
         # Experience with 6 achievements
         test_content = """---
 type: experience
@@ -284,21 +314,23 @@ This is some narrative text that should be stripped.
   - **Action**: Painted it yellow.
   - **Result**: Better office mood.
 """
-        
+
         # Run with keywords matching the first 4 achievements (Python, Postgres, Kubernetes, Go)
-        pruned = _prune_recent_experience(test_content, ["Python", "Postgres", "Kubernetes", "Go"])
-        
+        pruned = _prune_recent_experience(
+            test_content, ["Python", "Postgres", "Kubernetes", "Go"]
+        )
+
         # Verify that Narrative & Reflections is stripped
         self.assertNotIn("Narrative & Reflections", pruned)
         self.assertNotIn("should be stripped", pruned)
-        
+
         # Verify that only 4 achievements are kept (and the "office kitchen" one is filtered out)
         self.assertIn("FastAPI", pruned)
         self.assertIn("CockroachDB", pruned)
         self.assertIn("Docker and Kubernetes", pruned)
         self.assertIn("Trained 5 engineers", pruned)
         self.assertNotIn("Paint the office kitchen", pruned)
-        
+
         # Count the number of achievements (Situation blocks)
         self.assertEqual(pruned.count("- **Situation"), 4)
 
@@ -306,10 +338,10 @@ This is some narrative text that should be stripped.
         """Test _detect_employment_type with explicit frontmatter."""
         fm = {"employment_type": "Contract"}
         self.assertEqual(_detect_employment_type(fm, ""), "Contract")
-        
+
         fm = {"employment_type": "Permanent"}
         self.assertEqual(_detect_employment_type(fm, ""), "Permanent")
-        
+
         fm = {"employment_type": "contract"}
         self.assertEqual(_detect_employment_type(fm, ""), "Contract")
 
@@ -317,14 +349,14 @@ This is some narrative text that should be stripped.
         """Test _detect_employment_type fallbacks when frontmatter is missing."""
         fm = {"tags": ["contract", "remote"]}
         self.assertEqual(_detect_employment_type(fm, ""), "Contract")
-        
+
         fm = {"title": "Contract Software Engineer"}
         self.assertEqual(_detect_employment_type(fm, ""), "Contract")
-        
+
         fm = {}
         content = "Worked as a contractor for 6 months."
         self.assertEqual(_detect_employment_type(fm, content), "Contract")
-        
+
         fm = {}
         content = "Regular full-time software developer role."
         self.assertEqual(_detect_employment_type(fm, content), "Permanent")
@@ -335,8 +367,6 @@ class TestDOCXGenerator(unittest.TestCase):
 
     def test_docx_generation_success(self):
         """Test docx generation with valid input using tempfile."""
-        from docx_generator import generate_docx
-        import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             out_file = Path(tmpdir) / "test_output.docx"
             md_content = "# Hello World\nSome body text."
@@ -345,16 +375,64 @@ class TestDOCXGenerator(unittest.TestCase):
             self.assertTrue(out_file.exists())
             self.assertGreater(out_file.stat().st_size, 0)
 
-
     @patch("docx.Document")
     def test_docx_generation_failure(self, mock_doc):
         """Test docx generation failure handling on document save or creation error."""
         from docx_generator import generate_docx
+
         # Mock docx.Document raising an exception
         mock_doc.side_effect = Exception("Mocked document creation failure")
-        
+
         success = generate_docx("# Dummy", "dummy.docx")
         self.assertFalse(success)
+
+
+class TestSynthesisFileReuse(unittest.TestCase):
+    """Unit tests for active synthesis file reuse logic."""
+
+    def test_parse_synthesis_metadata(self):
+        """Test parsing of status and created date from a synthesis file."""
+        from generate_cv import _parse_synthesis_metadata
+        with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as f:
+            f.write("---\ntype: synthesis\nstatus: Generated\ncreated: 2026-07-01\n---\nDraft content")
+            f_path = Path(f.name)
+        try:
+            meta = _parse_synthesis_metadata(f_path)
+            self.assertEqual(meta.get("status"), "Generated")
+            self.assertEqual(meta.get("created"), "2026-07-01")
+        finally:
+            f_path.unlink(missing_ok=True)
+
+
+class TestOutputFolderHandling(unittest.TestCase):
+    """Unit tests for output folder handling logic."""
+
+    def test_save_outputs_folder_append(self):
+        """Test that save_outputs correctly appends the JD's name with .md if out is a folder."""
+        from generate_cv import save_outputs
+        import argparse
+
+        with tempfile.TemporaryDirectory(dir=str(Path.home())) as tmp_dir:
+            out_dir = Path(tmp_dir) / "output_folder"
+            args = argparse.Namespace(
+                out=str(out_dir),
+                jd="job-descriptions/my_jumbo_jd.txt",
+                generate_pdf=False,
+                generate_docx=False,
+            )
+
+            draft = "Draft content"
+            final_state = {}
+            synthesis_path = Path(tmp_dir) / "synthesis.md"
+            synthesis_content = "synthesis"
+
+            out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
+            
+            expected_path = out_dir / "my_jumbo_jd.md"
+            self.assertEqual(out_path, expected_path)
+            self.assertTrue(out_path.exists())
+            with open(out_path, "r", encoding="utf-8") as f:
+                self.assertEqual(f.read(), draft)
 
 
 if __name__ == "__main__":

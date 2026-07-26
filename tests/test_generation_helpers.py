@@ -26,7 +26,9 @@ from generation.helpers import (
     get_subject_info,
     _parse_start_date,
     parse_and_sort_chronological_entries,
+    calculate_experience_weight,
 )
+
 
 
 class TestGenerationHelpers(unittest.TestCase):
@@ -173,14 +175,14 @@ dates:
 
     def test_get_org_slug(self):
         """Test _get_org_slug matches [[slug]] and normalization rules."""
-        self.assertEqual(_get_org_slug("intel", {"organization": "[[intel-slug]]"}), "intel")
+        self.assertEqual(_get_org_slug("acme", {"organization": "[[acme-slug]]"}), "acme-slug")
         self.assertEqual(_get_org_slug("google", {"organization": "[[google-slug]]"}), "google-slug")
         self.assertEqual(_get_org_slug("google", {}), "google")
 
     def test_split_recent_and_old_experiences(self):
         """Test splitting by age."""
         content1 = """---
-organization: "[[intel-slug]]"
+organization: "[[acme-slug]]"
 dates:
   start: 2022-01-01
 ---
@@ -192,13 +194,13 @@ dates:
 ---
 """
         deduplicated = [
-            (10, "intel.md", content1, "intel-key"),
+            (10, "acme.md", content1, "acme-key"),
             (5, "ibm.md", content2, "ibm-key"),
         ]
         recent, old = _split_recent_and_old_experiences(deduplicated)
         self.assertEqual(len(recent), 1)
         self.assertEqual(len(old), 1)
-        self.assertEqual(recent[0][1], "intel.md")
+        self.assertEqual(recent[0][1], "acme.md")
         self.assertIn("ibm-slug", old)
 
     def test_resolve_regional_strategy_success(self):
@@ -256,6 +258,46 @@ strategy content text"""
         sorted_output = parse_and_sort_chronological_entries(entries)
         # Check that the entry with the later start date is listed first
         self.assertLess(sorted_output.find("a.md"), sorted_output.find("b.md"))
+
+    def test_calculate_experience_weight_recent_high_relevance_long_duration(self):
+        """Test weight calculation for a recent, highly relevant, and long duration role."""
+        fm = {
+            "dates": {
+                "start": "2023-01-01",
+                "end": "Present"
+            }
+        }
+        # Score is 95, recent, duration is ~3.5 years (assuming current year is 2026)
+        weight = calculate_experience_weight(95, fm)
+        self.assertGreaterEqual(weight, 0.70)  # Should route to Tier 1
+
+    def test_calculate_experience_weight_historical_long_duration(self):
+        """Test weight calculation for a historical, long duration role."""
+        fm = {
+            "dates": {
+                "start": "2010-01-01",
+                "end": "2015-12-31"
+            }
+        }
+        # High relevance score, old role, long duration (6 years)
+        weight = calculate_experience_weight(90, fm)
+        # ATS score factor: 0.9 * 0.5 = 0.45
+        # Recency factor: max(0.0, 1.0 - (2026 - 2015)/15) = 1.0 - 11/15 = 0.266 -> 0.266 * 0.3 = 0.08
+        # Duration factor: 6/3 capped at 1.0 -> 1.0 * 0.2 = 0.2
+        # Expected weight: ~0.73
+        self.assertGreaterEqual(weight, 0.65)
+
+    def test_calculate_experience_weight_old_low_relevance_short_duration(self):
+        """Test weight calculation for an old, low relevance, and short duration role."""
+        fm = {
+            "dates": {
+                "start": "2005-01-01",
+                "end": "2005-03-01"
+            }
+        }
+        # Score is 30, very old, duration is 2 months
+        weight = calculate_experience_weight(30, fm)
+        self.assertLess(weight, 0.40)  # Should route to Tier 3
 
 
 if __name__ == "__main__":

@@ -157,8 +157,11 @@ def _resolve_key_and_log(
     for item in items:
         if isinstance(item, str):
             raw_name = item
+        elif isinstance(item, dict) and key_or_none:
+            val = item.get(key_or_none)
+            raw_name = str(val) if val is not None else ""
         else:
-            raw_name = item.get(key_or_none or "") if key_or_none else ""
+            raw_name = ""
         if raw_name:
             slug = resolve_org(raw_name, mappings)
             resolved[raw_name] = slug
@@ -325,6 +328,14 @@ def _validate_skill(fm: dict[str, Any], errors: list[str]) -> None:
         errors.append(f"Invalid skill category: '{category}'")
 
 
+def _validate_language(fm: dict[str, Any], errors: list[str]) -> None:
+    """Validate language type frontmatter schema."""
+    LANG_REQUIRED = {"type", "title", "proficiency"}
+    missing = LANG_REQUIRED - set(fm.keys())
+    if missing:
+        errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+
+
 def _validate_project(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate project type frontmatter schema."""
     PROJ_REQUIRED = {"type", "title", "organization", "dates", "skills"}
@@ -385,6 +396,7 @@ def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> 
         "experience": _validate_experience,
         "education": _validate_education,
         "skill": _validate_skill,
+        "language": _validate_language,
         "project": _validate_project,
         "patent": _validate_patent,
         "note": _validate_note,

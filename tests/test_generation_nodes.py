@@ -1,11 +1,14 @@
 """Unit tests for the generation pipeline nodes and orchestration logic."""
+
 import unittest
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
 
 # Ensure src is in python path
 import sys
+
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from generation.nodes import (
@@ -24,18 +27,20 @@ class TestGenerationNodes(unittest.TestCase):
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
-    def test_node_analyzer_success(self, mock_load_prompt, mock_get_model, mock_get_wiki_dir):
+    def test_node_analyzer_success(
+        self, mock_load_prompt, mock_get_model, mock_get_wiki_dir
+    ):
         """Test node_analyzer successfully analyzes job description and suggest strategy."""
         mock_load_prompt.return_value = "System template with {AVAILABLE_STRATEGIES}, {DEFAULT_STRATEGY}, and {JOB_DESCRIPTION}"
         mock_wiki = MagicMock()
-        mock_strat_dir = MagicMock()
-        mock_strat_dir.exists.return_value = True
+        mock_strategy_dir = MagicMock()
+        mock_strategy_dir.exists.return_value = True
         mock_file1 = MagicMock()
         mock_file1.stem = "strategy-us"
         mock_file2 = MagicMock()
         mock_file2.stem = "strategy-eu"
-        mock_strat_dir.glob.return_value = [mock_file1, mock_file2]
-        mock_wiki.__truediv__.return_value.__truediv__.return_value = mock_strat_dir
+        mock_strategy_dir.glob.return_value = [mock_file1, mock_file2]
+        mock_wiki.__truediv__.return_value.__truediv__.return_value = mock_strategy_dir
         mock_get_wiki_dir.return_value = mock_wiki
 
         mock_llm = MagicMock()
@@ -69,6 +74,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -83,11 +90,15 @@ class TestGenerationNodes(unittest.TestCase):
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
-    def test_node_analyzer_fallback(self, mock_load_prompt, mock_get_model, mock_get_wiki_dir):
+    def test_node_analyzer_fallback(
+        self, mock_load_prompt, mock_get_model, mock_get_wiki_dir
+    ):
         """Test node_analyzer falls back to default on JSON parsing failure."""
         mock_load_prompt.return_value = "template"
         mock_wiki = MagicMock()
-        mock_wiki.__truediv__.return_value.__truediv__.return_value.exists.return_value = False
+        mock_wiki.__truediv__.return_value.__truediv__.return_value.exists.return_value = (
+            False
+        )
         mock_get_wiki_dir.return_value = mock_wiki
 
         mock_llm = MagicMock()
@@ -118,6 +129,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
@@ -130,11 +143,15 @@ class TestGenerationNodes(unittest.TestCase):
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
-    def test_node_analyzer_strategy_override(self, mock_load_prompt, mock_get_model, mock_get_wiki_dir):
+    def test_node_analyzer_strategy_override(
+        self, mock_load_prompt, mock_get_model, mock_get_wiki_dir
+    ):
         """Test node_analyzer honors strategy_override."""
         mock_load_prompt.return_value = "template"
         mock_wiki = MagicMock()
-        mock_wiki.__truediv__.return_value.__truediv__.return_value.exists.return_value = False
+        mock_wiki.__truediv__.return_value.__truediv__.return_value.exists.return_value = (
+            False
+        )
         mock_get_wiki_dir.return_value = mock_wiki
 
         mock_llm = MagicMock()
@@ -167,11 +184,15 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_analyzer(state)
         self.assertEqual(result["target_region"], "eu")
 
+    @patch("generation.nodes.retrieve_languages")
+    @patch("generation.skills_helper.get_compact_skills_list")
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.retrieve_and_score_experiences")
@@ -196,30 +217,33 @@ class TestGenerationNodes(unittest.TestCase):
         mock_retrieve_experiences,
         mock_get_model,
         mock_get_wiki_dir,
+        mock_get_compact_skills,
+        mock_retrieve_languages,
     ):
         """Test node_retriever pulls and formats all relevant files."""
         mock_get_wiki_dir.return_value = Path("mock-wiki")
         mock_get_model.return_value = MagicMock()
 
-        mock_retrieve_experiences.return_value = (["exp1", "exp2"], ["intel-corporation"])
+        mock_retrieve_experiences.return_value = (
+            ["exp1", "exp2"],
+            ["intel-corporation"],
+        )
         mock_retrieve_education.return_value = ["edu1"]
         mock_retrieve_projects.return_value = ["proj1"]
         mock_retrieve_patents.return_value = ["pat1"]
         mock_retrieve_notes.return_value = ["note1"]
         mock_retrieve_few_shots.return_value = ["shot1"]
         mock_generate_bridge.return_value = {"python": "advanced python"}
-        mock_resolve_strategy.return_value = ("strategy detail text", "pdf-template-path")
+        mock_resolve_strategy.return_value = (
+            "strategy detail text",
+            "pdf-template-path",
+        )
         mock_get_subject_info.return_value = "Name: John Doe\nEmail: john@doe.com"
 
-        # Mock reading skills files
-        mock_skills_dir = MagicMock()
-        mock_skills_dir.exists.return_value = True
-        mock_file1 = MagicMock()
-        mock_file1.read_text.return_value = "skill1 content"
-        mock_skills_dir.glob.return_value = [mock_file1]
-        
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.glob", return_value=[mock_file1]):
+        mock_get_compact_skills.return_value = ["skill1"]
+        mock_retrieve_languages.return_value = ["English (Fluent)"]
+
+        if True:
             state: CVPipelineState = {
                 "job_description": "JD",
                 "target_persona": "Persona",
@@ -244,6 +268,8 @@ class TestGenerationNodes(unittest.TestCase):
                 "skill_bridging_map": {},
                 "target_organization_slug": "",
                 "target_role": "",
+                "strategy_metadata": cast(Any, {}),
+                "languages_entries": [],
             }
 
             result = node_retriever(state)
@@ -253,7 +279,9 @@ class TestGenerationNodes(unittest.TestCase):
             self.assertEqual(result["patents_entries"], ["pat1"])
             self.assertEqual(result["notes_entries"], ["note1"])
             self.assertEqual(result["few_shot_examples"], ["shot1"])
-            self.assertEqual(result["skill_bridging_map"], {"python": "advanced python"})
+            self.assertEqual(
+                result["skill_bridging_map"], {"python": "advanced python"}
+            )
             self.assertEqual(result["pdf_template"], "pdf-template-path")
             self.assertIn("Name: John Doe", result["strategy_info"])
             self.assertIn("strategy detail text", result["strategy_info"])
@@ -271,8 +299,11 @@ class TestGenerationNodes(unittest.TestCase):
     ):
         """Test node_drafter invokes LLM with formatted prompts and returns drafted CV."""
         mock_get_model.return_value = MagicMock()
-        mock_load_prompt.side_effect = ["system instructions", "user {job_description} {feedback_instruction} {strategy_info} {skill_bridge_text} {few_shots_text} {chronological_entries_text} {projects_text} {patents_text} {notes_text} {education_text} {skills_text}"]
-        
+        mock_load_prompt.side_effect = [
+            "system instructions",
+            "user {job_description} {feedback_instruction} {strategy_info} {skill_bridge_text} {few_shots_text} {chronological_entries_text} {projects_text} {patents_text} {notes_text} {education_text} {skills_text}",
+        ]
+
         mock_sort_entries.return_value = "Sorted experiences list"
         mock_invoke_fallback.return_value = AIMessage(content="DRAFTED_RESUME_CONTENT")
 
@@ -300,6 +331,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {"python": "expert"},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_drafter(state)
@@ -319,7 +352,7 @@ class TestGenerationNodes(unittest.TestCase):
             "skills_entries": [],
             "strategy_info": "",
             "pdf_template": "",
-            "draft_cv": "A" * 9000, # Too long (> 8500 chars)
+            "draft_cv": "A" * 9000,  # Too long (> 8500 chars)
             "audit_feedback": "",
             "refiner_feedback": "",
             "iteration_count": 0,
@@ -331,6 +364,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_refiner(state)
@@ -350,7 +385,7 @@ class TestGenerationNodes(unittest.TestCase):
             "skills_entries": [],
             "strategy_info": "",
             "pdf_template": "",
-            "draft_cv": "A" * 5000, # Acceptable length (< 8500 chars)
+            "draft_cv": "A" * 5000,  # Acceptable length (< 8500 chars)
             "audit_feedback": "",
             "refiner_feedback": "",
             "iteration_count": 0,
@@ -362,6 +397,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_refiner(state)
@@ -400,6 +437,8 @@ class TestGenerationNodes(unittest.TestCase):
             "skill_bridging_map": {},
             "target_organization_slug": "",
             "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
         }
 
         result = node_auditor(state)

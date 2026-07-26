@@ -266,8 +266,8 @@ class TestIngestionPersonaMappings(unittest.TestCase):
 
 ## Persona Mappings
 
-- **Canonical:** [[brad-vrabete]]
-  - Aliases: `Brad`, `Vrabete`
+- **Canonical:** [[john-doe]]
+  - Aliases: `John`, `Doe`
 """
         self.mappings_path.write_text(content, encoding="utf-8")
 
@@ -279,7 +279,7 @@ class TestIngestionPersonaMappings(unittest.TestCase):
     def test_get_persona_slug_from_mappings_success(self, mock_get_mappings_path):
         mock_get_mappings_path.return_value = self.mappings_path
         slug = get_persona_slug_from_mappings()
-        self.assertEqual(slug, "brad-vrabete")
+        self.assertEqual(slug, "john-doe")
 
     @patch("ingestion.helpers.get_mappings_path")
     def test_add_persona_mapping_if_missing(self, mock_get_mappings_path):
@@ -294,8 +294,8 @@ class TestIngestionPersonaMappings(unittest.TestCase):
     @patch("ingestion.helpers.get_mappings_path")
     def test_get_persona_slug_already_exists(self, mock_get_mappings_path):
         mock_get_mappings_path.return_value = self.mappings_path
-        slug = get_persona_slug("Brad")
-        self.assertEqual(slug, "brad-vrabete")
+        slug = get_persona_slug("John")
+        self.assertEqual(slug, "john-doe")
 
 
 class TestIngestionValidation(unittest.TestCase):

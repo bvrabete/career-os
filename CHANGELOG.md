@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-26
+
+### Added
+- **Multi-Factor Experience Weighting (4-Tier Routing)**: Engineered a dynamic, multi-factor weighting algorithm (`calculate_experience_weight`) based on *ATS Score Relevance* (50%), *Recency Decay* (30%), and *Service Duration* (20%).
+- **Tier 4 Historical One-Liner Compressor**: Introduced a pre-drafting compression step (`compress_experience_to_one_liner_llm`) that automatically compiles extremely historical roles (15+ years old) or ultra-low weight roles into a single high-impact, keyword-rich, ATS-aligned sentence, preventing page-budget exhaustion while fully avoiding chronological role omissions.
+- **Dynamic JD-Aligned Side-Project Selection**: Re-engineered the drafting guidelines to dynamically evaluate side projects and startup ventures against the target Job Description's keywords, automatically expanding them with STAR bullets to capture the ATS match, or compressing them to single-line entries to maximize page budget.
+- **Standalone Document Conversion CLI**: Fully documented and registered the `doc-gen` CLI script shortcut to compile existing Markdown resumes into production-ready PDF and high-compatibility Microsoft Word (`.docx`) formats.
+- **Standalone ATS Parser Auditor CLI**: Registered and documented the `ats-audit` CLI script shortcut to upload and stress-test compiled resumes against target Job Descriptions using real-world parsing engines.
+
+### Changed
+- **Pristine Prompt & Engine Decoupling**: Fully refactored and generalized all generation and extraction system prompts to remove any candidate-specific or company-specific names, replacing them with generic, high-fidelity algorithmic guidelines.
+- **Generic Organization Slugification**: Decoupled the custom organization-prefix check in `helpers.py` to ensure prefix-agnostic string slugification and entity resolving.
+
+## [1.4.1] - 2026-07-02
+
+### Added
+
+- **PDF Frontmatter Parsing and Header Generation**: Added robust sequential YAML frontmatter extraction in `src/pdf_generator.py` along with automatic extraction of contact details (name, position, email, phone, location, and social links) to build a styled, professional HTML header at the top of generated PDFs, completely separating metadata from body content.
+- **Markdown Code Block Wrapper Stripping**: Implemented automatic markdown wrapper cleaning (`_clean_markdown_wrapper`) in both `src/pdf_generator.py` and `src/docx_generator.py` to strip outer ` ```markdown ... ``` ` blocks, preventing raw markdown formatting wrapper lines from leaking into compilations.
+- **PDF and DOCX Test Coverage**: Created a comprehensive unit test suite in `tests/test_pdf_generator.py` to validate markdown code block stripping, single/multiple YAML frontmatter block parsing, styled contact header construction, and mock-based PDF and DOCX generation.
+
+### Changed
+
+- **Dependabot Infrastructure & Core Upgrades**:
+  - Upgraded dependencies in the `uv` group, including `langchain` to `1.3.11`, `pytest` to `9.0.3`, `h2` to `4.3.0`, and `torch` to `2.12.1`.
+  - Bumped core CI Workflow actions, including `actions/checkout` to `v7` and `astral-sh/setup-uv` to `v7`.
+
 ## [1.4.0] - 2026-06-26
 
 ### Added

@@ -1,5 +1,7 @@
 """Unit tests for remaining uncovered sections of ingestion/helpers.py."""
 import unittest
+import os
+import time
 import shutil
 import tempfile
 import logging
@@ -97,14 +99,14 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         self.assertIsNone(get_persona_slug_from_mappings())
 
         # Scenario 3: File exists with persona header, then exits section
-        file_data = "## Persona Mappings\n## Other Section\n- **Canonical:** [[brad-vrabete]]\n"
+        file_data = "## Persona Mappings\n## Other Section\n- **Canonical:** [[john-doe]]\n"
         mappings_file.write_text(file_data)
         self.assertIsNone(get_persona_slug_from_mappings())
 
         # Scenario 4: File exists with valid persona canonical slug
-        file_data_valid = "## Persona Mappings\n- **Canonical:** [[brad-vrabete]]\n"
+        file_data_valid = "## Persona Mappings\n- **Canonical:** [[john-doe]]\n"
         mappings_file.write_text(file_data_valid)
-        self.assertEqual(get_persona_slug_from_mappings(), "brad-vrabete")
+        self.assertEqual(get_persona_slug_from_mappings(), "john-doe")
 
     @patch("ingestion.helpers.get_mappings_path")
     def test_add_persona_mapping_if_missing_edge_cases(self, mock_get_mappings_path):
@@ -116,30 +118,30 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         # Scenario 1: mappings_path does not exist
         if mappings_file.exists():
             mappings_file.unlink()
-        self.assertIsNone(add_persona_mapping_if_missing("Brad", "brad-vrabete"))
+        self.assertIsNone(add_persona_mapping_if_missing("John", "john-doe"))
 
         # Scenario 2: Slug already in content
-        mappings_file.write_text("Some text with [[brad-vrabete]] mapping.")
-        self.assertIsNone(add_persona_mapping_if_missing("Brad", "brad-vrabete"))
+        mappings_file.write_text("Some text with [[john-doe]] mapping.")
+        self.assertIsNone(add_persona_mapping_if_missing("John", "john-doe"))
 
         # Scenario 3: Next line starts with "##" in section
         mappings_file.write_text("## Persona Mappings\n## Next Section")
-        add_persona_mapping_if_missing("Brad", "brad-vrabete")
+        add_persona_mapping_if_missing("John", "john-doe")
         written = mappings_file.read_text()
-        self.assertIn("- **Canonical:** [[brad-vrabete]]", written)
+        self.assertIn("- **Canonical:** [[john-doe]]", written)
 
         # Scenario 4: Section ends without adding (in_section and not added)
         mappings_file.write_text("## Persona Mappings\n- Some entry")
-        add_persona_mapping_if_missing("Brad", "brad-vrabete")
+        add_persona_mapping_if_missing("John", "john-doe")
         written = mappings_file.read_text()
-        self.assertIn("- **Canonical:** [[brad-vrabete]]", written)
+        self.assertIn("- **Canonical:** [[john-doe]]", written)
 
         # Scenario 5: Header not added (appends header at end)
         mappings_file.write_text("Some file without persona header")
-        add_persona_mapping_if_missing("Brad", "brad-vrabete")
+        add_persona_mapping_if_missing("John", "john-doe")
         written = mappings_file.read_text()
         self.assertIn("## Persona Mappings", written)
-        self.assertIn("- **Canonical:** [[brad-vrabete]]", written)
+        self.assertIn("- **Canonical:** [[john-doe]]", written)
 
     def test_clean_frontmatter_edge_cases(self):
         """Test clean_frontmatter with unclosed fence and missing boundary indices."""
@@ -199,7 +201,6 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         candidate_file_2 = target_subdir / "role_2.md"
         candidate_file_2.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2022-01-01\n---\n")
         
-        import os, time
         os.utime(candidate_file_1, (time.time() - 100, time.time() - 100))
         os.utime(candidate_file_2, (time.time(), time.time()))
 

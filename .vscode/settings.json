@@ -2,24 +2,36 @@
     "cSpell.language": "en-gb,en",
     "cSpell.allowCompoundWords": true,
     "cSpell.words": [
+        "Affinda",
         "Agentic",
         "Calibri",
         "codacy",
         "DACH",
+        "dotenv",
         "emea",
+        "genai",
         "mypy",
         "ollama",
         "oxml",
         "pycache",
         "pytest",
+        "Pythoneer",
+        "qube",
         "qwen",
         "slugified",
-        "qube",
+        "tsdir",
         "venv",
         "Xoft"
     ],
     "sonarlint.connectedMode.project": {
         "connectionId": "bvrabete",
         "projectKey": "bvrabete_career-os"
-    }
+    },
+    "python.analysis.ignore": [
+        "**/tests/**"
+    ],
+    "cSpell.ignorePaths": [
+        "**/.gemini/**",
+        "~/.gemini/**"
+    ]
 }
