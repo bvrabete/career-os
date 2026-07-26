@@ -35,6 +35,9 @@ STEPS:
   DRAFTING:
     TYPE: "openai"
     MODEL_NAME: "gpt-4o" # High-capacity, structured resume generator
+    FALLBACK:
+      TYPE: "openai"
+      MODEL_NAME: "gpt-4o-mini"
 
   AUDIT:
     TYPE: "openai"
@@ -52,6 +55,9 @@ STEPS:
   INGESTION_GENERATE:
     TYPE: "openai"
     MODEL_NAME: "gpt-4o" # Perfect schema compliance for frontmatter generation
+    FALLBACK:
+      TYPE: "openai"
+      MODEL_NAME: "gpt-4o-mini"
 
   INGESTION_MERGE:
     TYPE: "openai"
