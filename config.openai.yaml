@@ -1,0 +1,64 @@
+# Model Selection Definitions
+MODELS:
+  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
+  openai: "gpt-4o"
+
+# Pipeline Step Configurations (Pure OpenAI-Assisted Setup)
+# Optimized to run exclusively using an OpenAI API Key, leveraging the absolute latest models.
+# Uses lightweight gpt-4o-mini for cost-efficient steps and o3-mini/gpt-4o for high-reasoning tasks.
+STEPS:
+  EXTRACTION:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Blazing fast, ultra-cheap schema parsing
+
+  REFINEMENT:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Cost-efficient narrative verification
+
+  MERGE:
+    TYPE: "openai"
+    MODEL_NAME: "o3-mini" # Deep logical reasoning for timeline merging and deduplication
+
+  GAP_ANALYSIS:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Quick structural mismatch analysis
+
+  # CV Generator LangGraph Steps
+  ANALYSIS:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Rapid region and intent analyzer
+
+  RETRIEVAL:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Fast semantic relevance scoring per experience
+
+  DRAFTING:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o" # High-capacity, structured resume generator
+
+  AUDIT:
+    TYPE: "openai"
+    MODEL_NAME: "o3-mini" # Brutally honest reasoning-model critic for ATS audit
+
+  # Ingestion pipeline steps
+  INGESTION_CLASSIFY:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Fast document classification
+
+  INGESTION_EXTRACT:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o-mini" # Rapid extraction of candidate raw data
+
+  INGESTION_GENERATE:
+    TYPE: "openai"
+    MODEL_NAME: "gpt-4o" # Perfect schema compliance for frontmatter generation
+
+  INGESTION_MERGE:
+    TYPE: "openai"
+    MODEL_NAME: "o3-mini" # Flawless deduplication of new experiences using logical reasoning
+
+OLLAMA_BASE_URL: "http://localhost:11434"
+
+# Configuration Defaults
+TRACK_DEFAULT: "Corporate"
+STRATEGY_DEFAULT: "emea"

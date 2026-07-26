@@ -33,10 +33,12 @@ package = true
 kb-ingest = "kb_ingest:main"
 cv-gen = "generate_cv:main"
 doc-gen = "generate_document_cli:main"
+ats-audit = "tools.kb_external_audit:main"
 kb-cleanup = "kb_cleanup:main"
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.0",
     "pytest>=9.0.3",
     "pytest-cov>=6.0.0",
 ]

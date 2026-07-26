@@ -10,7 +10,8 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | education | `wiki/education/` | Academic degrees, certifications, and formal training |
 | entity | `wiki/entities/` | Organizations (companies, schools), people, or specific tools |
 | project | `wiki/projects/` | Major initiatives or cross-role technical projects |
-| skill | `wiki/skills/` | Technical, soft skills, and languages |
+| skill | `wiki/skills/` | Technical and soft skills |
+| language | `wiki/languages/` | Spoken language proficiencies and certifications |
 | source | `wiki/sources/` | Metadata about raw input files (historical CVs, certificates) |
 | synthesis | `wiki/synthesis/` | Generated CV variants, career summaries, and theme-based reports |
 | concept | `wiki/concepts/` | Methodologies (Agile, Scrum) or domain-specific frameworks |

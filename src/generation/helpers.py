@@ -499,8 +499,6 @@ def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
     org_clean = re.sub(r'[\s\_]+', '-', org_clean)
-    if org_clean.startswith("intel"):
-        return "intel"
     return org_clean
 
 
@@ -1042,3 +1040,29 @@ def invoke_drafter_llm_with_fallback(llm: Any, system_prompt: str, prompt: str) 
                 "Configured fallback model failed. Re-raising original rate limit error."
             )
             raise e
+
+
+def retrieve_languages(wiki_dir: Path) -> list[str]:
+    """Retrieve and format spoken languages from wiki/languages."""
+    languages_dir = wiki_dir / "wiki" / "languages"
+    if not languages_dir.exists():
+        return []
+        
+    languages_content = []
+    for f in sorted(languages_dir.glob("*.md")):
+        try:
+            content = f.read_text(encoding="utf-8")
+            fm = _parse_yaml_frontmatter_from_text(content)
+            title = fm.get("title", f.stem.replace("lang-", "").capitalize())
+            proficiency = fm.get("proficiency", "")
+            cefr = fm.get("cefr", "")
+            
+            detail = f" ({cefr})" if cefr else ""
+            if proficiency:
+                languages_content.append(f"- **{title}**: {proficiency}{detail}")
+            else:
+                languages_content.append(f"- **{title}**")
+        except Exception as e:
+            logging.error("Error parsing language file %s: %s", f.name, e)
+            
+    return languages_content

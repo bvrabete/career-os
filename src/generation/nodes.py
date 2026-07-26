@@ -20,6 +20,7 @@ from generation.helpers import (
     generate_skill_bridging_map,
     retrieve_and_score_experiences,
     retrieve_and_deduplicate_education,
+    retrieve_languages,
     retrieve_and_score_projects,
     retrieve_and_score_patents,
     retrieve_and_score_notes,
@@ -132,6 +133,8 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     notes_entries = retrieve_and_score_notes(wiki_dir, keywords, retrieved_exp_slugs)
     few_shot_examples = retrieve_few_shots(wiki_dir, keywords)
 
+    languages_content = retrieve_languages(wiki_dir)
+
     skill_bridging_map = generate_skill_bridging_map(llm, skills_content, keywords)
     subject_info = get_subject_info(wiki_dir)
 
@@ -151,6 +154,7 @@ CV Format Expectations: {expectations}
         "selected_entries": selected_content,
         "education_entries": education_content,
         "skills_entries": skills_content,
+        "languages_entries": languages_content,
         "projects_entries": projects_entries,
         "patents_entries": patents_entries,
         "notes_entries": notes_entries,
@@ -182,8 +186,13 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     few_shots = state.get("few_shot_examples", [])
     skill_bridge = state.get("skill_bridging_map", {})
 
+    languages = state.get("languages_entries", [])
+    languages_text = "\n".join(languages)
+
     education_text = "\n\n".join(education)
     skills_text = "\n".join(skills)
+    if languages_text:
+        skills_text += "\n\nSPOKEN LANGUAGES:\n" + languages_text
 
     projects_text = "\n\n".join(projects)
     patents_text = "\n\n".join(patents)
@@ -217,16 +226,6 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         education_text=education_text,
         skills_text=skills_text
     )
-
-    # Debug: dump prompts to file
-    try:
-        from pathlib import Path
-        debug_path = Path("/home/bvrabete/Documents/CV/ai-generated-cvs/drafter_prompt_debug.txt")
-        debug_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(debug_path, "w", encoding="utf-8") as debug_file:
-            debug_file.write(f"=== SYSTEM PROMPT ===\n{system_prompt}\n\n=== USER PROMPT ===\n{prompt}\n")
-    except Exception as e:
-        logging.warning(f"Failed to write debug prompts: {e}")
 
     import json as _json_hack  # Re-import just in case JSON is needed in helpers
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
@@ -293,11 +292,12 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
     auditor_template = load_prompt("auditor.txt")
     skills = state.get("skills_entries", [])
     skills_text = "\n".join(skills)
-    prompt = auditor_template.format(
-        job_description=jd,
-        draft_cv=draft,
-        candidate_skills=skills_text,
-        strategy_info=strategy
+    prompt = (
+        auditor_template
+        .replace("{job_description}", jd)
+        .replace("{draft_cv}", draft)
+        .replace("{candidate_skills}", skills_text)
+        .replace("{strategy_info}", strategy)
     )
 
     response = llm.invoke([HumanMessage(content=prompt)])

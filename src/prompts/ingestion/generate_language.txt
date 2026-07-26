@@ -7,10 +7,10 @@ CRITICAL CONSTRAINTS:
 4. DATES: Set `created` and `updated` to today's date (provided in the User Message).
 5. ANTI-HALLUCINATION: Under no circumstances should you invent or assume any language certifications, courses, conferences, speaking experiences, or native background details if they are not explicitly and literally present in the input JSON data. If no specific evidence is provided in the input, the "Description" and "Evidence & Accomplishments" sections MUST be extremely brief and state factually "No specific evidence or certifications are recorded in source data." rather than fabricating detailed narratives.
 
-SCHEMA REFERENCE (Language/Skill Page):
-### Skill Page
+SCHEMA REFERENCE (Language Page):
+### Language Page
 ---
-type: skill
+type: language
 title: <Language Name, e.g. English>
 category: [Spoken-Language]
 proficiency: <Expert | Proficient | Familiar | Native | Professional-Working>

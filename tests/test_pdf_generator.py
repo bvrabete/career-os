@@ -20,50 +20,50 @@ from docx_generator import _clean_markdown_wrapper as docx_clean, generate_docx
 class TestPdfAndDocxGenerator(unittest.TestCase):
     def test_clean_markdown_wrapper(self):
         """Test stripping markdown code blocks from content."""
-        wrapped_md_1 = "```markdown\n# Brad Vrabete\nSome content\n```"
-        wrapped_md_2 = "```md\n# Brad Vrabete\nSome content\n```"
-        wrapped_md_3 = "```\n# Brad Vrabete\nSome content\n```"
-        unwrapped_md = "# Brad Vrabete\nSome content"
-        mixed_md = "```python\nprint('hello')\n```\n# Brad\n```bash\necho\n```"
+        wrapped_md_1 = "```markdown\n# John Doe\nSome content\n```"
+        wrapped_md_2 = "```md\n# John Doe\nSome content\n```"
+        wrapped_md_3 = "```\n# John Doe\nSome content\n```"
+        unwrapped_md = "# John Doe\nSome content"
+        mixed_md = "```python\nprint('hello')\n```\n# John\n```bash\necho\n```"
 
-        self.assertEqual(pdf_clean(wrapped_md_1), "# Brad Vrabete\nSome content")
-        self.assertEqual(pdf_clean(wrapped_md_2), "# Brad Vrabete\nSome content")
-        self.assertEqual(pdf_clean(wrapped_md_3), "# Brad Vrabete\nSome content")
-        self.assertEqual(pdf_clean(unwrapped_md), "# Brad Vrabete\nSome content")
-        self.assertEqual(pdf_clean(mixed_md), "```python\nprint('hello')\n```\n# Brad\n```bash\necho\n```")
+        self.assertEqual(pdf_clean(wrapped_md_1), "# John Doe\nSome content")
+        self.assertEqual(pdf_clean(wrapped_md_2), "# John Doe\nSome content")
+        self.assertEqual(pdf_clean(wrapped_md_3), "# John Doe\nSome content")
+        self.assertEqual(pdf_clean(unwrapped_md), "# John Doe\nSome content")
+        self.assertEqual(pdf_clean(mixed_md), "```python\nprint('hello')\n```\n# John\n```bash\necho\n```")
 
         # Do the same for docx_clean
-        self.assertEqual(docx_clean(wrapped_md_1), "# Brad Vrabete\nSome content")
-        self.assertEqual(docx_clean(wrapped_md_2), "# Brad Vrabete\nSome content")
-        self.assertEqual(docx_clean(wrapped_md_3), "# Brad Vrabete\nSome content")
-        self.assertEqual(docx_clean(unwrapped_md), "# Brad Vrabete\nSome content")
-        self.assertEqual(docx_clean(mixed_md), "```python\nprint('hello')\n```\n# Brad\n```bash\necho\n```")
+        self.assertEqual(docx_clean(wrapped_md_1), "# John Doe\nSome content")
+        self.assertEqual(docx_clean(wrapped_md_2), "# John Doe\nSome content")
+        self.assertEqual(docx_clean(wrapped_md_3), "# John Doe\nSome content")
+        self.assertEqual(docx_clean(unwrapped_md), "# John Doe\nSome content")
+        self.assertEqual(docx_clean(mixed_md), "```python\nprint('hello')\n```\n# John\n```bash\necho\n```")
 
     def test_extract_frontmatter_single(self):
         """Test extracting single YAML frontmatter."""
-        content = "---\nname: Brad Vrabete\nrole: Engineer\n---\n# Title\nBody text"
+        content = "---\nname: John Doe\nrole: Engineer\n---\n# Title\nBody text"
         body, metadata = _extract_frontmatter(content)
         self.assertEqual(body, "# Title\nBody text")
-        self.assertEqual(metadata, {"name": "Brad Vrabete", "role": "Engineer"})
+        self.assertEqual(metadata, {"name": "John Doe", "role": "Engineer"})
 
     def test_extract_frontmatter_multiple(self):
         """Test extracting multiple sequential frontmatters (synthesis + cv profile)."""
-        content = "---\ntype: synthesis\ntarget_role: Architect\n---\n---\nname: Brad Vrabete\n---\n# Title"
+        content = "---\ntype: synthesis\ntarget_role: Architect\n---\n---\nname: John Doe\n---\n# Title"
         body, metadata = _extract_frontmatter(content)
         self.assertEqual(body, "# Title")
-        self.assertEqual(metadata, {"type": "synthesis", "target_role": "Architect", "name": "Brad Vrabete"})
+        self.assertEqual(metadata, {"type": "synthesis", "target_role": "Architect", "name": "John Doe"})
 
     def test_build_header_html(self):
         """Test building HTML header from metadata."""
         metadata = {
-            "name": "Brad Vrabete",
+            "name": "John Doe",
             "position": "Engineer",
-            "email": "brad@example.com",
+            "email": "john@example.com",
             "phone": "12345"
         }
         header_html = _build_header_html(metadata)
-        self.assertIn("<h1>Brad Vrabete</h1>", header_html)
-        self.assertIn("Engineer &nbsp;|&nbsp; brad@example.com &nbsp;|&nbsp; 12345", header_html)
+        self.assertIn("<h1>John Doe</h1>", header_html)
+        self.assertIn("Engineer &nbsp;|&nbsp; john@example.com &nbsp;|&nbsp; 12345", header_html)
 
         # No name
         self.assertEqual(_build_header_html({"position": "Engineer"}), "")

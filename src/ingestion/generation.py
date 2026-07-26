@@ -148,7 +148,7 @@ def _generate_languages(
         if not lang_slug:
             lang_slug = "unknown"
         filename = f"lang-{lang_slug}.md"
-        output_path = str(get_wiki_root() / "skills" / filename)
+        output_path = str(get_wiki_root() / "languages" / filename)
 
         prompt = f"""TODAY'S DATE: {today_str}
 

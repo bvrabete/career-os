@@ -81,5 +81,6 @@ class CVPipelineState(TypedDict):
     notes_entries: list[str]
     few_shot_examples: list[str]
     skill_bridging_map: dict[str, str]
+    languages_entries: list[str]
     target_organization_slug: str
     target_role: str

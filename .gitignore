@@ -34,4 +34,9 @@ scratch/
 # Coverage files
 .coverage
 coverage.xml
+
+# Config file
 config.yaml
+
+# Generated files
+ai-generated-cvs/*

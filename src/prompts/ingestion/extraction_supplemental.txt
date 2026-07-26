@@ -6,7 +6,7 @@ Output format:
 {
   "notes": [
     {
-      "title": "<descriptive title for feedback note, e.g., Intel Performance Review 2024>",
+      "title": "<descriptive title for feedback note, e.g., Acme Corp Performance Review 2024>",
       "related_raw_orgs": ["<exact company name this relates to>"],
       "perspective": "Third-Party",
       "tags": ["performance-review", "reflection", "leadership", "engineering"],

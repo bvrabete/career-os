@@ -2,6 +2,7 @@
     "cSpell.language": "en-gb,en",
     "cSpell.allowCompoundWords": true,
     "cSpell.words": [
+        "Affinda",
         "Agentic",
         "Calibri",
         "codacy",
@@ -12,14 +13,18 @@
         "oxml",
         "pycache",
         "pytest",
+        "qube",
         "qwen",
         "slugified",
-        "qube",
         "venv",
         "Xoft"
     ],
     "sonarlint.connectedMode.project": {
         "connectionId": "bvrabete",
         "projectKey": "bvrabete_career-os"
-    }
+    },
+    "cSpell.ignorePaths": [
+        "**/.gemini/**",
+        "~/.gemini/**"
+    ]
 }

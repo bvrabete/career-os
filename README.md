@@ -166,6 +166,32 @@ The generation pipeline supports direct override of region strategy selection, a
 *   `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
 *   `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
 
+### 6. Standalone Document Compiler (`doc-gen`)
+If you have already generated and customized a Markdown CV (`.md`) file, you can convert it directly to PDF or Microsoft Word (`.docx`) format at any time without re-running the heavy drafting LLMs.
+
+```bash
+# Compile to Microsoft Word (DOCX)
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format docx
+
+# Compile to styled PDF
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format pdf
+```
+
+### 7. Standalone ATS Parser Auditor (`ats-audit`)
+Run an independent, commercial-grade resume-parsing audit against your compiled resume using the real-world **Affinda API**. This tool uploads your document, programmatically indexes it in an isolated testing search database, extracts technical keywords, parses the chronological timeline, and requests a live native machine-learning match score against a target Job Description.
+
+> [!TIP]
+> Commercial ATS parsers are highly layout-dependent. Always convert your Markdown CV to a PDF or Microsoft Word (`.docx`) document first using `doc-gen` before auditing it to ensure perfect chronological segmentation and high extraction rates!
+
+```bash
+uv run ats-audit \
+  --resume ai-generated-cvs/jumbo_tech_lead_cv_enhanced.docx \
+  --jd job-descriptions/target_jd.txt \
+  --out ai-generated-cvs/affinda_ats_report.md
+```
+
+The tool generates a detailed Markdown scorecard (`affinda_ats_report.md`) outlining contact extraction, matched/missed skills, and the full parsed work experience timeline exactly as a corporate recruiter would see it in their internal software.
+
 ---
 
 ## ⚙️ Model & Pipeline Configuration (`config.yaml`)

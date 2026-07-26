@@ -173,14 +173,14 @@ dates:
 
     def test_get_org_slug(self):
         """Test _get_org_slug matches [[slug]] and normalization rules."""
-        self.assertEqual(_get_org_slug("intel", {"organization": "[[intel-slug]]"}), "intel")
+        self.assertEqual(_get_org_slug("acme", {"organization": "[[acme-slug]]"}), "acme-slug")
         self.assertEqual(_get_org_slug("google", {"organization": "[[google-slug]]"}), "google-slug")
         self.assertEqual(_get_org_slug("google", {}), "google")
 
     def test_split_recent_and_old_experiences(self):
         """Test splitting by age."""
         content1 = """---
-organization: "[[intel-slug]]"
+organization: "[[acme-slug]]"
 dates:
   start: 2022-01-01
 ---
@@ -192,13 +192,13 @@ dates:
 ---
 """
         deduplicated = [
-            (10, "intel.md", content1, "intel-key"),
+            (10, "acme.md", content1, "acme-key"),
             (5, "ibm.md", content2, "ibm-key"),
         ]
         recent, old = _split_recent_and_old_experiences(deduplicated)
         self.assertEqual(len(recent), 1)
         self.assertEqual(len(old), 1)
-        self.assertEqual(recent[0][1], "intel.md")
+        self.assertEqual(recent[0][1], "acme.md")
         self.assertIn("ibm-slug", old)
 
     def test_resolve_regional_strategy_success(self):

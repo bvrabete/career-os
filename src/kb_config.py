@@ -76,6 +76,9 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         kwargs = {}
         if format == "json":
             kwargs["response_format"] = {"type": "json_object"}
+        # OpenAI reasoning models (e.g., o1, o3-mini) do not support setting a temperature parameter
+        if model_name.startswith("o1") or model_name.startswith("o3"):
+            return ChatOpenAI(model=model_name, **kwargs)
         return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
     
     elif model_type == "ollama":

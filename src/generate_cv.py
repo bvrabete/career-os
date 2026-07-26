@@ -252,8 +252,7 @@ title: "Tailored CV for {role} at {company}"
 track: {track_val}
 target_role: "{role}"
 target_organization: [[{company}]]
-status: Applied
-applied_date: {today_str}
+status: Generated
 created: {today_str}
 updated: {today_str}
 ---

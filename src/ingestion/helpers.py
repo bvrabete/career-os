@@ -387,7 +387,8 @@ def get_persona_slug(profile_name: str) -> str:
         return resolved
 
     slug = slugify(profile_name)
-    if not slug.endswith("-person") and slug != "brad-vrabete":
+    persona_slug_canonical = get_persona_slug_from_mappings()
+    if not slug.endswith("-person") and slug != persona_slug_canonical:
         slug = f"{slug}-person"
 
     add_persona_mapping_if_missing(profile_name, slug)

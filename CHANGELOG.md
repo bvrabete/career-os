@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-26
+
+### Added
+- **Dynamic JD-Aligned Side-Project Selection**: Re-engineered the drafting guidelines to dynamically evaluate side projects and startup ventures against the target Job Description's keywords, automatically expanding them with STAR bullets to capture the ATS match, or compressing them to single-line entries to maximize page budget.
+- **Standalone Document Conversion CLI**: Fully documented and registered the `doc-gen` CLI script shortcut to compile existing Markdown resumes into production-ready PDF and high-compatibility Microsoft Word (`.docx`) formats.
+- **Standalone ATS Parser Auditor CLI**: Registered and documented the `ats-audit` CLI script shortcut to upload and stress-test compiled resumes against target Job Descriptions using real-world parsing engines.
+
+### Changed
+- **Pristine Prompt & Engine Decoupling**: Fully refactored and generalized all generation and extraction system prompts to remove any candidate-specific or company-specific names, replacing them with generic, high-fidelity algorithmic guidelines.
+- **Generic Organization Slugification**: Decoupled the custom organization-prefix check in `helpers.py` to ensure prefix-agnostic string slugification and entity resolving.
+
 ## [1.4.1] - 2026-07-02
 
 ### Added

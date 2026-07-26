@@ -125,6 +125,15 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
   - **CLI Entrypoint/Command Scripts** (e.g., `src/generate_cv.py`, `src/kb_ingest.py`, `src/kb_cleanup.py`):
     - May configure the root logger (via `logging.basicConfig`) in `main()` or the `if __name__ == "__main__":` block.
     - May use `print()` statements adorned with emojis (🚀, ✅, ❌, 📦, 🧹, ✨) *exclusively* for highly legible, user-facing console interactions and progress reporting.
+- **Strict Pre-Finalization Verification Mandate (Definition of Done)**:
+  Before declaring any task, modification, or bug fix complete and asking for final user approval, the agent **MUST** run and pass the following checklist:
+  1. **Automated Unit Tests**: Execute `uv run pytest` to ensure all existing and new tests pass with 100% success.
+  2. **Strict Type Compliance (Pylance/Pyright)**: Ensure all functions have full parameter and return type annotations. No untyped parameters (`Any` is allowed only when explicitly necessary and annotated, otherwise use descriptive generic type bounds).
+  3. **SonarQube Quality Scan**: Proactively run a SonarQube code analysis (using the `sonar-analyze` skill or MCP tools) targeting the modified files. There must be:
+     - Zero new blocker or critical bugs.
+     - Zero security hotspots.
+     - Cognitive complexity score STRICTLY below 15 per function.
+  4. **Validation Summary**: The agent's final response must explicitly summarize the outputs of these checks, providing the test status, typing validation confirmation, and SonarQube analysis results.
 
 
 ## Legacy Note
