@@ -112,6 +112,8 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
         print(f"❌ Experiences directory not found at: {experiences_dir}", file=sys.stderr)
         return
 
+    experiences_dir_resolved = experiences_dir.resolve()
+
     # 1. Create a safe backup before doing anything in-place
     if not dry_run:
         backup_dir = wiki_dir / "wiki" / "experiences_backup"
@@ -156,7 +158,11 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
             
             # Simple validation: ensure frontmatter dashes exist
             if cleaned_content.count("---") >= 2:
-                validate_path(f).write_text(cleaned_content, encoding="utf-8")
+                # Securely construct file path to satisfy static code analysis (prevent path traversal)
+                safe_file_path = (experiences_dir_resolved / f.name).resolve()
+                if safe_file_path.parent != experiences_dir_resolved:
+                    raise ValueError(f"Security Alert: Attempted path traversal via file name: {f.name}")
+                validate_path(safe_file_path).write_text(cleaned_content, encoding="utf-8")
                 print(f"  ✅ Successfully cleaned and consolidated: {f.name}")
                 total_processed += 1
             else:
