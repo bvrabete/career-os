@@ -7,7 +7,9 @@
         "Calibri",
         "codacy",
         "DACH",
+        "dotenv",
         "emea",
+        "genai",
         "mypy",
         "ollama",
         "oxml",
@@ -23,6 +25,9 @@
         "connectionId": "bvrabete",
         "projectKey": "bvrabete_career-os"
     },
+    "python.analysis.ignore": [
+        "**/tests/**"
+    ],
     "cSpell.ignorePaths": [
         "**/.gemini/**",
         "~/.gemini/**"

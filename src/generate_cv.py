@@ -1,12 +1,19 @@
 import argparse
+import dataclasses
 from datetime import datetime
 import json
 import logging
+import os
 from pathlib import Path
+import sys
 from typing import Any
 import warnings
 
 from generation import build_graph
+from kb_config import get_wiki_dir
+from utils import validate_path
+from pdf_generator import generate_pdf
+from docx_generator import generate_docx
 
 # Suppress annoying logging from httpx if possible
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -14,24 +21,28 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 SUGGESTION_STR = "💡 Suggestion:"
 
 
-from utils import validate_path
-
-
 def parse_arguments() -> argparse.Namespace:
     """
     Parses command-line arguments for the CV generator.
     """
-    parser = argparse.ArgumentParser(description="Agentic AI CV Generator")
-    parser.add_argument("--jd", required=True,
-                        help="Path to the Job Description text file")
-    parser.add_argument("--out", default=None,
-                        help="Output path for the Markdown CV (defaults to LLM-Wiki synthesis folder if omitted)")
-    parser.add_argument(
+    args_parser = argparse.ArgumentParser(description="Agentic AI CV Generator")
+    args_parser.add_argument("--jd", required=True,
+                             help="Path to the Job Description text file")
+    args_parser.add_argument("--out", default=None,
+                             help="Output path for the Markdown CV (defaults to LLM-Wiki synthesis folder if omitted)")
+    args_parser.add_argument(
         "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
-    parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
-    parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
-    parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
-    return parser.parse_args()
+    args_parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
+    args_parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
+    args_parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
+    return args_parser.parse_args()
+
+
+class EnhancedJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if dataclasses.is_dataclass(o) and not isinstance(o, type):
+            return dataclasses.asdict(o)
+        return super().default(o)
 
 
 def save_outputs(
@@ -57,95 +68,66 @@ def save_outputs(
         context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
         state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
         
-        import dataclasses
-        class EnhancedJSONEncoder(json.JSONEncoder):
-            def default(self, o):
-                if dataclasses.is_dataclass(o):
-                    return dataclasses.asdict(o)
-                return super().default(o)
-
         with open(context_path, "w", encoding="utf-8") as f:
             json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
-        print(f"📦 Context/State backed up to {context_path}")
+        print(f"📦 Context State saved to {context_path}")
+        return out_path
 
-        # Also write archived duplicate with frontmatter tracking to LLM-Wiki Synthesis folder
-        try:
-            safe_synthesis_path = validate_path(synthesis_path)
-            with open(safe_synthesis_path, "w", encoding="utf-8") as f:
-                f.write(synthesis_content)
-            print(f"🗂️ CRM Synthesis copy archived to {synthesis_path}")
-        except Exception as e:
-            print(f"⚠️ Failed to write CRM synthesis copy: {e}")
-    else:
-        # Default: Write the frontmatter-tracked file directly to LLM-Wiki Synthesis directory
-        out_path = validate_path(synthesis_path)
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(synthesis_content)
-        print(f"\n✅ Build complete! Frontmatter-tracked CV saved directly to LLM-Wiki: {out_path}")
-    
-    return out_path
+    # Also automatically save to synthesis-archive in LLM-Wiki
+    synthesis_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(synthesis_path, "w", encoding="utf-8") as f:
+        f.write(synthesis_content)
+    print(f"✨ Synthesis archive auto-saved to Wiki: {synthesis_path}")
+
+    return synthesis_path
 
 
-def compile_optional_formats(
-    args: argparse.Namespace,
-    draft: str,
-    out_path: Path,
-    final_state: dict[str, Any]
-) -> None:
+def compile_optional_formats(args: argparse.Namespace, draft: str, out_path: Path, final_state: dict[str, Any]) -> None:
     """
-    Compiles PDF and DOCX files if requested via arguments.
+    Compiles PDF and DOCX formats if requested.
     """
-    # Generate PDF if requested
     if args.generate_pdf:
+        print("\n🎨 Compiling to PDF format...")
         try:
-            from pdf_generator import generate_pdf
             pdf_template = final_state.get("pdf_template", "templates/base.css")
-            pdf_out_path = out_path.with_suffix(".pdf")
-            print(f"📄 Compiling beautiful PDF using template: {pdf_template}...")
-            # Note: For PDF compilation, compile using the clean draft (without raw YAML frontmatter)
-            success = generate_pdf(draft, str(pdf_out_path), pdf_template)
+            pdf_path = out_path.with_suffix(".pdf")
+            success = generate_pdf(draft, str(pdf_path), pdf_template)
             if success:
-                print(f"🎨 PDF saved successfully to {pdf_out_path}")
+                print(f"✅ Beautiful PDF generated at {pdf_path}")
             else:
                 print("❌ PDF generation failed.")
         except Exception as e:
-            print(f"❌ Error during PDF generation: {e}")
+            print(f"⚠️ PDF Generation failed: {e}")
 
-    # Generate DOCX if requested
     if args.generate_docx:
+        print("\n📝 Compiling to Word (docx) format...")
         try:
-            from docx_generator import generate_docx
-            docx_out_path = out_path.with_suffix(".docx")
-            print("📄 Compiling Word document (docx) CV...")
-            success = generate_docx(draft, str(docx_out_path))
+            docx_path = out_path.with_suffix(".docx")
+            success = generate_docx(draft, str(docx_path))
             if success:
-                print(f"🎨 Word (docx) saved successfully to {docx_out_path}")
+                print(f"✅ Clean DOCX generated at {docx_path}")
             else:
                 print("❌ Word (docx) generation failed.")
         except Exception as e:
-            print(f"❌ Error during Word (docx) generation: {e}")
+            print(f"⚠️ DOCX Generation failed: {e}")
 
 
 def main() -> None:
     """
-    Main entry point for CV generator.
+    Main entry point orchestrating state execution and error recovery.
     """
     args = parse_arguments()
-
-    # Configure dual-target logging
-    log_file = Path("cv_generation.log")
     
-    # Root logger
+    # Simple direct file logging, no extra complex configurations
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     
-    # Formatter
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    
-    # File handler (detailed logging)
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler = logging.FileHandler(log_dir / "generation_run.log", encoding="utf-8")
     file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     root_logger.addHandler(file_handler)
     
     # Console handler (warnings & errors only to keep console clean)
@@ -159,7 +141,6 @@ def main() -> None:
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-    import os
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
@@ -173,44 +154,31 @@ def main() -> None:
 
     print(f"🚀 Initializing LangGraph CV Generator Pipeline against `{jd_path.name}`...")
     app = build_graph()
-
-    initial_state: dict[str, Any] = {
-        "job_description": jd_content,
-        "iteration_count": 0
+    
+    inputs = {
+        "job_description_raw": jd_content,
+        "iteration_count": 0,
+        "max_iterations": 3,
+        "strategy_override": args.strategy
     }
-    if args.strategy:
-        initial_state["strategy_override"] = args.strategy
-
-    print("⏳ Running pipeline using configured models. This may take a few minutes...\n")
+    
     try:
-        final_state = app.invoke(initial_state)
+        final_state = app.invoke(inputs)
     except Exception as e:
-        print("\n❌ Pipeline execution failed with an unhandled exception:")
-        print(f"   Error: {e}\n")
-        
         err_msg = str(e).lower()
+        print(f"\n❌ Pipeline failed with exception: {e}")
         
-        # Analyze the error and provide actionable suggestions
-        if any(keyword in err_msg for keyword in ["resource_exhausted", "429", "billing", "credits", "quota", "prepayment"]):
+        # User-friendly triage guide
+        if any(keyword in err_msg for keyword in ["api_key", "unauthorized", "credentials", "401"]):
             print(SUGGESTION_STR)
-            print("   The cloud API rate limit or billing/prepayment credits have been exhausted.")
-            print("   - To continue running locally & offline, ensure you configure the step to use a local model.")
-            print("     Update the corresponding step (e.g., DRAFTING) inside config.yaml to:")
-            print("       TYPE: \"ollama\"")
-            print("       MODEL_NAME: \"qwen2.5:7b\"")
-            print("   - Alternatively, check your cloud provider console (e.g., Google AI Studio or OpenAI dashboard) to top up credits.")
+            print("   Your API keys might be invalid or expired.")
+            print("   - Verify that OPENAI_API_KEY and GEMINI_API_KEY are correctly set in your environment or .env file.")
             
-        elif any(keyword in err_msg for keyword in ["api_key", "api key", "apikey", "unauthorized", "credentials", "invalid_api_key", "api-key"]):
+        elif any(keyword in err_msg for keyword in ["connection", "timeout", "rate limit", "429"]):
             print(SUGGESTION_STR)
-            print("   There is an issue with your API credentials.")
-            print("   - Check that your .env file contains the correct keys: OPENAI_API_KEY or GEMINI_API_KEY.")
-            print("   - To run 100% offline without API keys, update config.yaml to use TYPE: \"ollama\" for all steps.")
-            
-        elif any(keyword in err_msg for keyword in ["connection", "refused", "connect", "11434", "localhost", "httpx"]):
-            print(SUGGESTION_STR)
-            print("   Could not connect to the local Ollama instance.")
-            print("   - Verify that Ollama is currently running on your system (e.g., run `ollama serve` in a terminal).")
-            print("   - Check that the OLLAMA_BASE_URL in config.yaml is correct (default: http://localhost:11434).")
+            print("   Network connection timeout or API rate limits exceeded.")
+            print("   - Wait a moment and retry.")
+            print("   - Check if Ollama is running (`curl http://localhost:11434`) if you are using local models.")
             
         elif any(keyword in err_msg for keyword in ["model not found", "not found", "does not exist", "pull"]):
             print(SUGGESTION_STR)
@@ -224,13 +192,9 @@ def main() -> None:
             print("   - Review your log files or run with verbose logging for more details.")
             
         print("\n🧹 Gracefully exiting...")
-        import sys
         sys.exit(1)
 
     draft = final_state.get("draft_cv", "")
-
-    # Retrieve synthesis paths and metadata
-    from kb_config import get_wiki_dir
 
     company: str = final_state.get("target_organization_slug", "unknown-company")
     role: str = final_state.get("target_role", "unknown-role")

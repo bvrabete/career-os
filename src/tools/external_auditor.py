@@ -6,6 +6,7 @@ This module is strictly decoupled from the core CV-generation pipeline.
 import os
 import time
 import logging
+import json
 import requests
 from pathlib import Path
 from typing import Any, Dict
@@ -14,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 AFFINDA_API_URL = "https://api.eu1.affinda.com/v3/documents"
 AFFINDA_JD_URL = "https://api.eu1.affinda.com/v3/job_descriptions"
+APPLICATION_JSON = "application/json"
+
+
+class AffindaError(Exception):
+    """Custom exception for Affinda API operations."""
+    pass
 
 
 class AffindaParserClient:
@@ -28,83 +35,107 @@ class AffindaParserClient:
         if not self.api_key:
             logger.warning("No AFFINDA_API_KEY found. Running in MOCK Mode.")
 
-    def parse_resume(self, file_path: Path) -> Dict[str, Any]:
-        """Upload a PDF/DOCX resume file to Affinda, poll for completion, and return structured JSON."""
-        if not self.api_key:
-            return self._get_mock_parse_response(file_path)
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"Resume file not found at: {file_path}")
-
-        logger.info(f"🚀 Uploading {file_path.name} to Affinda API...")
+    def _upload_doc_payload(self, file_path: Path, doc_type_val: str | None, is_jd: bool) -> Dict[str, Any]:
+        """Send the file upload POST request to Affinda API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json"
+            "Accept": APPLICATION_JSON
         }
 
         data = {}
         if self.workspace_id:
             data["workspace"] = self.workspace_id
-        if self.collection_id:
+        if self.collection_id and not is_jd:
             data["collection"] = self.collection_id
-        if self.document_type:
-            data["documentType"] = self.document_type
+        if doc_type_val:
+            data["documentType"] = doc_type_val
 
-        # Step 1: Upload the document
         with open(file_path, "rb") as f:
             files = {"file": (file_path.name, f, "application/octet-stream")}
             response = requests.post(AFFINDA_API_URL, headers=headers, files=files, data=data)
 
         if response.status_code not in (200, 201):
-            raise Exception(f"Affinda Upload Failed ({response.status_code}): {response.text}")
+            raise AffindaError(f"Affinda Upload Failed ({response.status_code}): {response.text}")
 
-        document_data = response.json()
-        import json
-        with open("ai-generated-cvs/affinda_debug_response.json", "w") as f:
-            json.dump(document_data, f, indent=2)
+        return response.json()
+
+    def _poll_doc_status(self, identifier: str, headers: dict[str, str]) -> Dict[str, Any]:
+        """Poll the Affinda API until the document is processed or failed."""
+        poll_url = f"{AFFINDA_API_URL}/{identifier}?compact=true"
+        max_attempts = 20
+        attempt = 0
+
+        while attempt < max_attempts:
+            attempt += 1
+            time.sleep(10)
+            poll_resp = requests.get(poll_url, headers=headers)
             
+            if poll_resp.status_code != 200:
+                logger.warning(f"Failed to poll Affinda: {poll_resp.status_code}. Retrying...")
+                continue
+
+            doc_data = poll_resp.json()
+            meta_obj = doc_data.get("meta", {})
+            is_ready = doc_data.get("ready") or meta_obj.get("ready")
+            is_failed = doc_data.get("failed") or meta_obj.get("failed")
+            status = doc_data.get("status") or meta_obj.get("status")
+
+            if is_failed:
+                raise AffindaError("Affinda report generation failed on the server.")
+            if (status == "completed") or (is_ready is True):
+                return doc_data
+
+            logger.info(f"⏳ Processing: ready={is_ready}, status='{status}'. Polling in 10 seconds (Attempt {attempt}/{max_attempts})...")
+
+        raise TimeoutError("Affinda parsing timed out before completion.")
+
+    def _upload_and_poll_document(
+        self,
+        file_path: Path,
+        doc_type_val: str | None,
+        debug_filename: str,
+        is_jd: bool = False
+    ) -> Dict[str, Any]:
+        """Helper to upload and poll a document from Affinda API, keeping complexity extremely low."""
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found at: {file_path}")
+
+        document_data = self._upload_doc_payload(file_path, doc_type_val, is_jd)
+        
+        try:
+            with open(f"ai-generated-cvs/{debug_filename}", "w") as f_debug:
+                json.dump(document_data, f_debug, indent=2)
+        except Exception as ex:
+            logger.warning(f"Could not dump debug file: {ex}")
+
         identifier = document_data.get("identifier") or document_data.get("meta", {}).get("identifier")
         if not identifier:
-            raise Exception("No document identifier returned from Affinda upload.")
+            raise AffindaError("No document identifier returned from Affinda upload.")
 
-        # Step 2: Poll for completion if it's still processing
         meta_obj = document_data.get("meta", {})
         is_ready = document_data.get("ready") or meta_obj.get("ready")
         is_failed = document_data.get("failed") or meta_obj.get("failed")
         status = document_data.get("status") or meta_obj.get("status")
-        
-        completed = (status == "completed") or (is_ready is True)
-        max_attempts = 20
-        attempt = 0
-
-        while not completed and not is_failed and attempt < max_attempts:
-            attempt += 1
-            logger.info(f"⏳ Processing: ready={is_ready}, status='{status}'. Polling in 10 seconds (Attempt {attempt}/{max_attempts})...")
-            time.sleep(10)
-            
-            poll_url = f"{AFFINDA_API_URL}/{identifier}?compact=true"
-            poll_resp = requests.get(poll_url, headers=headers)
-            if poll_resp.status_code == 200:
-                document_data = poll_resp.json()
-                with open(f"ai-generated-cvs/affinda_debug_poll_{attempt}.json", "w") as f:
-                    json.dump(document_data, f, indent=2)
-                
-                meta_obj = document_data.get("meta", {})
-                is_ready = document_data.get("ready") or meta_obj.get("ready")
-                is_failed = document_data.get("failed") or meta_obj.get("failed")
-                status = document_data.get("status") or meta_obj.get("status")
-                completed = (status == "completed") or (is_ready is True)
-            else:
-                logger.warning(f"Failed to poll Affinda: {poll_resp.status_code}. Retrying...")
 
         if is_failed:
-            raise Exception("Affinda report generation failed on the server.")
+            raise AffindaError("Affinda report generation failed on the server.")
+        if (status == "completed") or (is_ready is True):
+            logger.info("✨ Affinda parsing completed successfully!")
+            return document_data
 
-        if not completed:
-            raise TimeoutError("Affinda resume parsing timed out before completion.")
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": APPLICATION_JSON
+        }
+        res = self._poll_doc_status(identifier, headers)
+        logger.info("✨ Affinda parsing completed successfully!")
+        return res
 
-        logger.info("✨ Affinda resume parsing completed successfully!")
-        return document_data
+    def parse_resume(self, file_path: Path) -> Dict[str, Any]:
+        """Upload a PDF/DOCX resume file to Affinda, poll for completion, and return structured JSON."""
+        if not self.api_key:
+            return self._get_mock_parse_response(file_path)
+        return self._upload_and_poll_document(file_path, self.document_type, "affinda_debug_response.json")
 
     def parse_job_description(self, file_path: Path) -> Dict[str, Any]:
         """Upload a job description file to Affinda, poll for completion, and return structured JSON."""
@@ -113,74 +144,7 @@ class AffindaParserClient:
                 "meta": {"identifier": "mock-jd-98765", "status": "completed"},
                 "data": {"name": "Mock Job Description"}
             }
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"Job description file not found at: {file_path}")
-
-        logger.info(f"🚀 Uploading job description {file_path.name} to Affinda Job Descriptions Parser...")
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json"
-        }
-
-        data = {}
-        if self.workspace_id:
-            data["workspace"] = self.workspace_id
-        if self.document_type_jd:
-            data["documentType"] = self.document_type_jd
-
-        # Step 1: Upload the job description to the standard endpoint using the correct documentType
-        with open(file_path, "rb") as f:
-            files = {"file": (file_path.name, f, "application/octet-stream")}
-            response = requests.post(AFFINDA_API_URL, headers=headers, files=files, data=data)
-
-        if response.status_code not in (200, 201):
-            raise Exception(f"Affinda Job Description Upload Failed ({response.status_code}): {response.text}")
-
-        document_data = response.json()
-        import json
-        with open("ai-generated-cvs/affinda_jd_debug_response.json", "w") as f:
-            json.dump(document_data, f, indent=2)
-            
-        identifier = document_data.get("identifier") or document_data.get("meta", {}).get("identifier")
-        if not identifier:
-            raise Exception("No document identifier returned from Affinda JD upload.")
-
-        # Step 2: Poll for completion using the standard endpoint
-        meta_obj = document_data.get("meta", {})
-        is_ready = document_data.get("ready") or meta_obj.get("ready")
-        is_failed = document_data.get("failed") or meta_obj.get("failed")
-        status = document_data.get("status") or meta_obj.get("status")
-        
-        completed = (status == "completed") or (is_ready is True)
-        max_attempts = 20
-        attempt = 0
-
-        while not completed and not is_failed and attempt < max_attempts:
-            attempt += 1
-            logger.info(f"⏳ Processing JD: ready={is_ready}, status='{status}'. Polling in 10 seconds (Attempt {attempt}/{max_attempts})...")
-            time.sleep(10)
-            
-            poll_url = f"{AFFINDA_API_URL}/{identifier}?compact=true"
-            poll_resp = requests.get(poll_url, headers=headers)
-            if poll_resp.status_code == 200:
-                document_data = poll_resp.json()
-                meta_obj = document_data.get("meta", {})
-                is_ready = document_data.get("ready") or meta_obj.get("ready")
-                is_failed = document_data.get("failed") or meta_obj.get("failed")
-                status = document_data.get("status") or meta_obj.get("status")
-                completed = (status == "completed") or (is_ready is True)
-            else:
-                logger.warning(f"Failed to poll Affinda JD: {poll_resp.status_code}. Retrying...")
-
-        if is_failed:
-            raise Exception("Affinda JD report generation failed on the server.")
-
-        if not completed:
-            raise TimeoutError("Affinda JD parsing timed out before completion.")
-
-        logger.info("✨ Affinda Job Description parsing completed successfully!")
-        return document_data
+        return self._upload_and_poll_document(file_path, self.document_type_jd, "affinda_jd_debug_response.json", is_jd=True)
 
     def get_native_match(self, resume_id: str, jd_id: str) -> Dict[str, Any]:
         """Fetch the native resume-to-job matching score and breakdown from Affinda."""
@@ -205,15 +169,15 @@ class AffindaParserClient:
         match_url = "https://api.eu1.affinda.com/v3/resume_search/match"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json"
+            "Accept": APPLICATION_JSON
         }
         params = {
             "resume": resume_id,
             "job_description": jd_id,
-            "skills_weight": 1.0,
-            "years_experience_weight": 1.0,
-            "job_titles_weight": 1.0,
-            "management_level_weight": 1.0
+            "skills_weight": "1.0",
+            "years_experience_weight": "1.0",
+            "job_titles_weight": "1.0",
+            "management_level_weight": "1.0"
         }
 
         response = requests.get(match_url, headers=headers, params=params)
@@ -233,13 +197,13 @@ class AffindaParserClient:
         url = f"https://api.eu1.affinda.com/v3/index/{index_name}/documents"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Content-Type": APPLICATION_JSON,
+            "Accept": APPLICATION_JSON
         }
         payload = {
             "document": resume_id
         }
-        
+
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code not in (200, 201):
             logger.warning(f"⚠️ Indexing document failed ({response.status_code}): {response.text}")
@@ -256,12 +220,12 @@ class AffindaParserClient:
                     response = requests.post(url, headers=headers, json=payload)
                 else:
                     logger.error(f"❌ Failed to create index '{index_name}': {create_resp.text}")
-        
+
         if response.status_code in (200, 201):
             logger.info(f"✅ Successfully indexed resume {resume_id} in '{index_name}'!")
             return response.json()
         else:
-            raise Exception(f"Failed to add resume to search index: {response.text}")
+            raise AffindaError(f"Failed to add resume to search index: {response.text}")
 
     def _get_mock_parse_response(self, file_path: Path) -> Dict[str, Any]:
         """Provides a realistic mocked Affinda parsed response for testing and offline modes."""

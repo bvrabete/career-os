@@ -227,7 +227,6 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         skills_text=skills_text
     )
 
-    import json as _json_hack  # Re-import just in case JSON is needed in helpers
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
     return {"draft_cv": llm_text(response.content)}
 
@@ -310,7 +309,6 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
         if blocks:
             json_str = blocks[0].strip()
 
-    import json
     try:
         audit_data = json.loads(json_str)
         is_pass = audit_data.get("pass", False)

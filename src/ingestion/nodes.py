@@ -157,8 +157,11 @@ def _resolve_key_and_log(
     for item in items:
         if isinstance(item, str):
             raw_name = item
+        elif isinstance(item, dict) and key_or_none:
+            val = item.get(key_or_none)
+            raw_name = str(val) if val is not None else ""
         else:
-            raw_name = item.get(key_or_none or "") if key_or_none else ""
+            raw_name = ""
         if raw_name:
             slug = resolve_org(raw_name, mappings)
             resolved[raw_name] = slug

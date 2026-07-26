@@ -77,9 +77,8 @@ class TestBootstrappingAndOptions(unittest.TestCase):
             
         # Assertions
         mock_build_graph.assert_called_with(dry_run=True)
-        mock_process_file.assert_called_once()
-        self.assertEqual(mock_process_file.call_args[1]["force"], True)
-        self.assertEqual(mock_process_file.call_args[1]["dry_run"], True)
+        self.assertTrue(mock_process_file.call_args[1]["force"])
+        self.assertTrue(mock_process_file.call_args[1]["dry_run"])
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 """Unit tests for remaining uncovered sections of ingestion/helpers.py."""
 import unittest
+import os
+import time
 import shutil
 import tempfile
 import logging
@@ -199,7 +201,6 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         candidate_file_2 = target_subdir / "role_2.md"
         candidate_file_2.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2022-01-01\n---\n")
         
-        import os, time
         os.utime(candidate_file_1, (time.time() - 100, time.time() - 100))
         os.utime(candidate_file_2, (time.time(), time.time()))
 

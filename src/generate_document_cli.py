@@ -6,6 +6,7 @@ Allows converting compiled CV Markdown files into styled PDF or Word (.docx) doc
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -44,7 +45,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    import os
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 

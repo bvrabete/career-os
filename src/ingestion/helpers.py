@@ -1,8 +1,10 @@
 """Pure Python helpers and utilities for the Ingestion Pipeline."""
 import json
 import logging
+import os
 import re
 import shutil
+import tempfile
 import yaml
 from pathlib import Path
 from typing import Any
@@ -214,11 +216,6 @@ def bootstrap_wiki_structure(wiki_dir: Path) -> None:
 
 def get_safe_mappings_path() -> Path:
     """Securely resolve mappings.md, validating against path traversal and satisfying SonarQube taint analysis."""
-    import os
-    import re
-    import tempfile
-    from pathlib import Path
-
     raw_path = get_mappings_path().resolve()
 
     # Identify the matching trusted parent directory to support various environments and unit testing
@@ -372,7 +369,6 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
 
 def get_persona_slug(profile_name: str) -> str:
     """Robustly find or generate the canonical persona slug, and ensure mappings.md is seeded."""
-    import os
     # Sanitize inputs with basename to prevent path traversal/injection taint from propagating
     profile_name = os.path.basename(profile_name).strip()
 

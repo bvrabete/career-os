@@ -90,7 +90,7 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
 
 ## Code Standards (src/)
 
-- **Style**: PEP 8, 120 char limit. Imports: stdlib → third-party → local.
+- **Style**: PEP 8 is a strict, mandatory requirement. 120 char limit. Imports must always reside at the top of the file; inline imports (importing inside functions or methods) are strictly forbidden. Import ordering: stdlib → third-party → local.
 - **Typing**: Pylance strict mode. Full annotations on all parameters and return types (comprehensive type checking). Use generic type aliases and standard collection types (e.g., `list[str]`, `dict[str, Any]`, `str | None`).
 - **File Length & Structure Limits**:
   - No single Python source file should exceed **500 lines** to maintain readability and ease of maintenance.
@@ -128,7 +128,7 @@ Each pipeline step's LLM can be independently set in `config.yaml`.
 - **Strict Pre-Finalization Verification Mandate (Definition of Done)**:
   Before declaring any task, modification, or bug fix complete and asking for final user approval, the agent **MUST** run and pass the following checklist:
   1. **Automated Unit Tests**: Execute `uv run pytest` to ensure all existing and new tests pass with 100% success.
-  2. **Strict Type Compliance (Pylance/Pyright)**: Ensure all functions have full parameter and return type annotations. No untyped parameters (`Any` is allowed only when explicitly necessary and annotated, otherwise use descriptive generic type bounds).
+  2. **Strict Type Compliance (Pylance/Pyright)**: Ensure all functions have full parameter and return type annotations. Proactively run `uv run pyright` on all modified files to ensure zero static type-checking errors (no untyped parameters, unbound variables, or type mismatches).
   3. **SonarQube Quality Scan**: Proactively run a SonarQube code analysis (using the `sonar-analyze` skill or MCP tools) targeting the modified files. There must be:
      - Zero new blocker or critical bugs.
      - Zero security hotspots.

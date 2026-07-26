@@ -1,8 +1,11 @@
+from typing import Any
+
 import yaml
 import os
 import logging
 import warnings
 from pathlib import Path
+from typing import Any
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_core.globals import set_llm_cache
@@ -70,10 +73,10 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
 
     model_type = step_config.get("TYPE", "ollama")
     
+    kwargs: dict[str, Any] = {}
     if model_type == "openai":
         # Check step-specific MODEL_NAME first, fallback to global mapping
         model_name = step_config.get("MODEL_NAME", models_map.get("openai", "gpt-4o"))
-        kwargs = {}
         if format == "json":
             kwargs["response_format"] = {"type": "json_object"}
         # OpenAI reasoning models (e.g., o1, o3-mini) do not support setting a temperature parameter
@@ -115,7 +118,7 @@ def _create_openai_fallback(model_name: str, step_name: str, temperature: float,
     if not os.getenv("OPENAI_API_KEY"):
         logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
         return None
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if format == "json":
         kwargs["response_format"] = {"type": "json_object"}
     return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
@@ -135,7 +138,7 @@ def _create_gemini_fallback(model_name: str, step_name: str, temperature: float)
     return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 
 def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, format: str | None):
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if format:
         kwargs["format"] = format
     return ChatOllama(
@@ -184,9 +187,11 @@ if __name__ == "__main__":
     # Test loading
     try:
         model = get_model_for_step("REFINEMENT")
-        print(f"Successfully loaded REFINEMENT model: {model.model_name if hasattr(model, 'model_name') else model.model}")
+        m_name = getattr(model, "model_name", getattr(model, "model", "unknown"))
+        print(f"Successfully loaded REFINEMENT model: {m_name}")
         
         ex_model = get_model_for_step("EXTRACTION")
-        print(f"Successfully loaded EXTRACTION model: {ex_model.model_name if hasattr(ex_model, 'model_name') else ex_model.model}")
+        ex_name = getattr(ex_model, "model_name", getattr(ex_model, "model", "unknown"))
+        print(f"Successfully loaded EXTRACTION model: {ex_name}")
     except Exception as e:
         print(f"Error loading models: {e}")
