@@ -320,7 +320,11 @@ def get_persona_slug_from_mappings() -> str | None:
 
 def add_persona_mapping_if_missing(name: str, slug: str) -> None:
     """Automatically append a new Persona Mapping to mappings.md if not already present."""
-    mappings_path = validate_path(get_safe_mappings_path())
+    # Sanitize parameter variables to prevent any directory traversal characters
+    name = os.path.basename(name).strip()
+    slug = os.path.basename(slug).strip()
+
+    mappings_path = get_safe_mappings_path()
 
     if not mappings_path.exists():
         return
@@ -362,7 +366,11 @@ def add_persona_mapping_if_missing(name: str, slug: str) -> None:
         new_lines.append(f"  - Aliases: `{name}`")
         new_lines.append("")
 
-    mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    safe_mappings_path = validate_path(mappings_path)
+    if safe_mappings_path.name != MAPPINGS_FILE_NAME:
+        raise ValueError(INVALID_MAPPINGS_ERROR)
+
+    safe_mappings_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     logging.info(
         f"Added new persona mapping to mappings.md: [[{slug}]] -> {name}")
 

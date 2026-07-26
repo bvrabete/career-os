@@ -5,7 +5,10 @@ from generation.helpers import (
     robust_json_loads,
     score_by_keywords,
     generate_skill_bridging_map,
-    _extract_json_block
+    _extract_json_block,
+    load_prompt,
+    _prune_recent_frontmatter,
+    compress_experience_llm
 )
 
 
@@ -53,6 +56,43 @@ class TestGenerationHelpersCoverage(unittest.TestCase):
         mock_llm = MagicMock()
         res = generate_skill_bridging_map(mock_llm, ["python"], ["python"])
         self.assertEqual(res, {})
+
+    def test_load_prompt_missing(self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            load_prompt("totally_missing_prompt_template_file.txt")
+
+    @patch("generation.helpers.load_prompt")
+    def test_load_prompt_success(self, mock_load: MagicMock) -> None:
+        # verify load_prompt maps path correctly and reads contents
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.read_text", return_value="some template text"):
+                self.assertEqual(load_prompt("dummy.txt"), "some template text")
+
+    def test_prune_recent_frontmatter_date_healing(self) -> None:
+        # Test start/end top level fields mapped to dates dict
+        fm = {"start": "2020-01", "end": "2022-12", "role": "Engineer"}
+        yaml_str = _prune_recent_frontmatter(fm)
+        self.assertIn("start: 2020-01", yaml_str)
+        self.assertIn("end: 2022-12", yaml_str)
+
+    @patch("generation.helpers.get_model_for_step")
+    @patch("generation.helpers.load_prompt")
+    def test_compress_experience_llm_success(self, mock_load: MagicMock, mock_model: MagicMock) -> None:
+        mock_load.return_value = "System template {CONTENT}"
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(content="Compressed sentence")
+        mock_model.return_value = mock_llm
+
+        res = compress_experience_llm("Original heavy content")
+        self.assertEqual(res, "Compressed sentence")
+
+    @patch("generation.helpers.get_model_for_step")
+    def test_compress_experience_llm_failure(self, mock_model: MagicMock) -> None:
+        # Let it raise an exception
+        mock_model.side_effect = Exception("No RETRIEVAL model")
+        res = compress_experience_llm("Original heavy content")
+        # Should fallback to returning original content
+        self.assertEqual(res, "Original heavy content")
 
 
 if __name__ == "__main__":
