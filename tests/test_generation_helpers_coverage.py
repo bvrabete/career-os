@@ -10,7 +10,7 @@ from generation.helpers import (
     _prune_recent_frontmatter,
     compress_experience_llm
 )
-from utils import sanitize_slug, sanitize_entity_name
+from utils import sanitize_slug, sanitize_entity_name, safe_read_text, safe_write_text
 
 
 class TestGenerationHelpersCoverage(unittest.TestCase):
@@ -104,6 +104,18 @@ class TestGenerationHelpersCoverage(unittest.TestCase):
         # Since parens are removed, " (" and ")" become empty space, which strip/collapsing handles
         self.assertEqual(sanitize_entity_name("Google LLC (Corp)"), "Google LLC Corp")
         self.assertEqual(sanitize_entity_name("malicious/path../inject"), "maliciouspath..inject")
+
+    def test_safe_read_write_text(self) -> None:
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory(dir=str(Path.cwd())) as tmp_dir:
+            file_path = Path(tmp_dir) / "test_file.txt"
+            safe_write_text(file_path, "Secure content")
+            self.assertEqual(safe_read_text(file_path), "Secure content")
+
+        # Test invalid paths trigger ValueError
+        with self.assertRaises(ValueError):
+            safe_read_text("malicious_dir_traversal?\\path")
 
 
 if __name__ == "__main__":
