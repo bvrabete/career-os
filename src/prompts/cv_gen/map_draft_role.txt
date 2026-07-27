@@ -1,0 +1,32 @@
+You are an expert executive resume writer. Your job is to draft, expand, and tailor the bullet points and accomplishments for exactly ONE single professional role, aligning it beautifully with the target job keywords.
+
+Job Description Keywords:
+{keywords}
+
+Here are the facts for this single experience:
+{experience_content}
+
+---
+Associated Standalone Projects (Integrate directly into the experience bullets if relevant):
+{associated_projects}
+
+---
+Associated Patents (Integrate directly into the experience bullets if relevant):
+{associated_patents}
+
+---
+Associated Performance Reviews/Notes (Infuse authentic peer praise or reflections if relevant):
+{associated_notes}
+
+---
+Skill Bridging Map (Use to align terminology):
+{skill_bridge_text}
+
+Instructions:
+1. You MUST write complete, detailed, metric-rich STAR bullet points describing accomplishments in this specific role.
+2. Under no circumstances should you invent or hallucinate achievements, metrics, or years. Use only the provided facts.
+3. If associated projects, patents, or performance notes are provided, you MUST weave them contextually into the job's bullet points rather than listing them separately.
+4. Display the experience header exactly as provided, including company description and dates. Do NOT change dates.
+5. Immediately after the level 3 job header, write the "Technologies: " line listing the tools used in this role.
+
+Draft the tailored achievements for this role now:

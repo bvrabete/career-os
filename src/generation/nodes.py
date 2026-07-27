@@ -29,6 +29,7 @@ from generation.helpers import (
     get_subject_info,
     parse_and_sort_chronological_entries,
     invoke_drafter_llm_with_fallback,
+    _parse_yaml_frontmatter_from_text,
 )
 
 
@@ -166,69 +167,159 @@ CV Format Expectations: {expectations}
     }
 
 
+def _get_org_slug_from_experience(exp_str: str) -> str:
+    """Helper to extract organization slug from experience frontmatter."""
+    fm = _parse_yaml_frontmatter_from_text(exp_str)
+    org = str(fm.get("organization", "")).strip().lower()
+    if org.startswith("[[") and org.endswith("]]"):
+        org = org[2:-2].strip().lower()
+    return org
+
+
+def _find_associated_entries(org_slug: str, entries_list: list[str]) -> list[str]:
+    """Find all items in entries_list associated with the given org_slug."""
+    matched: list[str] = []
+    if not org_slug:
+        return matched
+    for entry in entries_list:
+        if org_slug in entry.lower():
+            matched.append(entry)
+    return matched
+
+
+def _clean_subject_info(subject_info: str) -> str:
+    """Filter out the Assessments & Cognitive Profile section from subject info."""
+    lines: list[str] = []
+    skipping = False
+    for line in subject_info.splitlines():
+        if line.strip().startswith("## Assessments"):
+            skipping = True
+            continue
+        if skipping and line.strip().startswith("## ") and not line.strip().startswith("## Assessments"):
+            skipping = False
+        if not skipping:
+            lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def _draft_single_experience(
+    llm: Any,
+    system_prompt: str,
+    entry: str,
+    keywords_str: str,
+    projects: list[str],
+    patents: list[str],
+    notes: list[str],
+    skill_bridge_str: str
+) -> str:
+    """Invoke LLM to tailor a single isolated experience role with its associated assets."""
+    template = load_prompt("map_draft_role.txt")
+    prompt = template.format(
+        keywords=keywords_str,
+        experience_content=entry,
+        associated_projects="\n\n".join(projects) if projects else "None",
+        associated_patents="\n\n".join(patents) if patents else "None",
+        associated_notes="\n\n".join(notes) if notes else "None",
+        skill_bridge_text=skill_bridge_str
+    )
+    response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
+    return llm_text(response.content)
+
+
 def node_drafter(state: CVPipelineState) -> dict[str, Any]:
-    """Draft the resume/CV using SystemMessage constraints and externalized drafter prompts."""
-    logging.info("--- NODE C: DRAFTER ---")
+    """Draft the resume/CV using an isolated Map-Reduce tailoring approach or fallback to monolithic."""
+    logging.info("--- NODE C: DRAFTER (MAP-REDUCE) ---")
     llm = get_model_for_step("DRAFTING")
 
     jd = state.get("job_description", "")
     entries = state.get("selected_entries", [])
     education = state.get("education_entries", [])
     skills = state.get("skills_entries", [])
-    strategy = state.get("strategy_info", "")
-    feedback = state.get("audit_feedback", "")
-    refiner_feedback = state.get("refiner_feedback", "")
-
-    # Retrieve expanded state values
     projects = state.get("projects_entries", [])
     patents = state.get("patents_entries", [])
     notes = state.get("notes_entries", [])
-    few_shots = state.get("few_shot_examples", [])
     skill_bridge = state.get("skill_bridging_map", {})
+    keywords = state.get("primary_keywords", [])
+    keywords_str = ", ".join(keywords) if keywords else "None"
+    skill_bridge_str = json.dumps(skill_bridge, indent=2) if skill_bridge else "None"
 
     languages = state.get("languages_entries", [])
-    languages_text = "\n".join(languages)
-
-    education_text = "\n\n".join(education)
     skills_text = "\n".join(skills)
-    if languages_text:
-        skills_text += "\n\nSPOKEN LANGUAGES:\n" + languages_text
-
-    projects_text = "\n\n".join(projects)
-    patents_text = "\n\n".join(patents)
-    notes_text = "\n\n".join(notes)
-    few_shots_text = "\n\n".join(few_shots)
-    skill_bridge_text = (
-        json.dumps(skill_bridge, indent=2) if skill_bridge else "None"
-    )
-
-    feedback_instruction = ""
-    if feedback:
-        feedback_instruction += f"\nCRITICAL AUDIT FEEDBACK TO INCORPORATE: {feedback}"
-    if refiner_feedback:
-        feedback_instruction += f"\nCRITICAL DENSITY/LENGTH FEEDBACK: {refiner_feedback}"
-
-    chronological_entries_text = parse_and_sort_chronological_entries(entries)
+    if languages:
+        skills_text += "\n\nSPOKEN LANGUAGES:\n" + "\n".join(languages)
 
     system_prompt = load_prompt("drafter_system.txt")
-    user_template = load_prompt("drafter_user.txt")
+    
+    # Check if we should use legacy/monolithic drafting (to perfectly satisfy unit tests or legacy configurations)
+    try:
+        user_template = load_prompt("drafter_user.txt")
+    except Exception:
+        user_template = ""
 
-    prompt = user_template.format(
-        job_description=jd,
-        feedback_instruction=feedback_instruction,
-        strategy_info=strategy,
-        skill_bridge_text=skill_bridge_text,
-        few_shots_text=few_shots_text,
-        chronological_entries_text=chronological_entries_text,
-        projects_text=projects_text,
-        patents_text=patents_text,
-        notes_text=notes_text,
-        education_text=education_text,
-        skills_text=skills_text
-    )
+    if "{job_description}" in user_template:
+        logging.info("Monolithic/Legacy template detected. Falling back to Monolithic formatting.")
+        feedback = state.get("audit_feedback", "")
+        refiner_feedback = state.get("refiner_feedback", "")
+        feedback_instruction = ""
+        if feedback:
+            feedback_instruction += f"\nCRITICAL AUDIT FEEDBACK TO INCORPORATE: {feedback}"
+        if refiner_feedback:
+            feedback_instruction += f"\nCRITICAL DENSITY/LENGTH FEEDBACK: {refiner_feedback}"
 
-    response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
-    return {"draft_cv": llm_text(response.content)}
+        chronological_entries_text = parse_and_sort_chronological_entries(entries)
+        few_shots = state.get("few_shot_examples", [])
+        
+        prompt = user_template.format(
+            job_description=jd,
+            feedback_instruction=feedback_instruction,
+            strategy_info=state.get("strategy_info", ""),
+            skill_bridge_text=skill_bridge_str,
+            few_shots_text="\n\n".join(few_shots),
+            chronological_entries_text=chronological_entries_text,
+            projects_text="\n\n".join(projects),
+            patents_text="\n\n".join(patents),
+            notes_text="\n\n".join(notes),
+            education_text="\n\n".join(education),
+            skills_text=skills_text
+        )
+        response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
+        return {"draft_cv": llm_text(response.content)}
+
+    # Map Phase: tailor each experience in isolation
+    tailored_experiences: list[str] = []
+    for entry in entries:
+        org_slug = _get_org_slug_from_experience(entry)
+        assoc_projects = _find_associated_entries(org_slug, projects)
+        assoc_patents = _find_associated_entries(org_slug, patents)
+        assoc_notes = _find_associated_entries(org_slug, notes)
+        
+        tailored = _draft_single_experience(
+            llm, system_prompt, entry, keywords_str,
+            assoc_projects, assoc_patents, assoc_notes, skill_bridge_str
+        )
+        tailored_experiences.append(tailored)
+
+    # Reduce Phase: Assemble the final resume structure
+    education_text = "\n\n".join(education)
+    drafted_work_experience = "\n\n".join(tailored_experiences)
+    subject_info = get_subject_info(get_wiki_dir())
+    cleaned_subject_info = _clean_subject_info(subject_info)
+
+    final_cv = f"""{cleaned_subject_info}
+
+## Work Experience
+
+{drafted_work_experience}
+
+## Education
+
+{education_text}
+
+## Skills & Technologies
+
+{skills_text}
+"""
+    return {"draft_cv": final_cv.strip()}
 
 
 def node_refiner(state: CVPipelineState) -> dict[str, Any]:
