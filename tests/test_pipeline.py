@@ -212,7 +212,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         }
 
         result = node_drafter(state)
-        self.assertEqual(result["draft_cv"], "Gemini-drafted CV content")
+        self.assertIn("Gemini-drafted CV content", result["draft_cv"])
         mock_get_fallback.assert_called_once_with("DRAFTING")
 
     @patch("generation.nodes.get_model_for_step")

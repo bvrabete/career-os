@@ -210,7 +210,8 @@ def _draft_single_experience(
     projects: list[str],
     patents: list[str],
     notes: list[str],
-    skill_bridge_str: str
+    skill_bridge_str: str,
+    feedback_instruction: str = ""
 ) -> str:
     """Invoke LLM to tailor a single isolated experience role with its associated assets."""
     template = load_prompt("map_draft_role.txt")
@@ -222,6 +223,8 @@ def _draft_single_experience(
         associated_notes="\n\n".join(notes) if notes else "None",
         skill_bridge_text=skill_bridge_str
     )
+    if feedback_instruction:
+        prompt += f"\n\n--- CRITICAL RE-DRAFT/DENSITY CORRECTION FEEDBACK:\n{feedback_instruction}\nPlease modify the bullet points to satisfy these guidelines (e.g. compress or edit structure as requested)."
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
     return llm_text(response.content)
 
@@ -285,6 +288,15 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
         return {"draft_cv": llm_text(response.content)}
 
+    # Construct feedback instructions if we are in a re-draft loop
+    feedback = state.get("audit_feedback", "")
+    refiner_feedback = state.get("refiner_feedback", "")
+    feedback_instruction = ""
+    if feedback and feedback != "PASS":
+        feedback_instruction += f"\nCRITICAL AUDIT FEEDBACK TO INCORPORATE: {feedback}"
+    if refiner_feedback:
+        feedback_instruction += f"\nCRITICAL DENSITY/LENGTH FEEDBACK: {refiner_feedback}"
+
     # Map Phase: tailor each experience in isolation
     tailored_experiences: list[str] = []
     for entry in entries:
@@ -295,7 +307,8 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         
         tailored = _draft_single_experience(
             llm, system_prompt, entry, keywords_str,
-            assoc_projects, assoc_patents, assoc_notes, skill_bridge_str
+            assoc_projects, assoc_patents, assoc_notes, skill_bridge_str,
+            feedback_instruction=feedback_instruction
         )
         tailored_experiences.append(tailored)
 

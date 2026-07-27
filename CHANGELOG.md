@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-27
+
+### Added
+- **Experience-by-Experience Map-Reduce Tailoring**: Engineered a modular Map-Reduce pipeline (`node_drafter` in `src/generation/nodes.py`) that isolates each professional experience entry. The **Map Phase** extracts organization slugs, matches associated projects, patents, and performance notes, and processes each experience in complete isolation to dramatically reduce LLM context overhead and prevent attention dilution. The **Reduce Phase** assembles the final tailored experience blocks and compiles them into a unified resume format, appending education, skills, and spoken languages.
+- **Dedicated Mapping Prompt Templates**: Introduced `src/prompts/cv_gen/map_draft_role.txt` for single-experience tailoring, separating granular prompt instructions from the python logic.
+
 ## [1.5.0] - 2026-07-26
 
 ### Added

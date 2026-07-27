@@ -77,6 +77,13 @@ def save_outputs(
         with open(context_path, "w", encoding="utf-8") as f:
             json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
         print(f"📦 Context State saved to {context_path}")
+
+        # Always save to synthesis-archive in LLM-Wiki for application CRM tracking
+        synthesis_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(synthesis_path, "w", encoding="utf-8") as f:
+            f.write(synthesis_content)
+        print(f"✨ Synthesis archive auto-saved to Wiki: {synthesis_path}")
+
         return out_path
 
     # Also automatically save to synthesis-archive in LLM-Wiki
