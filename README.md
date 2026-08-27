@@ -117,7 +117,6 @@ To ensure a perfectly structured, compact, and compliant CV, the generation pipe
 ## 🚀 Quick Start
 
 ### 1. Installation
-
 CareerOS uses `uv` for dependency management. The lock file is pre-resolved for all major platforms (Intel Mac, Apple Silicon, Linux x86_64, Windows), so no extra steps are needed.
 
 ```bash
