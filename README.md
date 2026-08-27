@@ -115,13 +115,22 @@ To ensure a perfectly structured, compact, and compliant CV, the generation pipe
 ## 🚀 Quick Start
 
 ### 1. Installation
-CareerOS uses `uv` for dependency management.
+CareerOS uses `uv` for dependency management. The lock file is pre-resolved for all major platforms (Intel Mac, Apple Silicon, Linux x86_64, Windows), so no extra steps are needed.
 
 ```bash
 git clone https://github.com/bvrabete/career-os
 cd career-os
+
+# Core install — covers cv-gen, doc-gen, ats-audit, kb-cleanup
 uv sync
+
+# Add the ingest group only if you plan to run kb-ingest
+# (includes docling, pypdf — not needed on macOS 12 / Intel Mac due to build constraints)
+uv sync --group ingest
 ```
+
+> [!NOTE]
+> `kb-ingest` depends on `docling`, which requires a native build step that is incompatible with macOS 12 (Monterey) on Intel hardware. All other tools (`cv-gen`, `doc-gen`, `ats-audit`, `kb-cleanup`) work fully on Intel Mac via `uv sync` alone.
 
 ### 2. Configuration
 Copy the example environment file and add your API keys.
