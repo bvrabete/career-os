@@ -23,6 +23,10 @@
         "venv",
         "Xoft"
     ],
+    "cSpell.ignorePaths": [
+        "**/.gemini/**",
+        "~/.gemini/**"
+    ],
     "sonarlint.connectedMode.project": {
         "connectionId": "bvrabete",
         "projectKey": "bvrabete_career-os"
@@ -30,8 +34,5 @@
     "python.analysis.ignore": [
         "**/tests/**"
     ],
-    "cSpell.ignorePaths": [
-        "**/.gemini/**",
-        "~/.gemini/**"
-    ]
+    "python.terminal.useEnvFile": true
 }

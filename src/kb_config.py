@@ -35,6 +35,12 @@ def get_wiki_dir() -> Path:
     return Path("llm-wiki")
 
 def load_config():
+    env_config = os.getenv("CONFIG_FILE")
+    if env_config:
+        config_p = Path(env_config)
+        if config_p.exists():
+            with open(config_p, 'r') as f:
+                return yaml.safe_load(f)
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, 'r') as f:
             return yaml.safe_load(f)

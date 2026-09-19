@@ -65,7 +65,7 @@ def _bootstrap_subdirs(wiki_root: Path) -> None:
 
 def _bootstrap_templates_and_schema(wiki_dir: Path, wiki_root: Path) -> None:
     """Bootstrap schemas, mappings, and log file."""
-    repo_llm_wiki = Path(__file__).resolve().parent.parent.parent / "llm-wiki"
+    repo_llm_wiki = Path(__file__).resolve().parent.parent.parent / "llm-wiki.template"
 
     # 1. Schema
     target_schema = wiki_dir / SCHEMA_MD

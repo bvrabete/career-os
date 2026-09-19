@@ -4,9 +4,9 @@ CareerOS is an AI-powered engine designed to generate high-fidelity, ATS-optimiz
 
 ## The Core Value Proposition
 
-1.  **Agentic Synthesis**: A multi-node pipeline that simulates a master executive writer and a brutally honest recruiter to tailor your experience to any job description.
-2.  **Semantic Truth**: Every generated line is grounded in a canonical Knowledge Graph, ensuring 100% factual accuracy with zero hallucination.
-3.  **Regional Intelligence**: Dynamic strategies that automatically adjust tone, section order, and formatting for target markets (e.g., EU, USA, UK).
+1. **Agentic Synthesis**: A multi-node pipeline that simulates a master executive writer and a brutally honest recruiter to tailor your experience to any job description.
+2. **Semantic Truth**: Every generated line is grounded in a canonical Knowledge Graph, ensuring 100% factual accuracy with zero hallucination.
+3. **Regional Intelligence**: Dynamic strategies that automatically adjust tone, section order, and formatting for target markets (e.g., EU, USA, UK).
 
 ## System Architecture
 
@@ -91,30 +91,33 @@ graph TD
 ## Ingestion Pipeline Key Features
 
 To maintain structural integrity and high ingestion speeds, `kb-ingest` employs:
-*   **Dual PDF Parsing Strategy**: Digital PDFs are parsed using `pypdf`, preserving exact horizontal alignment of dates and text while reducing processing time by 100x. Scanned PDFs fallback dynamically to OCR via `docling`.
-*   **Insensitive Entity Matching**: The mapping engine normalizes and slugifies both source organization names and aliases in `mappings.md` to avoid duplicate file creation due to formatting mismatches.
-*   **Date-Bound Merging**: Unrelated roles at the same company (based on start date discrepancy) are correctly saved into separate time-bound files rather than being merged.
-*   **Self-Healing YAML Validator**: Auto-cleans inline comments or annotations appended to YAML frontmatter fields by LLMs, ensuring strict parse compliance.
+
+* **Dual PDF Parsing Strategy**: Digital PDFs are parsed using `pypdf`, preserving exact horizontal alignment of dates and text while reducing processing time by 100x. Scanned PDFs fallback dynamically to OCR via `docling`.
+* **Insensitive Entity Matching**: The mapping engine normalizes and slugifies both source organization names and aliases in `mappings.md` to avoid duplicate file creation due to formatting mismatches.
+* **Date-Bound Merging**: Unrelated roles at the same company (based on start date discrepancy) are correctly saved into separate time-bound files rather than being merged.
+* **Self-Healing YAML Validator**: Auto-cleans inline comments or annotations appended to YAML frontmatter fields by LLMs, ensuring strict parse compliance.
 
 ---
 
 ## Generation Pipeline Key Features
 
 To ensure a perfectly structured, compact, and compliant CV, the generation pipeline utilizes:
-*   **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
-*   **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
-*   **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
-*   **Multi-Factor Experience Weighting (4-Tier Routing Engine)**: Evaluates each role based on *ATS Score Relevance* (50%), *Recency Decay* over 15 years (30%), and *Duration Factor* up to 3 years (20%). It dynamically routes roles to four distinct compression tiers:
-    *   *Tier 1 (High Weight & Recent)*: Full detail with custom pruning.
-    *   *Tier 2 (Medium-High Weight)*: Light compression keeping up to 4 key achievements.
-    *   *Tier 3 (Medium Weight)*: Aggressive LLM summary collapsed into a short paragraph.
-    *   *Tier 4 (Historic / Low Weight)*: Ultra-historic (15+ years) or low-relevance roles are pre-compressed into exactly one highly optimized, keyword-rich ATS-aligned sentence, guaranteeing zero chronological gaps or omissions while saving massive page budget.
+
+* **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
+* **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
+* **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
+* **Multi-Factor Experience Weighting (4-Tier Routing Engine)**: Evaluates each role based on *ATS Score Relevance* (50%), *Recency Decay* over 15 years (30%), and *Duration Factor* up to 3 years (20%). It dynamically routes roles to four distinct compression tiers:
+  * *Tier 1 (High Weight & Recent)*: Full detail with custom pruning.
+  * *Tier 2 (Medium-High Weight)*: Light compression keeping up to 4 key achievements.
+  * *Tier 3 (Medium Weight)*: Aggressive LLM summary collapsed into a short paragraph.
+  * *Tier 4 (Historic / Low Weight)*: Ultra-historic (15+ years) or low-relevance roles are pre-compressed into exactly one highly optimized, keyword-rich ATS-aligned sentence, guaranteeing zero chronological gaps or omissions while saving massive page budget.
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Installation
+
 CareerOS uses `uv` for dependency management. The lock file is pre-resolved for all major platforms (Intel Mac, Apple Silicon, Linux x86_64, Windows), so no extra steps are needed.
 
 ```bash
@@ -133,21 +136,24 @@ uv sync --group ingest
 > `kb-ingest` depends on `docling`, which requires a native build step that is incompatible with macOS 12 (Monterey) on Intel hardware. All other tools (`cv-gen`, `doc-gen`, `ats-audit`, `kb-cleanup`) work fully on Intel Mac via `uv sync` alone.
 
 ### 2. Configuration
+
 Copy the example environment file and add your API keys.
 
 ```bash
 cp .env.example .env
 ```
+
 *Required: `OPENAI_API_KEY` for high-fidelity drafting. Local models (Ollama) can be used for supporting steps.*
 
 ### 3. Initialize & Bootstrap Your Knowledge Graph
-The Knowledge Graph (LLM-Wiki) is fully externalized. You can host it in any directory on your machine by setting the `LLM_WIKI_DIR` env variable or passing the `--wiki-dir` parameter. 
+
+The Knowledge Graph (LLM-Wiki) is fully externalized. You can host it in any directory on your machine by setting the `LLM_WIKI_DIR` env variable or passing the `--wiki-dir` parameter.
 
 When you run ingestion against an empty or missing directory, CareerOS automatically **bootstraps** the whole structure for you:
-- Creates all 14 standard wiki folders (`experiences`, `education`, `projects`, `skills`, `patents`, `notes`, etc.).
-- Seeds a clean, candidate-anonymous `schema.md` blueprint.
-- Seeds a clean `mappings.md` template for entity resolving and organization aliases.
-- Pre-seeds a customization folder at `<LLM_WIKI_DIR>/templates/` with your default CSS stylesheets.
+* Creates all 14 standard wiki folders (`experiences`, `education`, `projects`, `skills`, `patents`, `notes`, etc.).
+* Seeds a clean, candidate-anonymous `schema.md` blueprint.
+* Seeds a clean `mappings.md` template for entity resolving and organization aliases.
+* Pre-seeds a customization folder at `<LLM_WIKI_DIR>/templates/` with your default CSS stylesheets.
 
 ```bash
 # Ingest career history from raw files to your external wiki
@@ -155,9 +161,11 @@ uv run kb-ingest --dir /path/to/raw/sources/ --wiki-dir /path/to/my-external-wik
 ```
 
 ### 4. Generate a Tailored CV
+
 Point the generator at a Job Description text file and specify your external wiki.
 
 #### 🗂️ Zero-Config Default (Highly Recommended)
+
 By default, you do not need to specify an output file! If you omit the `--out` argument, CareerOS automatically saves the frontmatter-tracked, CRM-ready Markdown CV directly into your external wiki's synthesis folder (`<LLM_WIKI_DIR>/wiki/synthesis/synthesis-cv-{company}-{role}-{date}.md`), keeping your workspace clean and logging your application history:
 
 ```bash
@@ -167,20 +175,25 @@ uv run cv-gen --jd job-descriptions/target_jd.txt --wiki-dir /path/to/my-externa
 If you append `--generate-pdf` or `--generate-docx`, it will compile a clean PDF or Word (.docx) document alongside the Markdown file inside the same synthesis folder, while dynamically filtering out raw tracking frontmatter headers so your resume remains perfectly professional.
 
 #### 💾 Custom File Output
+
 If you want to write a clean Markdown CV to a specific file outside of your LLM-Wiki, pass the `--out` parameter:
 
 ```bash
 uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf --generate-docx
 ```
+
 *(When `--out` is specified, a backup duplicate copy is still archived under your wiki synthesis folder automatically for tracking, and a context JSON file is saved adjacent to the custom output for debugging).*
 
 ### 5. Advanced CLI Strategy, PDF & Word Compilation
+
 The generation pipeline supports direct override of region strategy selection, and automatic production-ready PDF or Word document compilation:
-*   `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
-*   `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
-*   `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
+
+* `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
+* `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
+* `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
 
 ### 6. Standalone Document Compiler (`doc-gen`)
+
 If you have already generated and customized a Markdown CV (`.md`) file, you can convert it directly to PDF or Microsoft Word (`.docx`) format at any time without re-running the heavy drafting LLMs.
 
 ```bash
@@ -192,6 +205,7 @@ uv run doc-gen --input ai-generated-cvs/my_cv.md --format pdf
 ```
 
 ### 7. Standalone ATS Parser Auditor (`ats-audit`)
+
 Run an independent, commercial-grade resume-parsing audit against your compiled resume using the real-world **Affinda API**. This tool uploads your document, programmatically indexes it in an isolated testing search database, extracts technical keywords, parses the chronological timeline, and requests a live native machine-learning match score against a target Job Description.
 
 > [!TIP]
@@ -217,11 +231,14 @@ CareerOS features a fully programmable model-routing architecture defined in `co
 To run local models, you must first install Ollama:
 
 1. **Download & Install**: Visit [Ollama's Official Website](https://ollama.com) or install directly on Linux/macOS via terminal:
+
    ```bash
    curl -fsSL https://ollama.com/install.sh | sh
    ```
+
 2. **Start the Server**: Ensure the Ollama server is running locally (by default it runs on `http://localhost:11434`).
 3. **Pull the Required Models**: Run the following commands to pull the exact models used in the active configuration:
+
    ```bash
    # General fast operations, scoring, and classification (8B parameters)
    ollama pull llama3.1:8b
@@ -236,7 +253,7 @@ To run local models, you must first install Ollama:
 
 We provide several predefined configurations tailored for different hardware setups:
 
-1. **`config.yaml` (Active Default / Low VRAM Local-First)**: 
+1. **`config.yaml` (Active Default / Low VRAM Local-First)**:
    Optimized specifically to run **100% on GPU under 6GB VRAM**. By using `llama3.1:8b` and `qwen2.5:7b`, it completely avoids slow CPU offloading, making local execution near-instantaneous. Heavy drafting is offloaded to OpenAI's `gpt-4o` (which handles >30k token contexts effortlessly).
 2. **`config.hybrid-openai.yaml` (Cloud-Assisted OpenAI Hybrid)**:
    A high-speed, high-precision layout pairing local Ollama models with OpenAI APIs (`gpt-4o` and `gpt-4o-mini`) for intensive parsing, drafting, and deduplication tasks.
@@ -264,6 +281,7 @@ uv run python tests/test_pipeline.py
 ### GitHub Actions CI Pipeline
 
 A GitHub Actions CI workflow is configured in `.github/workflows/test.yml`. It runs automatically on every `push` and `pull_request` to the `main` or `master` branches, performing the following steps:
+
 1. Checks out the repository.
 2. Installs `uv` using the official `astral-sh/setup-uv` action with dependency caching enabled.
 3. Sets up a Python 3.12 environment.
@@ -273,6 +291,7 @@ A GitHub Actions CI workflow is configured in `.github/workflows/test.yml`. It r
 ### 🚫 Preventing PR Merges on Test Failure
 
 To enforce high quality standards and prevent merging buggy code or unverified changes, configure branch protection rules in GitHub:
+
 1. Go to your repository on GitHub.
 2. Navigate to **Settings** -> **Branches**.
 3. Under **Branch protection rules**, click **Add branch protection rule** (or edit your existing rule for `main`/`master`).
@@ -290,6 +309,7 @@ Now, GitHub will block any Pull Request from merging unless all unit tests pass 
 CareerOS treats your professional history as a queryable graph. By defining the `LLM_WIKI_DIR` environment variable, your database is decoupled from this engine, allowing you to run it against multiple independent career graphs safely.
 
 ### Structured Graph Layout (under `<LLM_WIKI_DIR>/wiki/`)
+
 1. **Experiences (`wiki/experiences/`)**: Canonical, structured records of professional roles (The Source of Truth).
 2. **Projects & Patents (`wiki/projects/`, `wiki/patents/`)**: Standalone, reusable technical accomplishments, cross-linked back to experiences via frontmatter (e.g., `organization: [[intel-corporation]]`).
 3. **Skills & Languages (`wiki/skills/`)**: Deep capabilities and languages, referencing specific experience nodes where they were demonstrated.
@@ -304,12 +324,14 @@ CareerOS treats your professional history as a queryable graph. By defining the 
 Decoupling the styles from the engine allows you to fully customize CV formatting for different industries or aesthetics.
 
 ### How Stylesheets are Bootstrapped
-During directory initialization, standard CSS styles (`base.css`, `emea_tech.css`, `nl_modern.css`) are automatically copied into `<LLM_WIKI_DIR>/templates/`. 
 
-- Because `<LLM_WIKI_DIR>/templates/` resides one level up from `wiki/`, it is completely ignored by the `kb-ingest` pipeline.
-- You can freely edit, rename, or add new `.css` files directly in `<LLM_WIKI_DIR>/templates/`.
+During directory initialization, standard CSS styles (`base.css`, `emea_tech.css`, `nl_modern.css`) are automatically copied into `<LLM_WIKI_DIR>/templates/`.
+
+* Because `<LLM_WIKI_DIR>/templates/` resides one level up from `wiki/`, it is completely ignored by the `kb-ingest` pipeline.
+* You can freely edit, rename, or add new `.css` files directly in `<LLM_WIKI_DIR>/templates/`.
 
 ### Linking Styles to Regional Strategies
+
 To apply a stylesheet to a regional profile, add the `pdf_template` attribute in the YAML frontmatter of your **Strategy Page** (e.g., `wiki/strategies/strategy-emea.md`):
 
 ```yaml
@@ -322,6 +344,7 @@ pdf_template: "emea_tech.css"  # resolved directly to <LLM_WIKI_DIR>/templates/e
 ```
 
 When you compile a CV with PDF generation enabled (`--generate-pdf`), the engine will automatically resolve the style name, searching:
+
 1. Directly under `<LLM_WIKI_DIR>/`
 2. Under your external `<LLM_WIKI_DIR>/templates/` (ideal for user customizations)
 3. Under the engine repository's fallback `templates/` folder (standard templates)
@@ -330,13 +353,13 @@ When you compile a CV with PDF generation enabled (`--generate-pdf`), the engine
 
 ## 🛠️ Generator Node Roles
 
-*   **Analyzer:** Deconstructs the JD to identify the target persona, target organization, and region.
-*   **Retriever:** Scans the Knowledge Graph, ranks relevant entries, and loads strategy rules.
-    *   *Programmatic Pre-Grouping:* Programmatically identifies historical experiences (starting <= `current_year - 10`) belonging to the same organization, and merges them into a combined company entry to prevent redundant flat listings.
-    *   *Nested Grouped Compression:* Compresses merged historical experiences using a specialized LLM node and a prompt designed for tight nesting, rendering a clean, multi-role indented timeline with single-line impact statements.
-*   **Drafter:** A high-fidelity executive writer that applies acronym expansion, aggressive quantification, and regional profile tailoring.
-*   **Refiner:** Validates document density and page limits, checking length constraints and adjusting formatting if necessary to guarantee professional layout presentation.
-*   **Auditor:** Acts as a **Brutally Honest Senior Recruiter**, hunting for weak metrics, "fluff," or style violations, feeding constructive adjustments back into the pipeline.
+* **Analyzer:** Deconstructs the JD to identify the target persona, target organization, and region.
+* **Retriever:** Scans the Knowledge Graph, ranks relevant entries, and loads strategy rules.
+  * *Programmatic Pre-Grouping:* Programmatically identifies historical experiences (starting <= `current_year - 10`) belonging to the same organization, and merges them into a combined company entry to prevent redundant flat listings.
+  * *Nested Grouped Compression:* Compresses merged historical experiences using a specialized LLM node and a prompt designed for tight nesting, rendering a clean, multi-role indented timeline with single-line impact statements.
+* **Drafter:** A high-fidelity executive writer that applies acronym expansion, aggressive quantification, and regional profile tailoring.
+* **Refiner:** Validates document density and page limits, checking length constraints and adjusting formatting if necessary to guarantee professional layout presentation.
+* **Auditor:** Acts as a **Brutally Honest Senior Recruiter**, hunting for weak metrics, "fluff," or style violations, feeding constructive adjustments back into the pipeline.
 
 ---
 

@@ -1,11 +1,11 @@
 # Model Selection Definitions
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  openai: "gpt-4o"
+  openai: "o3-mini"
 
 # Pipeline Step Configurations (Pure OpenAI-Assisted Setup)
 # Optimized to run exclusively using an OpenAI API Key, leveraging the absolute latest models.
-# Uses lightweight gpt-4o-mini for cost-efficient steps and o3-mini/gpt-4o for high-reasoning tasks.
+# Uses lightweight gpt-4o-mini for cost-efficient steps and o3-mini for high-reasoning tasks.
 STEPS:
   EXTRACTION:
     TYPE: "openai"
@@ -34,7 +34,7 @@ STEPS:
 
   DRAFTING:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o" # High-capacity, structured resume generator
+    MODEL_NAME: "o3-mini" # High-capacity, structured reasoning resume generator
     FALLBACK:
       TYPE: "openai"
       MODEL_NAME: "gpt-4o-mini"
@@ -54,7 +54,7 @@ STEPS:
 
   INGESTION_GENERATE:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o" # Perfect schema compliance for frontmatter generation
+    MODEL_NAME: "o3-mini" # Perfect schema compliance for frontmatter generation
     FALLBACK:
       TYPE: "openai"
       MODEL_NAME: "gpt-4o-mini"
