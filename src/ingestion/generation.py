@@ -33,7 +33,7 @@ def _generate_experiences(
         if not title_slug:
             title_slug = "role"
         filename = f"{canonical_slug}-{title_slug}.md"
-        output_path = str(get_wiki_root() / "experiences" / filename)
+        output_path = (get_wiki_root() / "experiences" / filename).as_posix()
 
         prompt = f"""TODAY'S DATE: {today_str}
 
@@ -93,7 +93,7 @@ def _generate_education(
         if not title_slug:
             title_slug = "degree"
         filename = f"{canonical_slug}-{title_slug}.md"
-        output_path = str(get_wiki_root() / "education" / filename)
+        output_path = (get_wiki_root() / "education" / filename).as_posix()
 
         prompt = f"""CANONICAL ENTITY MAPPING:
 {entity_map_lines}
@@ -148,7 +148,7 @@ def _generate_languages(
         if not lang_slug:
             lang_slug = "unknown"
         filename = f"lang-{lang_slug}.md"
-        output_path = str(get_wiki_root() / "languages" / filename)
+        output_path = (get_wiki_root() / "languages" / filename).as_posix()
 
         prompt = f"""TODAY'S DATE: {today_str}
 
@@ -205,7 +205,7 @@ def _generate_projects(
         if not title_slug:
             title_slug = "project"
         filename = f"project-{title_slug}.md"
-        output_path = str(get_wiki_root() / "projects" / filename)
+        output_path = (get_wiki_root() / "projects" / filename).as_posix()
 
         prompt = f"""CANONICAL ENTITY MAPPING:
 {entity_map_lines}
@@ -261,7 +261,7 @@ def _generate_patents(
         pat_id = pat.get("id", "").strip()
         id_slug = slugify(pat_id) if pat_id else slugify(title)
         filename = f"patent-{id_slug}.md"
-        output_path = str(get_wiki_root() / "patents" / filename)
+        output_path = (get_wiki_root() / "patents" / filename).as_posix()
 
         prompt = f"""CANONICAL ENTITY MAPPING:
 {entity_map_lines}
@@ -314,7 +314,7 @@ def _generate_notes(
         title = note.get("title", "").strip() or "note"
         title_slug = slugify(title)
         filename = f"note-{title_slug}.md"
-        output_path = str(get_wiki_root() / "notes" / filename)
+        output_path = (get_wiki_root() / "notes" / filename).as_posix()
 
         related_raw = note.get("related_raw_orgs", [])
         related_slugs = [f"[[{resolved[r]}]]" for r in related_raw if r in resolved]
@@ -374,7 +374,7 @@ def _generate_cover_letters(
         title = cl.get("title", "").strip() or "cover-letter"
         title_slug = slugify(title)
         filename = f"cover-letter-{title_slug}.md"
-        output_path = str(get_wiki_root() / "cover-letters" / filename)
+        output_path = (get_wiki_root() / "cover-letters" / filename).as_posix()
 
         prompt = f"""CANONICAL ENTITY MAPPING:
 {entity_map_lines}
@@ -471,7 +471,7 @@ sources: ["{source_basename}"]
 {overview_text}
 """
     wiki_outputs.append({
-        "path": str(target_path),
+        "path": target_path.as_posix(),
         "content": content,
         "org_slug": slug,
         "title": name,

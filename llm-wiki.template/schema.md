@@ -239,6 +239,31 @@ updated: YYYY-MM-DD
 ---
 ```
 
+### Case Study Page
+
+```yaml
+---
+type: case_study
+title: "Technical Case Study Title"
+organization: [[entity-slug]]
+tenure: [[experience-slug]]
+skills: [skill-slug-1, skill-slug-2]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [source-slug]
+---
+# Technical Case Study Title
+
+## Context & Problem
+[Problem description and architectural constraints]
+
+## Architecture & Technical Implementation
+[Detailed technical architecture, patterns, components, and code/design decisions]
+
+## Quantified Impact & Results
+[Measurable metrics, benchmarks, SLA improvements, cost savings]
+```
+
 ### Source Page
 
 ```yaml

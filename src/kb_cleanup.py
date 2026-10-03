@@ -185,6 +185,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Career OS Experiences Retroactive Cleanup Tool")
     parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
+    parser.add_argument("--sync-case-studies", action="store_true", help="Synchronize deep-dive case studies into parent experience achievements")
     args = parser.parse_args()
 
     if args.wiki_dir:
@@ -192,6 +193,13 @@ def main() -> None:
 
     from kb_config import get_wiki_dir
     wiki_dir = get_wiki_dir()
+
+    if args.sync_case_studies:
+        from tools.sync_case_studies import sync_case_studies
+        print(f"🔍 Running case study synchronization on: {wiki_dir}")
+        stats = sync_case_studies(wiki_dir, dry_run=args.dry_run)
+        print(f"✨ Case study synchronization complete: {stats}")
+        return
 
     run_cleanup(wiki_dir, dry_run=args.dry_run)
 

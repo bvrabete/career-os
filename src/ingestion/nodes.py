@@ -9,11 +9,22 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
-from docling.pipeline.simple_pipeline import SimplePipeline
+try:
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
+    from docling.pipeline.simple_pipeline import SimplePipeline
+    HAS_DOCLING = True
+except ImportError:
+    HAS_DOCLING = False
+    DocumentConverter = None  # type: ignore[assignment, misc]
+    PdfFormatOption = None  # type: ignore[assignment, misc]
+    InputFormat = None  # type: ignore[assignment, misc]
+    PdfPipelineOptions = None  # type: ignore[assignment, misc]
+    AcceleratorOptions = None  # type: ignore[assignment, misc]
+    AcceleratorDevice = None  # type: ignore[assignment, misc]
+    SimplePipeline = None  # type: ignore[assignment, misc]
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from kb_config import get_model_for_step
@@ -42,26 +53,32 @@ def _parse_via_pypdf(path: Path) -> str | None:
 
 def _parse_via_docling(path: Path, suffix: str) -> str | None:
     """Attempts to parse a PDF or DOC/DOCX file using Docling. Returns None if it fails."""
+    if DocumentConverter is None:
+        logging.info("Docling optional dependency not installed; skipping docling parser")
+        return None
     try:
         if suffix == ".pdf":
-            pdf_opts = PdfPipelineOptions()
-            pdf_opts.do_table_structure = True
-            pdf_opts.do_ocr = True
-            pdf_opts.allow_external_plugins = True
-            pdf_opts.accelerator_options = AcceleratorOptions(
-                num_threads=8, device=AcceleratorDevice.CPU
-            )
-            converter = DocumentConverter(
-                format_options={
+            opts = {}
+            if callable(PdfPipelineOptions) and callable(PdfFormatOption) and InputFormat is not None:
+                pdf_opts = PdfPipelineOptions()
+                pdf_opts.do_table_structure = True
+                pdf_opts.do_ocr = True
+                pdf_opts.allow_external_plugins = True
+                if callable(AcceleratorOptions) and AcceleratorDevice is not None:
+                    pdf_opts.accelerator_options = AcceleratorOptions(
+                        num_threads=8, device=AcceleratorDevice.CPU
+                    )
+                opts = {
                     InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts)
                 }
-            )
+            converter = DocumentConverter(format_options=opts)
         else:
-            converter = DocumentConverter(
-                format_options={
+            opts = {}
+            if callable(PdfFormatOption) and callable(SimplePipeline) and InputFormat is not None:
+                opts = {
                     InputFormat.PDF: PdfFormatOption(pipeline_cls=SimplePipeline)
                 }
-            )
+            converter = DocumentConverter(format_options=opts)
         result = converter.convert(str(path))
         return result.document.export_to_markdown()
     except Exception as e:

@@ -10,7 +10,14 @@ from typing import Any
 import yaml
 
 import markdown2
-from weasyprint import CSS, HTML
+
+try:
+    from weasyprint import CSS, HTML
+    HAS_WEASYPRINT = True
+except (ImportError, OSError):
+    HAS_WEASYPRINT = False
+    CSS = None  # type: ignore[assignment, misc]
+    HTML = None  # type: ignore[assignment, misc]
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +136,12 @@ def generate_pdf(md_content: str, output_path: str, css_template_path: str | Non
         bool: True if generation was successful, False otherwise.
     """
     logger.info(f"Generating PDF for {output_path}...")
+
+    if HTML is None:
+        logger.error(
+            "WeasyPrint or its system dependencies (GTK/Pango) are not installed. Cannot generate PDF."
+        )
+        return False
 
     # Clean leading/trailing markdown code blocks if the entire content is wrapped
     cleaned_md = _clean_markdown_wrapper(md_content)

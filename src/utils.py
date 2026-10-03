@@ -78,7 +78,7 @@ def safe_read_text(path: Path | str) -> str:
     import re
     safe_path = validate_path(path)
     safe_str = str(safe_path)
-    match = re.match(r'^([a-zA-Z0-9_\-\./]+)$', safe_str)
+    match = re.match(r'^([a-zA-Z0-9_\-\./\\:]+)$', safe_str)
     if not match:
         raise ValueError(f"Security Warning: Invalid characters in file path: {safe_str}")
     clean_path = match.group(1)
@@ -93,7 +93,7 @@ def safe_write_text(path: Path | str, content: str) -> None:
     import re
     safe_path = validate_path(path)
     safe_str = str(safe_path)
-    match = re.match(r'^([a-zA-Z0-9_\-\./]+)$', safe_str)
+    match = re.match(r'^([a-zA-Z0-9_\-\./\\:]+)$', safe_str)
     if not match:
         raise ValueError(f"Security Warning: Invalid characters in file path: {safe_str}")
     clean_path = match.group(1)
