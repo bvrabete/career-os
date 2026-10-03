@@ -20,6 +20,7 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | publication | `wiki/publications/` | Peer-reviewed articles, conference papers, whitepapers, and book chapters |
 | strategy | `wiki/strategies/` | Relocation profiles, contact strategy variants, and regional tailoring |
 | query | `wiki/queries/` | Reconciliation of conflicting data points from old CVs |
+| profile | `wiki/profile.md` | Canonical candidate profile, contact links, baseline summary & domains |
 | overview | `wiki/` | High-level project summary (one per project) |
 
 ## Naming Conventions
@@ -135,6 +136,38 @@ skills: [skill-slug-1, skill-slug-2]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
+```
+
+### Project Page
+
+```yaml
+---
+type: project
+title: "Project Name"
+project_nature: open_source | side_project | research_prototype | enterprise_initiative
+status: active | completed | archived
+repo_url: "https://github.com/..." # Optional
+demo_url: "https://..."           # Optional
+dates:
+  start: YYYY-MM-DD
+  end: YYYY-MM-DD | Present
+skills: [skill-slug-1, skill-slug-2]
+domains: ["Domain A", "Domain B"]
+organization: [[entity-slug]]     # Optional, only if developed within an employer
+tenure: [[experience-slug]]       # Optional, link to employment tenure
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+```markdown
+# Project Name
+
+## Overview & Architecture
+[Problem solved, technical architecture, and system design]
+
+## Key Technical Achievements
+- [STAR achievement bullet with concrete metrics and technologies]
 ```
 
 ### Strategy Page

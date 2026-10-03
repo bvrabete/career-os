@@ -12,7 +12,7 @@ TASKS:
 8. Suggest a 'Strategy Key': Based on the locations and company profile, choose the best fit from the available strategies:
    Available: [{AVAILABLE_STRATEGIES}]
    Default: {DEFAULT_STRATEGY}
-9. Extract 'Target Organization Slug': The lower-case, kebab-case name of the hiring organization/company (e.g. "google", "intel-corporation").
+9. Extract 'Target Organization Slug': The lower-case, kebab-case name of the hiring organization/company (e.g. "acme-corp", "globex-technologies").
 10. Extract 'Target Role': The official title of the role being applied for.
 
 Return your analysis in the following JSON format:

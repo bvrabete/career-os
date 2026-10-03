@@ -1025,7 +1025,14 @@ def resolve_regional_strategy(wiki_dir: Path, region: str) -> tuple[str, str]:
 
 
 def get_subject_info(wiki_dir: Path) -> str:
-    """Retrieve subject personal/contact info from entities."""
+    """Retrieve subject personal/contact info from wiki/profile.md, falling back to entities."""
+    profile_path = wiki_dir / "wiki" / "profile.md"
+    if profile_path.exists():
+        try:
+            return profile_path.read_text(encoding="utf-8")
+        except Exception as e:
+            logging.error("Failed to read profile.md: %s", e)
+
     entities_dir = wiki_dir / "wiki" / "entities"
     if entities_dir.exists():
         for ent in entities_dir.glob("*.md"):

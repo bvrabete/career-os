@@ -84,21 +84,27 @@ graph TD
     - **Strategy-Driven Presentation Layout**: Regional Strategy dictates the structural rendering: `"inline_badged"` (interleaved in main chronology with explicit `[Venture / Advisory]` badges) or `"dedicated_section"` (moved to an "Entrepreneurial Ventures & Advisory" section to preserve a clean single-track corporate timeline).
     - **Intelligent Achievement Attribution**: Drafter filters bullets based on target level—showcasing hands-on architecture (e.g. Agentic AI, LangGraph, FHIR) for Architect/Tech Lead roles, and product/0-to-1 scaling for Executive/CTO roles.
   - **The Deep-Dive Case Studies Standard (`wiki/case-studies/`)**:
-    - Detailed architectural problem/solution narratives and deep-dive achievements are decoupled from "voice" and stored in `wiki/case-studies/` (Tier 1 factual records) linked via `related: [[company-slug]]`.
-    - When a target JD requires deep technical evidence (e.g. Kafka lag autoscaling, socket pooling), the Retriever pulls these case studies to provide the Drafter with exact engineering facts.
+    - **Dual-Tier Integration Principle (Never Disconnected)**: Every technical case study in `wiki/case-studies/` has a corresponding high-impact STAR one-liner permanently indexed in the parent company's experience file, with an in-line wikilink suffix:
+      `- Architected distributed Kafka lag autoscaling engine utilizing KEDA and Kubernetes custom metrics, reducing peak consumer lag by 82%. ([[case-studies/kafka-lag-autoscaling]])`
+    - **Interactive Graph PKM Edges**: This in-line wikilink renders explicit interactive graph edges in Obsidian, Foam, and Logseq connecting the employer to all its engineering case studies.
+    - **Automated Case Study Sync Tool (`kb-case-studies-sync` / `kb-cleanup`)**: A dedicated sweep tool scans `wiki/case-studies/`, matches against the parent experience file, and auto-generates/appends any missing one-liner achievements with their wikilink suffixes.
+    - **Deep-Dive Drafter Context Injection**: During CV generation, the Selector and Drafter use the experience one-liner; if the target JD demands deep technical proof for that topic, the Drafter follows the wikilink to the full case study to enrich the bullet with exact architectural details, benchmarks, and trade-offs (cleanly stripping the wikilink syntax in rendered output).
   - **The Patents & Technical Assets Standard (`wiki/patents/`)**:
     - **First-Class Asset Files**: Patents remain first-class, rich entities in `wiki/patents/{patent-id}.md` storing legal metadata (Patent ID, title, assignee organization, grant/filing dates, USPTO link, abstract, co-inventors, and skills).
     - **Explicit Employer & Tenure Links**: Bidirectionally linked to the employer:
       ```yaml
-      # In wiki/patents/patent-us-10912283-b2.md:
-      organization: [[intel]]
-      tenure: [[intel-platform-architect-and-tech-lead]]
+      # In wiki/patents/patent-us-12345678-b2.md:
+      organization: [[acme-corp]]
+      tenure: [[acme-corp-principal-architect]]
       ```
       ```yaml
-      # In wiki/experiences/intel-platform-architect-and-tech-lead.md:
-      patents: ["US-10912283-B2", "US-10977692-B2", ...]
+      # In wiki/experiences/acme-corp-principal-architect.md:
+      patents: ["US-12345678-B2", "US-87654321-B2"]
       ```
-    - **In-Situ Employer Integration**: The Drafter always synthesizes a punchy summary bullet inside the employer's work experience section (e.g. *"Granted 9 US/international patents in IoT and machine learning at Intel"*).
+    - **In-Situ Employer Integration**: The Drafter always synthesizes a punchy summary bullet inside the employer's work experience section (e.g. *"Granted 2 US/international patents in distributed caching at Acme Corp"*).
+  - **The Candidate Profile & Executive Narrative Standard (`wiki/profile.md`)**:
+    - **Single Source of Candidate Identity**: A dedicated root file defining candidate contact details (name, email, phone, location, LinkedIn, GitHub, portfolio), target headline/persona, core domains, and baseline executive narrative.
+    - **Universal Tool Neutrality**: All prompts, code, and documentation must remain strictly generic, containing zero hardcoded personal names, real-world company names, or candidate specifics. All decisions are derived dynamically from the active knowledge base.
     - **Dynamic Dedicated Section**: If target role relevance (R&D, Principal Architect, AI Systems) and page budget permit, a standalone "Patents & Inventions" section is rendered.
     - **Relevance Scoring & Portfolio Compression**: When multiple patents exist, the Retriever scores them against target JD keywords, showcasing the top 2–3 most relevant patents by ID and title while compressing the remainder into an authoritative summary.
   - **The Publications & Academic Assets Standard (`wiki/publications/`)**:
@@ -109,6 +115,15 @@ graph TD
       tenure: [[intel-platform-architect-and-tech-lead]] # or education: [[degree-slug]]
       ```
     - **Dynamic Presentation**: Highlighted in a dedicated "Selected Publications" section for academic/research/AI roles; folded concisely into the employer or university bullet points on space-constrained executive CVs.
+  - **The Technical Projects & Open Source Standard (`wiki/projects/`)**:
+    - **First-Class Project Entities**: Non-commercial personal side projects, open-source tooling, and agentic AI systems (e.g. `career-os`) reside in `wiki/projects/{project-slug}.md`.
+    - **Clear Semantic Boundary**:
+      - *Commercial Startups*: Tracked in `wiki/experiences/` with `employment_nature: "side_venture"` and `employment_type: "co_founder"`.
+      - *Technical Side Projects*: Tracked in `wiki/projects/` with `project_nature: "open_source" | "side_project" | "research_prototype"` and `repo_url: "https://github.com/..."`.
+    - **Dynamic Skill-Bridging & Presentation Layout**:
+      - The Retriever scores technical projects against the target Job Description.
+      - If a project provides concrete proof of modern technologies (e.g. LangChain, LangGraph, Agentic AI, modern Python, eBPF) required by the JD that are absent from older corporate tenures, the Drafter renders a dedicated `## Open Source & Technical Projects` section.
+      - On tight 1-page CVs, projects are included only if necessary to fulfill critical required competencies.
   - Each contiguous employer stint is represented by a **Company Tenure** file (`wiki/experiences/{company}.md` or `{company}-{start_year}.md` for multiple stints).
   - **YAML Frontmatter**: Company slug, canonical organization name, overall tenure dates, employment type, location, and a list of progressive `roles`:
     ```yaml
