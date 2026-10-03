@@ -4,17 +4,31 @@
 
 This project is a comprehensive career knowledge base (Career SSoT) covering historical experience. The **Wiki** is the canonical Master Source of Truth. The primary goal is to centralize all historical data to enable the automated generation of highly tailored CV variants (e.g., Engineering Management, CTO, Technical Architecture), cover letters, and provide a structured repository for interview preparation.
 
+## The Total Recall Master Archive Principle
+
+The Knowledge Base is **strictly unconstrained, exhaustive, and cumulative**:
+- **Complete Historical Record**: The Wiki must record 100% of accomplishments, minor wins, metrics, and technical context over the candidate's entire lifetime, regardless of size or quantity.
+- **Zero Pre-Filtering or Length Budgets**: Experience files are never limited by page budgets or bullet quotas. Ingestion must **never** drop, discard, or truncate achievements to "save space". A single role may contain 30, 40, or more achievements.
+- **Strict Separation of Concerns**:
+  - **Knowledge Base (The Wiki)**: Dedicated to **Total Recall and Maximum Evidence Retention**. Every fact, number, and technology must be preserved in full fidelity.
+  - **Generation Pipeline (`cv-gen`)**: Dedicated to **Selective Synthesis and Precision Tailoring**. It acts as a surgical knapsack filter, selecting the top 5% of relevant evidence from the dense wiki and distilling it into a strict 1-to-2 page executive document.
+- **Structured Categorization for High-Density Roles**: As roles accumulate dozens of achievements over time, they are organized under logical thematic subheadings (e.g. `### Architecture & System Design`, `### Team Leadership & Scaling`, `### Operational Reliability & Performance`) with source citations preserved.
+
 ## Hierarchy of Truth (Semantic Integrity)
 
 To prevent confusion between roles held and roles applied for, the Wiki enforces a strict hierarchy for fact retrieval:
 
-1.  **Tier 1: Experiences (`wiki/experiences/`)**: The **only** source of factual employment history. If a role is not documented here, it is not part of the professional history.
-2.  **Tier 2: Application Artifacts (`wiki/cover-letters/`)**: Archives of specific *applications*. These represent "Targeting" and "Aspirations." They are invaluable for capturing **tone, voice, and narrative style**, but must never be used to verify historical tenure or titles.
-3.  **Tier 3: Raw Archive (`raw/`)**: The unrefined source material used for extraction and verification.
+1.  **Tier 1: Factual Records (`wiki/experiences/`, `wiki/education/`, `wiki/projects/`, `wiki/patents/`, `wiki/publications/`, `wiki/case-studies/`)**:
+    The canonical source of truth for all employment, education, inventions, and verified technical case studies. If an achievement, degree, or role is not documented in Tier 1, the candidate never held it.
+2.  **Tier 2: Qualitative & Alignment Artifacts (`wiki/voice/`, `wiki/notes/`, `wiki/cover-letters/`, `wiki/synthesis/`)**:
+    Narrative guidelines, performance review reflections, historical applications, and tailored CV outputs. Used strictly for authentic tone, voice calibration, and phrasing style—never as factual employment history.
+3.  **Tier 3: Raw Archive (`raw/`)**:
+    The unrefined historical source material used exclusively for parsing, extraction, and verification.
 
 ### Entity Integrity Rules
-- **Linked Creation Only**: Do not create a new `entity` node unless it is linked to a verified Tier 1 Experience. Do not create entities for target companies in cover letters or job descriptions.
-- **Consult Mappings**: Before creating any entity, consult **`mappings.md`** to resolve known typos and aliases.
+- **Verified Linkage**: Ingestion creates entity nodes only when linked to verified Tier 1 experiences or educational records.
+- **Target Organization Caching**: The pipeline's Company Research node is permitted to create and cache verified target company profiles in `wiki/entities/{company_slug}.md` based on job description intelligence and web research.
+- **Consult Mappings**: Before creating any entity, consult **`mappings.md`** to resolve known aliases and typos.
 - **Check timeline**: If timeline overlaps after mapping, but the role has a slightly different name, do not create a different experience. Overlapping roles on identical timelines should be merged or flag a conflict query.
 
 ### Language Standard
@@ -23,13 +37,14 @@ To prevent confusion between roles held and roles applied for, the Wiki enforces
 ## Data Flow
 
 1. **Ingest (Inputs):** 
-    - **Primary Records (`raw/sources/`):** Raw historical CVs, certificates, and patents.
-    - **Supplemental Records (`raw/supplemental/`):** Candidate profiles (recruiter-authored), performance reviews, 360-degree feedback, and Whitepapers.
+    - **Primary Records (`raw/sources/`):** Raw historical CVs, certificates, patents, and academic diplomas.
+    - **Supplemental Records (`raw/supplemental/`):** Performance reviews, 360-degree feedback, and technical whitepapers.
     - **Aspiration Records (`raw/cover-letters/`):** Historical cover letters used for voice/tone reference.
 2. **Structuring (Database):** Information is extracted and reconciled into the `wiki/` structure. 
-    - Facts move to `wiki/experiences/` and `wiki/patents/`.
-    - Authentic self-reflections and technical methodologies move to `wiki/notes/` (Self-Perspective).
-    - Recruiter/Market summaries move to `wiki/notes/` (Third-Party Perspective).
+    - Factual employment and educational records move to `wiki/experiences/`, `wiki/education/`, `wiki/patents/`, `wiki/publications/`.
+    - Deep-dive technical problem/solution stories move to `wiki/case-studies/`.
+    - Authentic phrasing rules, active voice guidelines, and banned buzzwords move to `wiki/voice/my-voice.md`.
+    - Recruiter notes, feedback summaries, and reflections move to `wiki/notes/`.
 3. **Generation (Outputs):** Tailored CVs, cover letters, and career summaries are generated by the **Agentic Application** (which consumes the Wiki data + a current **Job Description** as external inputs).
 
 ---
@@ -38,12 +53,15 @@ To prevent confusion between roles held and roles applied for, the Wiki enforces
 
 | Folder / File | Managed By | User Editable? | Merge Behavior |
 | :--- | :--- | :--- | :--- |
-| `wiki/experiences/` | `kb-ingest` | Yes (Enrichment) | **Dynamic Merger**: LLM combines manual and automated edits. |
-| `wiki/skills/` | `skills_helper.py` | Metadata Only | **Recompiled**: Related experiences are completely regenerated; description/category are merged. |
-| `wiki/strategies/` | **User Only** | Yes (Primary) | **Ignored by Machine**: Ingest pipeline never modifies. |
-| `wiki/notes/` | **User Only** | Yes (Primary) | **Ignored by Machine**: Permanent "My Voice" assets. |
-| `wiki/entities/` | `kb-ingest` | Yes (Enrichment) | **Merged**: Manual detail overrides or description additions are preserved. |
-| `purpose.md`, `schema.md` | **Immutable** | No | Serves as system blueprint; do not modify. |
+| `wiki/experiences/` | `kb-ingest` | Yes (Enrichment) | **Dynamic Merger**: Combines manual and automated edits. |
+| `wiki/case-studies/` | **User / Manual** | Yes (Primary) | **Preserved**: Factual deep-dive technical evidence. |
+| `wiki/voice/` | **User Only** | Yes (Primary) | **Ignored by Machine**: Permanent "My Voice" stylistic asset. |
+| `wiki/patents/`, `wiki/publications/` | `kb-ingest` / User | Yes | **Merged / Appended**: Legal asset records. |
+| `wiki/skills/` | `skills_helper.py` | Metadata Only | **Recompiled**: Related experiences are regenerated; descriptions are merged. |
+| `wiki/strategies/` | **User Only** | Yes (Primary) | **Ignored by Ingestion**: Used exclusively by generation pipeline. |
+| `wiki/notes/` | User / Ingest | Yes (Enrichment) | **Appended**: Qualitative feedback and reviews. |
+| `wiki/entities/` | `kb-ingest` / Research | Yes (Enrichment) | **Merged**: Target employer research cached dynamically. |
+| `purpose.md`, `schema.md` | **System Blueprint** | No | Serves as system blueprint; do not modify. |
 
 ---
 

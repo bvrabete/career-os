@@ -1,7 +1,9 @@
 # Model Selection Definitions
 MODELS:
-  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  gemini: "gemini-2.5-flash" # Default fast API model
+  ollama: "qwen2.5:7b"         # Default fast local model (100% GPU offload under 6GB VRAM)
+  gemini: "gemini-2.5-flash"    # Default fast API model
+  gemini_pro: "gemini-2.5-pro"  # High-reasoning executive drafting & audit model
+  gemini_lite: "gemini-2.5-flash-lite" # Ultra-low latency classification model
 
 # Pipeline Step Configurations (Hybrid Gemini-Assisted Setup)
 # Uses high-speed, zero-VRAM Google Gemini cloud APIs (gemini-2.5-flash & gemini-2.5-pro) for complex parsing, reasoning, and auditing,
@@ -34,19 +36,11 @@ STEPS:
 
   DRAFTING:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-pro" # RECOMMENDED: handles >30k token career context with massive window
-    # OPTIONAL EXPLICIT FALLBACK (Defined, not assumed):
-    # If you encounter API rate limits (e.g. 429), you can define a fallback model here.
-    # If no fallback is defined below or if its credentials are missing, the original error is re-raised.
-    #
-    # Fallback (Local Ollama, since this is a Gemini-focused profile):
-    # FALLBACK:
-    #   TYPE: "ollama"
-    #   MODEL_NAME: "qwen2.5:7b"
+    MODEL_NAME: "gemini-2.5-pro" # High-fidelity executive drafting with 1M context window
 
   AUDIT:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-flash" # Brutally honest cloud-based recruiter critic (fast and accurate)
+    MODEL_NAME: "gemini-2.5-pro" # Senior recruiter critic & strict ATS gap analysis
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
@@ -59,7 +53,7 @@ STEPS:
 
   INGESTION_GENERATE:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-pro" # Perfect schema compliance for frontmatter generation
+    MODEL_NAME: "gemini-2.5-flash" # Fast, high-fidelity schema-compliant frontmatter generation
 
   INGESTION_MERGE:
     TYPE: "gemini"
@@ -67,6 +61,18 @@ STEPS:
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 
-# Future configurations (e.g., prompt weights, track defaults)
+# Workspace Paths & Directories
+PATHS:
+  WIKI_DIR: "llm-wiki"            # Canonical Knowledge Base SSoT directory
+  OUTPUT_DIR: "ai-generated-cvs"   # Export directory for clean drafts and compiled PDF/DOCX
+
+# Application & Generation Defaults
+DEFAULTS:
+  STRATEGY: "emea"                # Deterministic regional strategy (override via CLI --strategy)
+  TRACK: "Corporate"              # Default professional domain track
+  GENERATE_PDF: false             # Auto-compile PDF to OUTPUT_DIR
+  GENERATE_DOCX: false            # Auto-compile DOCX to OUTPUT_DIR
+
+# Backward compatibility aliases
 TRACK_DEFAULT: "Corporate"
 STRATEGY_DEFAULT: "emea"

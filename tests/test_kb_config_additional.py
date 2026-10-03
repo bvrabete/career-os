@@ -61,9 +61,8 @@ class TestKBConfigAdditional(unittest.TestCase):
         mock_config_path.exists.return_value = False
         mock_default_path.exists.return_value = False
         
-        config = load_config()
-        self.assertIn("MODELS", config)
-        self.assertEqual(config.get("STRATEGY_DEFAULT"), "emea")
+        with self.assertRaises(FileNotFoundError):
+            load_config()
 
     @patch("kb_config.load_config")
     def test_get_strategy_default(self, mock_load: MagicMock) -> None:
@@ -71,15 +70,13 @@ class TestKBConfigAdditional(unittest.TestCase):
         self.assertEqual(get_strategy_default(), "latam")
 
     @patch("kb_config.load_config")
-    def test_get_model_for_step_fallback(self, mock_load: MagicMock) -> None:
-        # Step name not found, falls back to REFINEMENT (ollama default in default config)
+    def test_get_model_for_step_missing_step(self, mock_load: MagicMock) -> None:
         mock_load.return_value = {
             "STEPS": {"REFINEMENT": {"TYPE": "ollama", "MODEL_NAME": "qwen"}},
             "OLLAMA_BASE_URL": "http://ollama-test"
         }
-        with patch("kb_config.ChatOllama") as mock_ollama:
+        with self.assertRaises(KeyError):
             get_model_for_step("UNKNOWN_STEP")
-            mock_ollama.assert_called_once()
 
     @patch("kb_config.load_config")
     def test_get_model_for_step_openai(self, mock_load: MagicMock) -> None:

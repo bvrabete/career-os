@@ -317,6 +317,15 @@ CareerOS treats your professional history as a queryable graph. By defining the 
 5. **Notes (`wiki/notes/`)**: Peer praise, performance reviews (`tags: ["performance-review"]`), and subjective reflections which are dynamically injected to enrich descriptions and enforce the **"My Voice" Standard**.
 6. **Cover Letters (`wiki/cover-letters/`)**: Historical applications archived for style and tone consistency.
 
+### 🌐 Visualizing Your Knowledge Graph
+CareerOS adheres strictly to **Andrej Karpathy's LLM-Wiki standard** (100% plain Markdown + YAML frontmatter + `[[wikilinks]]`). You can open and visualize your graph interchangeably using:
+* **VS Code / Cursor (Foam)**: In-editor interactive graph view and link autocompletion.
+* **Logseq**: 100% open-source privacy-first local desktop outliner.
+* **Obsidian**: Interactive 2D/3D knowledge graph with pre-configured semantic color coding.
+* **Quartz**: Fast browser-based local web portal.
+
+For quick setup steps and color coding schemes, see [docs/visualization-guide.md](file:///C:/Users/bvrabete/source/personal/career-os/docs/visualization-guide.md).
+
 ---
 
 ## 🎨 PDF & Stylesheet Customization

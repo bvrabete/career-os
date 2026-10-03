@@ -1,0 +1,10 @@
+{
+  "foam.edit.linkReferenceDefinitions": "withoutExtensions",
+  "foam.openWithDefaultApplication": false,
+  "foam.graph.type": "markdown",
+  "markdown.suggest.paths.includeWikilinkSyntax": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true
+  }
+}
