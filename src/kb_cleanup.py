@@ -191,7 +191,6 @@ def main() -> None:
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
-    from kb_config import get_wiki_dir
     wiki_dir = get_wiki_dir()
 
     if args.generate_catalog:

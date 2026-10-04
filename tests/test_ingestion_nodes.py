@@ -66,6 +66,7 @@ class TestIngestionNodes(unittest.TestCase):
         with patch("pathlib.Path.read_text", return_value="plain text content") as mock_read:
             text = _parse_fallback(Path("mock.txt"), ".txt")
             self.assertEqual(text, "plain text content")
+            mock_read.assert_called_once()
 
     @patch("pypdf.PdfReader")
     def test_node_parser_pdf_pypdf_flow(self, mock_pdf_reader_cls):

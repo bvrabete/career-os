@@ -111,6 +111,7 @@ class TestIngestionHelpers(unittest.TestCase):
         ):
             text = load_prompt("test_prompt.txt")
             self.assertEqual(text, "System Prompt Template")
+            mock_read.assert_called_once()
 
     def test_load_prompt_not_found(self):
         """Test load_prompt raises FileNotFoundError if file missing."""
