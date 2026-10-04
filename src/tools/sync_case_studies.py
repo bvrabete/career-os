@@ -63,11 +63,11 @@ def _extract_case_study_bullet(fm: dict[str, Any], body: str, slug: str) -> str:
             return f"- **{title}**: {raw_bullet} ([[case-studies/{slug}]])"
 
     # Try finding architecture summary
-    arch_match = re.search(
-        r'##\s*(?:Architecture & Technical Implementation|Architecture & System Design|System Architecture)\s*\n+([^#\n]+)',
-        body,
-        re.IGNORECASE
+    arch_pattern = (
+        r'##\s*(?:Architecture & Technical Implementation|'
+        r'Architecture & System Design|System Architecture)\s*\n+([^#\n]+)'
     )
+    arch_match = re.search(arch_pattern, body, re.IGNORECASE)
     if arch_match:
         raw_bullet = arch_match.group(1).strip().lstrip("-* \t")
         if raw_bullet:
@@ -137,8 +137,10 @@ def _append_bullet_to_content(exp_content: str, bullet: str) -> str:
             break
 
     if target_idx != -1:
-        # Find the end of existing bullet points under this heading
-        while target_idx < len(lines) and (lines[target_idx].strip().startswith(("-", "*")) or not lines[target_idx].strip()):
+        while target_idx < len(lines):
+            line_stripped = lines[target_idx].strip()
+            if not (line_stripped.startswith(("-", "*")) or not line_stripped):
+                break
             target_idx += 1
         lines.insert(target_idx, bullet)
         return "\n".join(lines) + "\n"

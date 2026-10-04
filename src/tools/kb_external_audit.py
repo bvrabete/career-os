@@ -126,7 +126,8 @@ def _resolve_dates(parsed_fields: Dict[str, Any]) -> tuple[str, str]:
     if not start_date:
         start_date = "N/A"
 
-    is_current = parsed_dates.get("end", {}).get("isCurrent", False) if isinstance(parsed_dates.get("end"), dict) else False
+    end_info = parsed_dates.get("end")
+    is_current = end_info.get("isCurrent", False) if isinstance(end_info, dict) else False
     if is_current:
         end_date = "Present"
     elif isinstance(parsed_dates.get("end"), dict):
@@ -219,10 +220,22 @@ def generate_markdown_report(
     matched = overlap_results["matched"]
     missed = overlap_results["missed"]
 
+    contact_status = "✅ OK" if emails != "None detected" else "⚠️ WARNING"
+    contact_row = (
+        f"| **Contact Extraction** | {contact_status} | "
+        f"Name: `{contact}` | Email: `{emails}` | Phone: `{phones}` |"
+    )
+    skill_status = "✅ EXCELLENT" if score >= 80 else "⚠️ IMPROVEMENT ADVISED"
+    skill_row = (
+        f"| **Technical Skill Alignment** | {skill_status} | "
+        f"Overlap score of `{score}%` against core job description keywords. |"
+    )
+
     # Construct the report with beautiful, rich layout
     markdown = f"""# Affinda ATS Parser Audit Report
 
-This on-demand report presents a professional, commercial-grade ATS parse analysis of your generated resume using **Affinda's Ingestion Engine**.
+This on-demand report presents a professional, commercial-grade ATS parse analysis of your generated resume
+using **Affinda's Ingestion Engine**.
 
 ---
 
@@ -231,8 +244,8 @@ This on-demand report presents a professional, commercial-grade ATS parse analys
 | Metric | Status | Details |
 | :--- | :--- | :--- |
 | **Parsing Parsability** | ✅ PASS | File parsed successfully without layout-induced corruption. |
-| **Contact Extraction** | {"✅ OK" if emails != "None detected" else "⚠️ WARNING"} | Name: `{contact}` | Email: `{emails}` | Phone: `{phones}` |
-| **Technical Skill Alignment** | { "✅ EXCELLENT" if score >= 80 else "⚠️ IMPROVEMENT ADVISED" } | Overlap score of `{score}%` against core job description keywords. |
+{contact_row}
+{skill_row}
 {native_section}
 ---
 
@@ -243,7 +256,8 @@ These skills were correctly identified and extracted by Affinda's machine-learni
 {chr(10).join([f"- **{m.title()}**" for m in matched]) if matched else "- *None detected*"}
 
 ### ❌ Missed Keywords ({len(missed)})
-These core Job Description requirements were **not** parsed from the resume file. Consider adding explicit mentions of these terms:
+These core Job Description requirements were **not** parsed from the resume file.
+Consider adding explicit mentions of these terms:
 {chr(10).join([f"- `{m}`" for m in missed]) if missed else "- *None (Perfect match!)*"}
 
 ---
@@ -269,8 +283,11 @@ Affinda extracted the following chronological history from your PDF/DOCX structu
     markdown += """---
 
 ## 💡 Recommended Layout & ATS Adjustments
-1. **Font & Bullet Compliance**: If any missed keywords were actually present in your resume, the parser likely failed to extract them due to a multi-column layout or customized bullet points. Always use linear, clean structures.
-2. **Explicit Skill Taxonomy**: commercial parsers look for exact keyword matches. Ensure your skills frontmatter compiles cleanly and matches industry-standard spellings.
+1. **Font & Bullet Compliance**: If any missed keywords were actually present in your resume, the parser
+   likely failed to extract them due to a multi-column layout or customized bullet points.
+   Always use linear, clean structures.
+2. **Explicit Skill Taxonomy**: commercial parsers look for exact keyword matches. Ensure your skills
+   frontmatter compiles cleanly and matches industry-standard spellings.
 """
     return markdown
 
@@ -323,7 +340,10 @@ def main() -> None:
             try:
                 print("⚡ Programmatically indexing resume into Search & Match index 'Resume-Search-Demo'...")
                 client.add_to_index(resume_id, "Resume-Search-Demo")
-                print("⏳ Waiting 15 seconds for Search & Match index to asynchronously process skills, title, and education metadata...")
+                print(
+                    "⏳ Waiting 15 seconds for Search & Match index to asynchronously process "
+                    "skills, title, and education metadata..."
+                )
                 time.sleep(15)
             except Exception as idx_err:
                 print(f"⚠️ Warning: Could not index resume: {idx_err}")

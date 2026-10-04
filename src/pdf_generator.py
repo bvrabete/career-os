@@ -113,7 +113,10 @@ def _build_header_html(metadata: dict[str, Any]) -> str:
         return ""
 
     name = metadata["name"]
-    contact_keys = ["position", "position_title", "role", "email", "phone", "location", "linkedin", "github", "website", "web"]
+    contact_keys = [
+        "position", "position_title", "role", "email", "phone",
+        "location", "linkedin", "github", "website", "web"
+    ]
     contact_parts = []
 
     for key in contact_keys:

@@ -39,7 +39,8 @@ def load_config() -> dict[str, Any]:
             return yaml.safe_load(f) or {}
     else:
         raise FileNotFoundError(
-            "Configuration file not found. Ensure 'config.yaml' exists in the workspace root or set the 'CONFIG_FILE' environment variable."
+            "Configuration file not found. Ensure 'config.yaml' exists in the workspace root "
+            "or set the 'CONFIG_FILE' environment variable."
         )
 
 
@@ -90,13 +91,15 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     step_config = steps.get(step_name)
     if not step_config:
         raise KeyError(
-            f"Pipeline step '{step_name}' is not defined in config.yaml under 'STEPS'. Please define it in your configuration."
+            f"Pipeline step '{step_name}' is not defined in config.yaml under 'STEPS'. "
+            f"Please define it in your configuration."
         )
 
     model_type = step_config.get("TYPE")
     if not model_type:
         raise ValueError(
-            f"Pipeline step '{step_name}' in config.yaml is missing required 'TYPE' (e.g. 'gemini', 'openai', 'ollama')."
+            f"Pipeline step '{step_name}' in config.yaml is missing required 'TYPE' "
+            f"(e.g. 'gemini', 'openai', 'ollama')."
         )
 
     kwargs: dict[str, Any] = {}
@@ -104,7 +107,8 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         model_name = step_config.get("MODEL_NAME") or models_map.get("openai")
         if not model_name:
             raise ValueError(
-                f"No OpenAI model configured for step '{step_name}'. Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.openai in config.yaml."
+                f"No OpenAI model configured for step '{step_name}'. "
+                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.openai in config.yaml."
             )
         if format == "json":
             kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
@@ -117,7 +121,8 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         model_name = step_config.get("MODEL_NAME") or models_map.get("ollama")
         if not model_name:
             raise ValueError(
-                f"No Ollama model configured for step '{step_name}'. Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.ollama in config.yaml."
+                f"No Ollama model configured for step '{step_name}'. "
+                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.ollama in config.yaml."
             )
         base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         kwargs = {}
@@ -127,7 +132,8 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
             model=model_name,
             base_url=base_url,
             temperature=temperature,
-            num_ctx=12288, # Optimized to 12k to guarantee 100% GPU offload under 6GB VRAM without truncating large CV context
+            # Optimized to 12k to guarantee 100% GPU offload under 6GB VRAM without truncating large CV context
+            num_ctx=12288,
             **kwargs
         )
 
@@ -135,9 +141,11 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         model_name = step_config.get("MODEL_NAME") or models_map.get("gemini")
         if not model_name:
             raise ValueError(
-                f"No Gemini model configured for step '{step_name}'. Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.gemini in config.yaml."
+                f"No Gemini model configured for step '{step_name}'. "
+                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.gemini in config.yaml."
             )
-        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
+        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5)
+        # to avoid 404 NOT_FOUND errors.
         if model_name == "gemini-1.5-flash":
             logging.info(f"Mapping deprecated model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
             model_name = "gemini-2.5-flash"
@@ -162,14 +170,21 @@ def _create_openai_fallback(model_name: str, step_name: str, temperature: float,
 
 def _create_gemini_fallback(model_name: str, step_name: str, temperature: float):
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-        logging.warning(f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set.")
+        logging.warning(
+            f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set."
+        )
         return None
-    # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5) to avoid 404 NOT_FOUND errors.
+    # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5)
+    # to avoid 404 NOT_FOUND errors.
     if model_name == "gemini-1.5-flash":
-        logging.info(f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
+        logging.info(
+            f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'"
+        )
         model_name = "gemini-2.5-flash"
     elif model_name == "gemini-1.5-pro":
-        logging.info(f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
+        logging.info(
+            f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'"
+        )
         model_name = "gemini-2.5-pro"
     return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 

@@ -277,6 +277,10 @@ Keep cognitive complexity **strictly below 15** per function/method:
   - May configure root logging in `main()`.
   - May use descriptive, emoji-enhanced `print()` calls (🚀, ✅, ❌, 📦, 🧹, ✨) for human-facing CLI progress.
 
+### Git & Version Control Policy
+- **User Manages Git Exclusively**: The user manages git directly. Agents must **NEVER** run git staging or commit commands (`git add`, `git commit`, `git push`, etc.).
+- **No Check-Ins Without Prior User Review**: All code changes must remain unstaged in the working directory so the user can thoroughly inspect and review them before check-in.
+
 ---
 
 ## 7. Definition of Done (Pre-Finalization Checklist)

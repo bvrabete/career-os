@@ -213,7 +213,10 @@ def main() -> None:
 
     wiki_dir = get_wiki_dir()
     if not is_wiki_initialized(wiki_dir):
-        print(f"❌ Error: The wiki at '{wiki_dir}' is not initialized. Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first.")
+        print(
+            f"❌ Error: The wiki at '{wiki_dir}' is not initialized. "
+            f"Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first."
+        )
         return
 
     target = validate_path(args.file or args.dir)

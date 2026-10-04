@@ -184,7 +184,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Career OS Experiences Retroactive Cleanup Tool")
     parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
-    parser.add_argument("--sync-case-studies", action="store_true", help="Synchronize deep-dive case studies into parent experience achievements")
+    parser.add_argument(
+        "--sync-case-studies", action="store_true",
+        help="Synchronize deep-dive case studies into parent experience achievements"
+    )
     parser.add_argument("--generate-catalog", action="store_true", help="Generate or update catalog.json index")
     args = parser.parse_args()
 
