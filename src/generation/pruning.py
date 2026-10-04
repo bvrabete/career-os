@@ -24,6 +24,7 @@ from generation.grouping import (
     _extract_end_date_normalized,
     _extract_start_date_normalized,
     _extract_start_year,
+    _get_org_slug,
     _group_old_experiences_by_company,
     _is_parallel_startup_track,
 )
@@ -327,6 +328,15 @@ def _compress_and_wrap_experiences(
         retrieved_exp_slugs.append(slug)
         wrapped = _compress_and_wrap_single_experience(score, name, content, justification, keywords, max_pages)
         selected_content.append(wrapped)
+
+    for item in deduplicated:
+        orig_slug = item[1].replace(".md", "")
+        if orig_slug not in retrieved_exp_slugs:
+            retrieved_exp_slugs.append(orig_slug)
+        fm = _parse_yaml_frontmatter_from_text(item[2])
+        org_slug = _get_org_slug(item[1], fm)
+        if org_slug and org_slug not in retrieved_exp_slugs:
+            retrieved_exp_slugs.append(org_slug)
 
     return selected_content, retrieved_exp_slugs
 

@@ -36,19 +36,32 @@ def _is_old_role(fm: dict[str, Any]) -> bool:
 
 
 def _detect_employment_type(fm: dict[str, Any], content: str) -> str:
-    """Detect if the role is Contract, Permanent, or Self-Employed based on YAML frontmatter, tags, title, or body."""
+    """Detect if the role is Contract, Permanent, Startup / Co-Founder, or Advisory based on YAML frontmatter, tags, title, or body."""
     emp_type = fm.get("employment_type")
     if emp_type:
-        emp_type_str = str(emp_type).strip().capitalize()
-        if emp_type_str in ["Contract", "Permanent", "Self-employed"]:
-            return emp_type_str
+        emp_type_str = str(emp_type).strip()
+        lowered = emp_type_str.lower().replace("-", " ").replace("_", " ")
+        if lowered in ["contract", "contractor"]:
+            return "Contract"
+        if lowered in ["permanent", "full time", "fulltime"]:
+            return "Permanent"
+        if lowered in ["self employed", "co founder", "cofounder", "startup"]:
+            return "Startup / Co-Founder"
+        if lowered in ["advisory", "advisor"]:
+            return "Advisory"
+        if emp_type_str.capitalize() in ["Contract", "Permanent", "Self-employed"]:
+            return emp_type_str.capitalize()
+        return emp_type_str
 
     tags = [str(t).lower() for t in fm.get("tags", [])]
     tracks = [str(tr).lower() for tr in fm.get("tracks", [])]
     title = str(fm.get("title", "")).lower()
     is_cofounder_title = any(x in title for x in ["co-founder", "cofounder", "co founder"])
     if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks or is_cofounder_title:
-        return "Self-Employed"
+        return "Startup / Co-Founder"
+
+    if "advisory" in tags or "advisory" in tracks or "advisor" in title:
+        return "Advisory"
 
     if "contract" in tags or "contract" in title:
         return "Contract"

@@ -30,6 +30,7 @@ from generation.helpers import (
     robust_json_loads,
     score_by_keywords,
 )
+from generation.pruning import _compress_and_wrap_experiences
 from langchain_core.messages import AIMessage
 
 # Suppress debug/info logging during tests
@@ -174,6 +175,10 @@ Outro"""
         self.assertEqual(_detect_employment_type({}, "This is a contractor role"), "Contract")
         self.assertEqual(_detect_employment_type({}, "consulting (contract) work"), "Contract")
         self.assertEqual(_detect_employment_type({}, "Regular permanent job"), "Permanent")
+        self.assertEqual(_detect_employment_type({"title": "Co-Founder and CTO"}, ""), "Startup / Co-Founder")
+        self.assertEqual(_detect_employment_type({"employment_type": "co_founder"}, ""), "Startup / Co-Founder")
+        self.assertEqual(_detect_employment_type({"title": "Technical Advisor"}, ""), "Advisory")
+        self.assertEqual(_detect_employment_type({"employment_type": "advisory"}, ""), "Advisory")
 
     def test_build_combined_body(self):
         """Test combining multiple experiences chronologically or otherwise."""
@@ -253,14 +258,25 @@ Outro"""
         pat_dir.mkdir(parents=True, exist_ok=True)
 
         p1 = pat_dir / "pat1.md"
-        p1.write_text("---\ntitle: Patent One\nid: US123456\n---\nNovel neural networks.")
+        p1.write_text("---\ntitle: Patent One\nid: US123456\norganization: '[[intel-corporation]]'\n---\nNovel neural networks.")
         p2 = pat_dir / "pat2.md"
-        p2.write_text("---\ntitle: Patent Two\nid: US789101\n---\nCrypto security protocol.")
+        p2.write_text("---\ntitle: Patent Two\nid: US789101\ntenure: intel-platform-architect-and-tech-lead\n---\nCrypto security protocol.")
 
         with patch("generation.helpers.get_wiki_dir", return_value=self.wiki_dir):
-            res = retrieve_and_score_patents(self.wiki_dir, ["Neural", "networks"], ["intel"])
+            res = retrieve_and_score_patents(self.wiki_dir, ["Neural", "networks"], ["intel-corporation", "intel-platform-architect-and-tech-lead"])
             self.assertEqual(len(res), 2)
             self.assertIn("pat1.md", res[0])
+
+    def test_compress_and_wrap_experiences_constituent_slugs(self):
+        """Test that _compress_and_wrap_experiences populates constituent and org slugs."""
+        exp_1 = (10, "intel-role-1.md", "---\norganization: [[intel-corp]]\ntitle: Eng 1\n---\nBody 1", "Just 1")
+        exp_2 = (20, "smartrs-cto.md", "---\norganization: [[smartrs]]\ntitle: CTO\nemployment_type: co_founder\n---\nBody 2", "Just 2")
+        dedup = [exp_1, exp_2]
+        _, slugs = _compress_and_wrap_experiences(dedup, ["Python"], max_pages=1)
+        self.assertIn("intel-role-1", slugs)
+        self.assertIn("intel-corp", slugs)
+        self.assertIn("smartrs-cto", slugs)
+        self.assertIn("smartrs", slugs)
 
     def test_retrieve_and_score_notes(self):
         """Test notes retrieval, scoring, and sorting."""

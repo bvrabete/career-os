@@ -237,7 +237,7 @@ def retrieve_and_score_patents(
             pat_content = f.read_text(encoding="utf-8")
             score = score_by_keywords(pat_content, keywords)
             for slug in retrieved_exp_slugs:
-                if f"[[{slug}]]" in pat_content:
+                if f"[[{slug}]]" in pat_content or f": '{slug}'" in pat_content or f": {slug}" in pat_content:
                     score += 5
             scored_patents.append((score, f.name, pat_content))
         except Exception:
