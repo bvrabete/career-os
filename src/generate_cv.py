@@ -197,7 +197,7 @@ def _setup_logging(log_level: str = "INFO") -> None:
     console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
     root_logger.addHandler(console_handler)
 
-    for noisy_lib in ["httpx", "httpcore", "openai", "urllib3"]:
+    for noisy_lib in ["httpx", "httpcore", "openai", "urllib3", "google", "google_genai"]:
         logging.getLogger(noisy_lib).setLevel(logging.WARNING)
 
 
