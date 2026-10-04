@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open
 
 from kb_config import (
     get_wiki_dir,
+    set_wiki_dir,
     load_config,
     get_strategy_default,
     get_model_for_step,
@@ -17,18 +18,24 @@ class TestKBConfigAdditional(unittest.TestCase):
 
     def setUp(self) -> None:
         self.original_env = dict(os.environ)
+        set_wiki_dir(None)
 
     def tearDown(self) -> None:
+        set_wiki_dir(None)
         os.environ.clear()
         os.environ.update(self.original_env)
 
-    def test_get_wiki_dir_env_set(self) -> None:
-        os.environ["LLM_WIKI_DIR"] = "custom-wiki-path"
+    def test_set_wiki_dir_override(self) -> None:
+        set_wiki_dir("custom-wiki-path")
         self.assertEqual(get_wiki_dir(), Path("custom-wiki-path"))
+        set_wiki_dir(None)
 
-    def test_get_wiki_dir_env_unset(self) -> None:
-        if "LLM_WIKI_DIR" in os.environ:
-            del os.environ["LLM_WIKI_DIR"]
+    @patch("kb_config.load_config", return_value={"PATHS": {"WIKI_DIR": "my-config-wiki"}})
+    def test_get_wiki_dir_from_config(self, mock_load: MagicMock) -> None:
+        self.assertEqual(get_wiki_dir(), Path("my-config-wiki"))
+
+    @patch("kb_config.load_config", return_value={})
+    def test_get_wiki_dir_fallback(self, mock_load: MagicMock) -> None:
         self.assertEqual(get_wiki_dir(), Path("llm-wiki"))
 
     @patch("kb_config.CONFIG_PATH")

@@ -1,9 +1,9 @@
 """CLI tool to initialize and scaffold a new LLM-Wiki career knowledge base."""
 import argparse
-import os
 import sys
 
 from ingestion.bootstrapping import bootstrap_wiki_structure, is_wiki_initialized
+from kb_config import get_wiki_dir
 from utils import validate_path
 
 
@@ -14,8 +14,8 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--wiki-dir",
-        default=os.environ.get("LLM_WIKI_DIR", "llm-wiki"),
-        help="Path to the knowledge base root folder (defaults to LLM_WIKI_DIR or 'llm-wiki')",
+        default=str(get_wiki_dir()),
+        help="Path to the knowledge base root folder (defaults to PATHS.WIKI_DIR in config.yaml)",
     )
     parser.add_argument(
         "--force",

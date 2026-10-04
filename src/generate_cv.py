@@ -3,14 +3,13 @@ import dataclasses
 from datetime import datetime
 import json
 import logging
-import os
 from pathlib import Path
 import sys
 from typing import Any
 
 from generation import build_graph
 from ingestion.bootstrapping import is_wiki_initialized
-from kb_config import get_wiki_dir
+from kb_config import get_wiki_dir, set_wiki_dir
 from tools.crm import record_application
 from utils import validate_path
 from pdf_generator import generate_pdf
@@ -32,7 +31,12 @@ def parse_arguments() -> argparse.Namespace:
     args_parser.add_argument("--out", default=None,
                              help="Output path for the Markdown CV (defaults to LLM-Wiki synthesis folder if omitted)")
     args_parser.add_argument(
-        "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
+        "--wiki-dir", help="Path to the llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)")
+    args_parser.add_argument(
+        "--strategy",
+        default=None,
+        help="Strategy override ('emea', 'us_tech', 'executive')",
+    )
     args_parser.add_argument(
         "--template",
         help="Document template/theme to use ('base', 'executive', 'compact', or path to CSS)",
@@ -189,7 +193,7 @@ def _setup_logging() -> None:
 def _load_job_description(args: argparse.Namespace) -> str | None:
     """Validates the JD file and returns its content, or None if not found."""
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
     jd_path = validate_path(args.jd)
     if not jd_path.exists():
@@ -338,6 +342,7 @@ def main() -> None:
     app = build_graph()
 
     inputs = {
+        "job_description": jd_content,
         "job_description_raw": jd_content,
         "iteration_count": 0,
         "compression_count": 0,

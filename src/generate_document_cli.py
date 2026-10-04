@@ -6,11 +6,11 @@ Allows converting compiled CV Markdown files into styled PDF or Word (.docx) doc
 import argparse
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
 from docx_generator import generate_docx
+from kb_config import set_wiki_dir
 from pdf_generator import generate_pdf
 from utils import validate_path
 
@@ -40,13 +40,13 @@ def main() -> None:
         "--wiki-dir",
         "--llm-wiki",
         dest="wiki_dir",
-        help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')",
+        help="Path to the llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)",
     )
 
     args = parser.parse_args()
 
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
     # Validate input path
     try:

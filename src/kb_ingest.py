@@ -3,13 +3,12 @@ from datetime import datetime
 import hashlib
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
 from generation.skills_helper import run_skills_sync
 from ingestion.bootstrapping import is_wiki_initialized
-from kb_config import get_wiki_dir
+from kb_config import get_wiki_dir, set_wiki_dir
 import kb_ingest_graph
 from tools.catalog import save_catalog
 from utils import validate_path
@@ -205,11 +204,11 @@ def main() -> None:
     parser.add_argument("--force", action="store_true",
                         help="Re-process files already recorded in ingestion_status.json")
     parser.add_argument(
-        "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
+        "--wiki-dir", help="Path to the llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)")
     args = parser.parse_args()
 
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
     wiki_dir = get_wiki_dir()
     if not is_wiki_initialized(wiki_dir):

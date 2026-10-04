@@ -44,17 +44,28 @@ def load_config() -> dict[str, Any]:
         )
 
 
+_wiki_dir_override: Path | None = None
+
+
+def set_wiki_dir(path: Path | str | None) -> None:
+    """Sets a runtime override for the wiki directory (e.g. from CLI flags)."""
+    global _wiki_dir_override
+    if path:
+        _wiki_dir_override = Path(str(path).strip())
+    else:
+        _wiki_dir_override = None
+
+
 def get_wiki_dir() -> Path:
-    """Returns the Path to the llm-wiki directory, checking environment variables, config.yaml, or default."""
-    env_val = os.getenv("LLM_WIKI_DIR")
-    if env_val:
-        return Path(env_val)
+    """Returns the Path to the llm-wiki directory from runtime override, config.yaml, or default."""
+    if _wiki_dir_override is not None:
+        return _wiki_dir_override
     config = load_config()
     paths = config.get("PATHS", {})
     if isinstance(paths, dict) and "WIKI_DIR" in paths:
-        return Path(paths["WIKI_DIR"])
+        return Path(str(paths["WIKI_DIR"]).strip())
     if "WIKI_DIR" in config:
-        return Path(config["WIKI_DIR"])
+        return Path(str(config["WIKI_DIR"]).strip())
     return Path("llm-wiki")
 
 
@@ -63,9 +74,9 @@ def get_output_dir() -> Path:
     config = load_config()
     paths = config.get("PATHS", {})
     if isinstance(paths, dict) and "OUTPUT_DIR" in paths:
-        return Path(paths["OUTPUT_DIR"])
+        return Path(str(paths["OUTPUT_DIR"]).strip())
     if "OUTPUT_DIR" in config:
-        return Path(config["OUTPUT_DIR"])
+        return Path(str(config["OUTPUT_DIR"]).strip())
     return Path("ai-generated-cvs")
 
 

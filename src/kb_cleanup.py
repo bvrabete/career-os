@@ -6,7 +6,6 @@ partition achievements, semantically deduplicate redundant bullets, and merge fr
 
 import argparse
 import logging
-import os
 import re
 import shutil
 import sys
@@ -16,7 +15,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from kb_config import get_model_for_step, get_wiki_dir
+from kb_config import get_model_for_step, get_wiki_dir, set_wiki_dir
 from tools.catalog import save_catalog
 from tools.sync_case_studies import sync_case_studies
 from utils import validate_path
@@ -182,7 +181,7 @@ def main() -> None:
     CLI Main entry point for the experiences cleanup tool.
     """
     parser = argparse.ArgumentParser(description="Career OS Experiences Retroactive Cleanup Tool")
-    parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
+    parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
     parser.add_argument(
         "--sync-case-studies", action="store_true",
@@ -192,7 +191,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
     wiki_dir = get_wiki_dir()
 

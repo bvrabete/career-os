@@ -7,13 +7,13 @@ indexed inside its parent experience file ending with an in-line wikilink:
 
 import argparse
 import logging
-import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
 import yaml
 
+from kb_config import get_wiki_dir
 from utils import validate_path, safe_read_text, safe_write_text
 
 logger = logging.getLogger(__name__)
@@ -204,12 +204,11 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="CareerOS Case Study to Experience Synchronizer")
-    parser.add_argument("--wiki-dir", help="Path to llm-wiki directory")
+    parser.add_argument("--wiki-dir", help="Path to llm-wiki directory (defaults to PATHS.WIKI_DIR in config.yaml)")
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing")
     args = parser.parse_args()
 
-    wiki_path_str = args.wiki_dir or os.environ.get("LLM_WIKI_DIR", "llm-wiki")
-    wiki_dir = validate_path(Path(wiki_path_str).resolve())
+    wiki_dir = validate_path(Path(args.wiki_dir).resolve()) if args.wiki_dir else get_wiki_dir()
 
     print(f"🔍 Scanning case studies in: {wiki_dir / 'wiki' / 'case-studies'}")
     stats = sync_case_studies(wiki_dir, dry_run=args.dry_run)

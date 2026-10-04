@@ -38,7 +38,7 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
     """Analyze the job description, extract keywords, expected format, location, organization, and regional strategy."""
     logging.info("--- NODE A: ANALYZER ---")
     llm = get_model_for_step("ANALYSIS", format="json")
-    jd = state.get("job_description", "")
+    jd = str(state.get("job_description") or state.get("job_description_raw") or "")
 
     # Discover available strategies
     strategies_dir = get_wiki_dir() / "wiki" / "strategies"
@@ -92,6 +92,7 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
     logging.info(f"Target Region suggested: {region.upper()}")
 
     return {
+        "job_description": jd,
         "target_persona": persona,
         "primary_keywords": keywords,
         "target_region": region,
