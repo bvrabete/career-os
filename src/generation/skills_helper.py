@@ -112,7 +112,7 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
     scan_directory(experiences_dir)
     scan_directory(projects_dir)
 
-    print(f"📊 Found {len(skill_sources)} unique skill slug(s) across experiences and projects.")
+    logger.info("Found %d unique skill slug(s) across experiences and projects.", len(skill_sources))
 
     created_count = 0
     updated_count = 0
@@ -160,7 +160,7 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
 
             if content.strip() != new_content.strip():
                 diff_count = len(merged_related) - len(existing_related)
-                print(f"  🔄 [UPDATE] {slug}.md -> Added links to {diff_count} new sources.")
+                logger.info("  [UPDATE] %s.md -> Added links to %d new sources.", slug, diff_count)
                 if not dry_run:
                     skill_file.write_text(new_content, encoding="utf-8")
                 updated_count += 1
@@ -181,12 +181,12 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
             )
             new_content = f"---\n{fm_str}\n---\n\n{body_str}"
 
-            print(f"  ✨ [NEW] Creating skill: {slug}.md (linked to {len(new_related)} sources)")
+            logger.info("  [NEW] Creating skill: %s.md (linked to %d sources)", slug, len(new_related))
             if not dry_run:
                 skill_file.write_text(new_content, encoding="utf-8")
             created_count += 1
 
-    print(f"🧹 Skills compilation completed. Created: {created_count}  Updated: {updated_count}")
+    logger.info("Skills compilation completed. Created: %d  Updated: %d", created_count, updated_count)
 
 
 def get_compact_skills_list(skills_dir: Path, allowed_experience_slugs: list[str] | None = None) -> list[str]:

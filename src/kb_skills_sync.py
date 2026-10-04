@@ -5,8 +5,8 @@ This script acts as a manual CLI wrapper that reuses the core sync engine.
 
 import argparse
 import logging
-import sys
 from pathlib import Path
+import sys
 
 from generation.skills_helper import run_skills_sync
 from kb_config import get_wiki_dir, set_wiki_dir
