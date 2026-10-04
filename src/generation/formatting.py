@@ -93,7 +93,8 @@ def _escape_control_chars_in_strings(text: str) -> str:
 
 
 def robust_json_loads(text: str) -> Any:
-    """Robustly parse a JSON string from LLM output, handling preambles, trailing commas, comments, and control characters."""
+    """Robustly parse a JSON string from LLM output, handling preambles, trailing commas,
+    comments, and control characters."""
     if not text:
         raise ValueError("Empty input string")
 

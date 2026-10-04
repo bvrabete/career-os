@@ -46,8 +46,8 @@ def _detect_employment_type(fm: dict[str, Any], content: str) -> str:
     tags = [str(t).lower() for t in fm.get("tags", [])]
     tracks = [str(tr).lower() for tr in fm.get("tracks", [])]
     title = str(fm.get("title", "")).lower()
-
-    if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks or any(x in title for x in ["co-founder", "cofounder", "co founder"]):
+    is_cofounder_title = any(x in title for x in ["co-founder", "cofounder", "co founder"])
+    if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks or is_cofounder_title:
         return "Self-Employed"
 
     if "contract" in tags or "contract" in title:

@@ -281,7 +281,8 @@ def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int
             f"Words: {words}/{word_limit} (+{excess_words}), "
             f"Bullet lines: {bullet_lines}/{bullet_limit} (+{excess_bullets}), "
             f"Characters: {char_count}/{char_limit}. "
-            "Compress wordy STAR achievement bullets, eliminate fluff, and trim secondary accomplishments from older roles."
+            "Compress wordy STAR achievement bullets, eliminate fluff, and trim secondary "
+            "accomplishments from older roles."
         )
         return True, feedback, words, bullet_lines
 

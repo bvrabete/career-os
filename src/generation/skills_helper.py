@@ -159,7 +159,8 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
             new_content = f"---\n{fm_str}\n---\n\n{body}"
 
             if content.strip() != new_content.strip():
-                print(f"  🔄 [UPDATE] {slug}.md -> Added links to {len(merged_related) - len(existing_related)} new sources.")
+                diff_count = len(merged_related) - len(existing_related)
+                print(f"  🔄 [UPDATE] {slug}.md -> Added links to {diff_count} new sources.")
                 if not dry_run:
                     skill_file.write_text(new_content, encoding="utf-8")
                 updated_count += 1
@@ -173,7 +174,11 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
                 "proficiency": ["Proficient"]
             }
             fm_str = yaml.dump(fm, default_flow_style=False, sort_keys=False).strip()
-            body_str = f"# {skill_name}\n\n## Description\nDefinition and details of {skill_name}.\n\n## Evidence & Accomplishments\nProven in action across:\n" + "\n".join(f"- [[{r}]]" for r in new_related)
+            evidence_lines = "\n".join(f"- [[{r}]]" for r in new_related)
+            body_str = (
+                f"# {skill_name}\n\n## Description\nDefinition and details of {skill_name}.\n\n"
+                f"## Evidence & Accomplishments\nProven in action across:\n{evidence_lines}"
+            )
             new_content = f"---\n{fm_str}\n---\n\n{body_str}"
 
             print(f"  ✨ [NEW] Creating skill: {slug}.md (linked to {len(new_related)} sources)")

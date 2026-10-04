@@ -191,15 +191,28 @@ def node_entity_resolver(state: IngestionState) -> dict[str, Any]:
     mappings = parse_mappings()
     resolved: dict[str, str] = {}
 
-    _resolve_key_and_log(state.get("extracted_roles"), "raw_org_name", mappings, resolved, "  '{raw_name}' → '[[{slug}]]'")
-    _resolve_key_and_log(state.get("extracted_education"), "raw_inst_name", mappings, resolved, "  Education institution '{raw_name}' → '[[{slug}]]'")
-    _resolve_key_and_log(state.get("extracted_projects"), "raw_org_name", mappings, resolved, "  Project org '{raw_name}' → '[[{slug}]]'")
-    _resolve_key_and_log(state.get("extracted_patents"), "raw_org_name", mappings, resolved, "  Patent org '{raw_name}' → '[[{slug}]]'")
+    specs = [
+        (state.get("extracted_roles"), "raw_org_name", "  '{raw_name}' → '[[{slug}]]'"),
+        (
+            state.get("extracted_education"),
+            "raw_inst_name",
+            "  Education institution '{raw_name}' → '[[{slug}]]'",
+        ),
+        (state.get("extracted_projects"), "raw_org_name", "  Project org '{raw_name}' → '[[{slug}]]'"),
+        (state.get("extracted_patents"), "raw_org_name", "  Patent org '{raw_name}' → '[[{slug}]]'"),
+        (
+            state.get("extracted_cover_letters"),
+            "target_organization_raw",
+            "  Cover letter org '{raw_name}' → '[[{slug}]]'",
+        ),
+    ]
+    for items, key, log_tmpl in specs:
+        _resolve_key_and_log(items, key, mappings, resolved, log_tmpl)
 
     for note in state.get("extracted_notes", []):
-        _resolve_key_and_log(note.get("related_raw_orgs"), None, mappings, resolved, "  Note org '{raw_name}' → '[[{slug}]]'")
-
-    _resolve_key_and_log(state.get("extracted_cover_letters"), "target_organization_raw", mappings, resolved, "  Cover letter org '{raw_name}' → '[[{slug}]]'")
+        _resolve_key_and_log(
+            note.get("related_raw_orgs"), None, mappings, resolved, "  Note org '{raw_name}' → '[[{slug}]]'"
+        )
 
     return {"resolved_entities": resolved}
 

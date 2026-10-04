@@ -33,11 +33,21 @@ def parse_arguments() -> argparse.Namespace:
                              help="Output path for the Markdown CV (defaults to LLM-Wiki synthesis folder if omitted)")
     args_parser.add_argument(
         "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
-    args_parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
-    args_parser.add_argument("--template", help="Document template/theme to use ('base', 'executive', 'compact', or path to CSS)")
-    args_parser.add_argument("--interactive", action="store_true", help="Prompt interactively if the auditor flags issues")
-    args_parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
-    args_parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
+    args_parser.add_argument(
+        "--template",
+        help="Document template/theme to use ('base', 'executive', 'compact', or path to CSS)",
+    )
+    args_parser.add_argument(
+        "--interactive", action="store_true", help="Prompt interactively if the auditor flags issues"
+    )
+    args_parser.add_argument(
+        "--generate-pdf",
+        action="store_true",
+        help="Automatically generate PDF CV from Markdown using final stylesheet",
+    )
+    args_parser.add_argument(
+        "--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown"
+    )
     return args_parser.parse_args()
 
 
@@ -214,7 +224,10 @@ def _triage_pipeline_exception(e: Exception) -> None:
 
     else:
         print(SUGGESTION_STR)
-        print("   - Double-check your config.yaml configuration and ensure that local services (like Ollama) are fully operational.")
+        print(
+            "   - Double-check your config.yaml configuration and ensure that local services "
+            "(like Ollama) are fully operational."
+        )
         print("   - Review your log files or run with verbose logging for more details.")
 
 
@@ -309,7 +322,10 @@ def main() -> None:
 
     wiki_dir = get_wiki_dir()
     if not is_wiki_initialized(wiki_dir):
-        print(f"❌ Error: The wiki at '{wiki_dir}' is not initialized. Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first.")
+        print(
+            f"❌ Error: The wiki at '{wiki_dir}' is not initialized. "
+            f"Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first."
+        )
         return
 
     jd_content = _load_job_description(args)

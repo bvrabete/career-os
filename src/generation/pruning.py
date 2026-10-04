@@ -302,9 +302,10 @@ def _compress_and_wrap_single_experience(
     else:
         content = compress_experience_llm(content)
 
-    start_date_str = _extract_start_date_normalized(fm)
     return (
-        f"--- CAREER ENTRY: {name} | START_DATE: {start_date_str} | EMPLOYMENT_TYPE: {emp_type} | IS_STARTUP_TRACK: {is_startup} | (SEMANTIC RELEVANCE SCORE: {score}) ---\n"
+        f"--- CAREER ENTRY: {name} | START_DATE: {start_date_str} | "
+        f"EMPLOYMENT_TYPE: {emp_type} | IS_STARTUP_TRACK: {is_startup} | "
+        f"(SEMANTIC RELEVANCE SCORE: {score}) ---\n"
         f"JUSTIFICATION: {justification}\n"
         f"{content}\n"
         f"--- END CAREER ENTRY ---\n"

@@ -103,7 +103,8 @@ def resolve_regional_strategy(wiki_dir: Path, region: str) -> tuple[str, str]:
 
 
 def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]) -> dict[str, str]:
-    """Ask LLM to construct an explicit key-value mapping of required JD skills to sibling/equivalent candidate skills."""
+    """Ask LLM to construct an explicit key-value mapping of required JD skills
+    to sibling/equivalent candidate skills."""
     skills_summary = "\n".join(skills)
 
     try:
