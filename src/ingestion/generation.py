@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from ingestion.generators.cover_letters import generate_cover_letters
+from ingestion.generators.case_studies import generate_case_studies
 from ingestion.generators.education import generate_education, generate_languages
 from ingestion.generators.experiences import generate_experiences
 from ingestion.generators.notes import generate_notes
@@ -98,6 +99,21 @@ def _generate_notes(
     )
 
 
+def _generate_case_studies(
+    llm: Any,
+    case_studies: list[dict[str, Any]],
+    resolved: dict[str, str],
+    today_str: str,
+    wiki_outputs: list[dict[str, Any]],
+    source_file: str,
+) -> None:
+    """Generate case study files and append them to wiki_outputs."""
+    generate_case_studies(
+        llm, case_studies, resolved, today_str, wiki_outputs, source_file,
+        load_prompt_fn=load_prompt, get_wiki_root_fn=get_wiki_root
+    )
+
+
 def _generate_cover_letters(
     llm: Any,
     cover_letters: list[dict[str, Any]],
@@ -135,10 +151,11 @@ def node_generator(state: IngestionState) -> dict[str, Any]:
     projects = state.get("extracted_projects", [])
     patents = state.get("extracted_patents", [])
     notes = state.get("extracted_notes", [])
+    case_studies = state.get("extracted_case_studies", [])
     cover_letters = state.get("extracted_cover_letters", [])
     profile = state.get("extracted_profile", {})
 
-    if not any([roles, education, languages, projects, patents, notes, cover_letters, profile]):
+    if not any([roles, education, languages, projects, patents, notes, case_studies, cover_letters, profile]):
         logging.info("No content to generate")
         return {"wiki_outputs": []}
 
@@ -167,6 +184,11 @@ def node_generator(state: IngestionState) -> dict[str, Any]:
 
     if notes:
         _generate_notes(llm, notes, resolved, today_str, wiki_outputs)
+
+    if case_studies:
+        _generate_case_studies(
+            llm, case_studies, resolved, today_str, wiki_outputs, state.get("source_file", "")
+        )
 
     if cover_letters:
         _generate_cover_letters(llm, cover_letters, resolved, today_str, wiki_outputs)

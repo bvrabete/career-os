@@ -40,6 +40,7 @@ from ingestion.helpers import (
 from ingestion.state import IngestionState
 from ingestion.validators import (
     _validate_by_type as _validate_by_type,
+    _validate_case_study as _validate_case_study,
     _validate_cover_letter as _validate_cover_letter,
     _validate_dates as _validate_dates,
     _validate_education as _validate_education,
@@ -220,6 +221,11 @@ def node_entity_resolver(state: IngestionState) -> dict[str, Any]:
             state.get("extracted_cover_letters"),
             "target_organization_raw",
             "  Cover letter org '{raw_name}' → '[[{slug}]]'",
+        ),
+        (
+            state.get("extracted_case_studies"),
+            "related_raw_org",
+            "  Case study org '{raw_name}' → '[[{slug}]]'",
         ),
     ]
     for items, key, log_tmpl in specs:

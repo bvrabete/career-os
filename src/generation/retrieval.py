@@ -288,6 +288,38 @@ def retrieve_and_score_notes(
     return notes_entries
 
 
+def retrieve_and_score_case_studies(
+    wiki_dir: Path, keywords: list[str], retrieved_exp_slugs: list[str]
+) -> list[str]:
+    """Retrieve and score candidate case studies by relevance and experience links."""
+    case_studies_dir = wiki_dir / "wiki" / "case-studies"
+    scored_case_studies: list[tuple[int, str, str]] = []
+    if not case_studies_dir.exists():
+        return []
+
+    for f in case_studies_dir.glob("*.md"):
+        try:
+            cs_content = f.read_text(encoding="utf-8")
+            score = score_by_keywords(cs_content, keywords)
+            for slug in retrieved_exp_slugs:
+                if f"[[{slug}]]" in cs_content:
+                    score += 5
+            scored_case_studies.append((score, f.name, cs_content))
+        except Exception:
+            pass
+
+    scored_case_studies.sort(key=lambda x: x[0], reverse=True)
+    case_studies_entries: list[str] = []
+    for cs_score, cs_name, cs_content in scored_case_studies[:4]:
+        pruned_content = cs_content if len(cs_content) <= 3500 else cs_content[:3500] + "\n... [TRUNCATED CASE STUDY] ..."
+        case_studies_entries.append(
+            f"--- CASE STUDY ENTRY: {cs_name} (RELEVANCE SCORE: {cs_score}) ---\n"
+            f"{pruned_content}\n"
+            f"--- END CASE STUDY ENTRY ---\n"
+        )
+    return case_studies_entries
+
+
 def retrieve_few_shots(wiki_dir: Path, keywords: list[str]) -> list[str]:
     """Retrieve and score past successful few-shot resume examples."""
     synthesis_dir = wiki_dir / "wiki" / "synthesis"

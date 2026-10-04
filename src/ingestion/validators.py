@@ -127,6 +127,14 @@ def _validate_entity(fm: dict[str, Any], errors: list[str]) -> None:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
 
+def _validate_case_study(fm: dict[str, Any], errors: list[str]) -> None:
+    """Validate case study type frontmatter schema."""
+    CS_REQUIRED = {"type", "title"}
+    missing = CS_REQUIRED - set(fm.keys())
+    if missing:
+        errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+
+
 def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> None:
     """Invokes the specific validator function based on page_type."""
     validators = {
@@ -137,6 +145,7 @@ def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> 
         "project": _validate_project,
         "patent": _validate_patent,
         "note": _validate_note,
+        "case_study": _validate_case_study,
         "cover-letter": _validate_cover_letter,
         "entity": _validate_entity,
     }

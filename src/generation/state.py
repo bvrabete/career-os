@@ -84,6 +84,7 @@ class CVPipelineState(TypedDict, total=False):
     projects_entries: list[str]
     patents_entries: list[str]
     notes_entries: list[str]
+    case_studies_entries: list[str]
     few_shot_examples: list[str]
     skill_bridging_map: dict[str, str]
     languages_entries: list[str]

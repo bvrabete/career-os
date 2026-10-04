@@ -80,6 +80,7 @@ class IngestionState(TypedDict):
     extracted_projects: list[dict[str, Any]]
     extracted_patents: list[dict[str, Any]]
     extracted_notes: list[dict[str, Any]]
+    extracted_case_studies: list[dict[str, Any]]
     extracted_cover_letters: list[dict[str, Any]]
     extracted_profile: dict[str, Any]
     resolved_entities: dict[str, str]

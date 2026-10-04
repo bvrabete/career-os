@@ -20,6 +20,7 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | publication | `wiki/publications/` | Peer-reviewed articles, conference papers, whitepapers, and book chapters |
 | strategy | `wiki/strategies/` | Relocation profiles, contact strategy variants, and regional tailoring |
 | query | `wiki/queries/` | Reconciliation of conflicting data points from old CVs |
+| case_study | `wiki/case-studies/` | In-depth technical architecture whitepapers, system designs, and platform migration reports |
 | profile | `wiki/profile.md` | Canonical candidate profile, contact links, baseline summary & domains |
 | overview | `wiki/` | High-level project summary (one per project) |
 
@@ -31,6 +32,7 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 - Skills: `skill-name.md` (e.g., `python.md`)
 - Languages: `lang-language-name.md` (e.g., `lang-english.md`)
 - Notes: `note-slug.md` (e.g., `note-leadership-reflections.md`)
+- Case Studies: `company-topic-slug.md` (e.g., `virgin-media-gitops-architecture-overview.md`)
 - Patents: `patent-id-slug.md` (e.g., `patent-us12345678-distributed-caching.md`)
 - Publications: `pub-slug.md` (e.g., `pub-distributed-edge-telemetry.md`)
 - Strategies: `strategy-region-slug.md` (e.g., `strategy-ireland.md`)
@@ -94,6 +96,25 @@ perspective: [Self, Third-Party]
 tags: [reflection, leadership, engineering, recruiter-commentary, performance-review, thought-leadership, technical-strategy]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+---
+```
+
+### Case Study Page
+
+```yaml
+---
+type: case_study
+title: "Technical Whitepaper, System Design, or Architecture Title"
+organization: [[entity-slug]]
+related_experience: [[experience-slug]]
+dates:
+  start: YYYY-MM-DD
+  end: YYYY-MM-DD
+skills: [skill-slug-1, skill-slug-2]
+tags: [architecture, distributed-systems, microservices, performance, migration]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [source-slug-1]
 ---
 ```
 

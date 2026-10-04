@@ -31,6 +31,7 @@ from ingestion.nodes import (
     _validate_experience,
     _validate_education,
     _validate_skill,
+    _validate_case_study,
 )
 
 MAPPINGS_FILE_NAME = "mappings.md"
@@ -371,6 +372,26 @@ class TestIngestionValidation(unittest.TestCase):
         errors = []
         _validate_skill(fm, errors)
         self.assertEqual(errors, [])
+
+    def test_validate_case_study_success(self):
+        """Test _validate_case_study succeeds on correct schema."""
+        fm = {
+            "type": "case_study",
+            "title": "Edge Gateway Architecture",
+            "organization": "[[virgin-media]]",
+            "skills": ["Kafka", "Kubernetes"],
+            "tags": ["iot", "edge"],
+        }
+        errors: list[str] = []
+        _validate_case_study(fm, errors)
+        self.assertEqual(errors, [])
+
+    def test_validate_case_study_missing_fields(self):
+        """Test _validate_case_study reports missing required fields."""
+        fm = {"type": "case_study"}
+        errors: list[str] = []
+        _validate_case_study(fm, errors)
+        self.assertTrue(any("Missing frontmatter fields" in err for err in errors))
 
 
 if __name__ == "__main__":

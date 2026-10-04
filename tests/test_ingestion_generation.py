@@ -1,12 +1,14 @@
 """Unit tests for the ingestion pipeline generation logic."""
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch, MagicMock
 from ingestion.generation import (
     _generate_experiences, _generate_education, _generate_languages,
     _generate_projects, _generate_patents, _generate_notes,
     _generate_cover_letters, _generate_profile, node_generator
 )
+from ingestion.generators.case_studies import generate_case_studies
 from ingestion.state import IngestionState
 
 
@@ -394,6 +396,36 @@ class TestIngestionGeneration(unittest.TestCase):
              patch("ingestion.generation.get_persona_slug", return_value="alice-developer"):
             _generate_profile({"name": "Alice Developer"}, "source.pdf", "2026-06-30", wiki_outputs)
             self.assertIn("created: 2026-06-30", wiki_outputs[-1]["content"])
+
+    def test_generate_case_studies_lossless(self):
+        """Test generate_case_studies preserves 100% of body markdown losslessly."""
+        case_studies = [{
+            "title": "Virgin Media Gateway Spec",
+            "related_raw_org": "Virgin Media",
+            "skills": ["Kafka", "Docker"],
+            "tags": ["architecture", "iot"],
+            "raw_text": "# Executive Summary\n\nFull architectural details and tables."
+        }]
+        resolved = {"Virgin Media": "virgin-media"}
+        wiki_outputs: list[dict[str, Any]] = []
+
+        with patch("ingestion.generators.case_studies.get_wiki_root", return_value=Path("/mock/wiki")):
+            generate_case_studies(
+                llm=self.mock_llm,
+                case_studies=case_studies,
+                resolved=resolved,
+                today_str="2026-06-30",
+                source_file="spec.md",
+                wiki_outputs=wiki_outputs,
+                get_wiki_root_fn=lambda: Path("/mock/wiki"),
+            )
+
+        self.assertEqual(len(wiki_outputs), 1)
+        out = wiki_outputs[0]
+        self.assertEqual(out["path"], "/mock/wiki/case-studies/virgin-media-gateway-spec.md")
+        self.assertIn("type: case_study", out["content"])
+        self.assertIn("[[virgin-media]]", out["content"])
+        self.assertIn("# Executive Summary\n\nFull architectural details and tables.", out["content"])
 
 
 if __name__ == "__main__":

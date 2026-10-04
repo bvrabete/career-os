@@ -11,6 +11,7 @@ from ingestion.bootstrapping import is_wiki_initialized
 from kb_config import get_wiki_dir, set_wiki_dir
 import kb_ingest_graph
 from tools.catalog import save_catalog
+from tools.sync_case_studies import sync_case_studies
 from utils import validate_path
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -265,6 +266,10 @@ def main() -> None:
             save_catalog(get_wiki_dir())
         except Exception as ex:
             logging.debug(f"Catalog index update failed: {ex}")
+        try:
+            sync_case_studies(get_wiki_dir())
+        except Exception as ex:
+            logging.debug(f"Case studies synchronization failed: {ex}")
 
     if args.dry_run:
         print("ℹ️  Dry-run mode — no files were written")

@@ -22,6 +22,7 @@ from generation.helpers import (
     parse_and_sort_chronological_entries,
     resolve_regional_strategy,
     retrieve_and_deduplicate_education,
+    retrieve_and_score_case_studies,
     retrieve_and_score_experiences,
     retrieve_and_score_notes,
     retrieve_and_score_patents,
@@ -133,6 +134,7 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     projects_entries = retrieve_and_score_projects(wiki_dir, keywords, retrieved_exp_slugs)
     patents_entries = retrieve_and_score_patents(wiki_dir, keywords, retrieved_exp_slugs)
     notes_entries = retrieve_and_score_notes(wiki_dir, keywords, retrieved_exp_slugs)
+    case_studies_entries = retrieve_and_score_case_studies(wiki_dir, keywords, retrieved_exp_slugs)
     few_shot_examples = retrieve_few_shots(wiki_dir, keywords)
 
     languages_content = retrieve_languages(wiki_dir)
@@ -160,6 +162,7 @@ CV Format Expectations: {expectations}
         "projects_entries": projects_entries,
         "patents_entries": patents_entries,
         "notes_entries": notes_entries,
+        "case_studies_entries": case_studies_entries,
         "few_shot_examples": few_shot_examples,
         "skill_bridging_map": skill_bridging_map,
         "strategy_info": context_info,
@@ -185,6 +188,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     projects = state.get("projects_entries", [])
     patents = state.get("patents_entries", [])
     notes = state.get("notes_entries", [])
+    case_studies = state.get("case_studies_entries", [])
     few_shots = state.get("few_shot_examples", [])
     skill_bridge = state.get("skill_bridging_map", {})
 
@@ -199,6 +203,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     projects_text = "\n\n".join(projects)
     patents_text = "\n\n".join(patents)
     notes_text = "\n\n".join(notes)
+    case_studies_text = "\n\n".join(case_studies)
     few_shots_text = "\n\n".join(few_shots)
     skill_bridge_text = (
         json.dumps(skill_bridge, indent=2) if skill_bridge else "None"
@@ -225,6 +230,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         projects_text=projects_text,
         patents_text=patents_text,
         notes_text=notes_text,
+        case_studies_text=case_studies_text,
         education_text=education_text,
         skills_text=skills_text
     )
