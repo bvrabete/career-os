@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -192,6 +193,12 @@ def _setup_logging(log_level: str = "INFO") -> None:
     file_handler.setFormatter(logging.Formatter("%(asctime)s - [%(levelname)s] - %(name)s - %(message)s"))
     root_logger.addHandler(file_handler)
 
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
@@ -280,6 +287,8 @@ def _save_and_compile_outputs(
 ) -> None:
     """Formats and writes the final CV draft and its synthesis file, then compiles other outputs."""
     draft = final_state.get("draft_cv", "")
+    draft = re.sub(r'^(#{1,6})\s*#{1,6}\s+', r'\1 ', draft, flags=re.MULTILINE)
+    final_state["draft_cv"] = draft
     company = final_state.get("target_organization_slug", "unknown-company")
     role = final_state.get("target_role", "unknown-role")
     track_val = final_state.get("target_region", "general").upper()

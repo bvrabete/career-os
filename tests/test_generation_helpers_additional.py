@@ -399,6 +399,16 @@ Outro"""
         # Should raise the ORIGINAL rate limit error
         self.assertIn("rate_limit", str(ctx.exception))
 
+    def test_heading_double_hash_sanitization(self):
+        """Verify regex cleans duplicate heading hash markers cleanly."""
+        import re
+        sample = "### ### Job Title at Org [Full-Time]\n## ## Section\n# # Header"
+        cleaned = re.sub(r'^(#{1,6})\s*#{1,6}\s+', r'\1 ', sample, flags=re.MULTILINE)
+        self.assertEqual(
+            cleaned,
+            "### Job Title at Org [Full-Time]\n## Section\n# Header",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
