@@ -231,51 +231,159 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     return {"draft_cv": llm_text(response.content)}
 
 
-def node_refiner(state: CVPipelineState) -> dict[str, Any]:
-    """Verify that the drafted CV/Resume does not violate regional length limitations, giving density feedback."""
-    logging.info("--- NODE D: REFINER ---")
-    draft = state.get("draft_cv", "")
-    char_count = len(draft)
-    logging.info(f"Current CV length: {char_count} characters.")
-
-    # Try to find the strongly-typed strategy metadata in the state
+def _resolve_max_pages(state: CVPipelineState) -> int:
+    """Resolves the target maximum page count from state metadata or strategy description."""
     strategy_meta = state.get("strategy_metadata")
     if strategy_meta:
-        max_pages = strategy_meta.max_pages
-        logging.info(f"Using strongly-typed max pages limit from strategy metadata: {max_pages}")
-    else:
-        # Fallback to textual description matching for backwards compatibility (e.g., legacy test state)
-        max_pages = 2
-        strategy_text = state.get("strategy_info", "").lower()
-        if "3 pages" in strategy_text or "3-page" in strategy_text:
-            max_pages = 3
-            logging.info("Regional strategy indicates a 3-page limit from text description (fallback).")
-        elif "1 page" in strategy_text or "1-page" in strategy_text:
-            max_pages = 1
-            logging.info("Regional strategy indicates a 1-page limit from text description (fallback).")
+        return strategy_meta.max_pages
 
-    # Calculate dynamic character limit based on page count
+    strategy_text = state.get("strategy_info", "").lower()
+    if "3 pages" in strategy_text or "3-page" in strategy_text:
+        return 3
+    if "1 page" in strategy_text or "1-page" in strategy_text:
+        return 1
+    return 2
+
+
+def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int, int]:
+    """
+    Evaluates whether the drafted CV fits within the calibrated typesetting page budget.
+    Returns (is_over_budget, feedback_message, word_count, bullet_count).
+    """
+    words = len(draft.split())
+    bullet_lines = sum(
+        1 for line in draft.splitlines()
+        if line.strip().startswith(("- ", "* ", "• "))
+    )
+    char_count = len(draft)
+
     if max_pages == 1:
-        char_limit = 4500
+        word_limit, bullet_limit, char_limit = 500, 20, 4500
     elif max_pages == 3:
-        char_limit = 12500
+        word_limit, bullet_limit, char_limit = 1550, 62, 12500
     elif max_pages >= 4:
+        word_limit = max_pages * 500
+        bullet_limit = max_pages * 20
         char_limit = 12500 + (max_pages - 3) * 4000
-    else:
-        char_limit = 8500  # Default to 2 pages (8500 characters)
+    else:  # 2 pages default
+        word_limit, bullet_limit, char_limit = 1050, 42, 8500
 
-    logging.info(f"Target page limit: {max_pages}. Dynamically computed character budget: {char_limit}.")
+    over_words = words > word_limit
+    over_bullets = bullet_lines > bullet_limit
+    over_chars = char_count > char_limit
 
-    if char_count > char_limit:
+    if over_words or over_bullets or over_chars:
+        excess_words = max(0, words - word_limit)
+        excess_bullets = max(0, bullet_lines - bullet_limit)
         feedback = (
-            f"DENSITY ERROR: The CV is too long ({char_count} characters, limit is {char_limit}). "
-            "Please compress older roles to single-line summaries. "
-            "In current and recent roles, keep only the most impactful bullets that directly "
-            "align with the target job description to maximize the ATS score and relevance."
+            f"DENSITY ERROR: The CV is too long. DENSITY OVERFLOW: CV exceeds the {max_pages}-page budget. "
+            f"Words: {words}/{word_limit} (+{excess_words}), "
+            f"Bullet lines: {bullet_lines}/{bullet_limit} (+{excess_bullets}), "
+            f"Characters: {char_count}/{char_limit}. "
+            "Compress wordy STAR achievement bullets, eliminate fluff, and trim secondary accomplishments from older roles."
         )
-        return {"refiner_feedback": feedback}
+        return True, feedback, words, bullet_lines
 
-    return {"refiner_feedback": ""}
+    return False, "", words, bullet_lines
+
+
+def node_refiner(state: CVPipelineState) -> dict[str, Any]:
+    """Verify that the drafted CV does not violate calibrated typesetting limits."""
+    logging.info("--- NODE D: REFINER GUARD ---")
+    draft = state.get("draft_cv", "")
+    max_pages = _resolve_max_pages(state)
+    is_over, feedback, words, bullets = check_typesetting_budget(draft, max_pages)
+
+    if is_over:
+        logging.warning(f"Refiner guard: over budget ({words} words, {bullets} bullets, max {max_pages} pages).")
+        return {
+            "refiner_feedback": feedback,
+            "total_words": words,
+            "total_bullet_lines": bullets,
+        }
+
+    logging.info(f"Refiner guard: within budget ({words} words, {bullets} bullets, max {max_pages} pages).")
+    return {
+        "refiner_feedback": "",
+        "total_words": words,
+        "total_bullet_lines": bullets,
+    }
+
+
+def node_compressor(state: CVPipelineState) -> dict[str, Any]:
+    """Compress the drafted CV to strictly fit the typesetting page budget using a fast model."""
+    logging.info("--- NODE E: FAST COMPRESSOR ---")
+    try:
+        llm = get_model_for_step("COMPRESSION")
+    except Exception:
+        llm = get_model_for_step("REFINEMENT")
+
+    draft = state.get("draft_cv", "")
+    jd = state.get("job_description", "")
+    max_pages = _resolve_max_pages(state)
+
+    word_limit = 500 if max_pages == 1 else (1550 if max_pages == 3 else (max_pages * 500 if max_pages >= 4 else 1050))
+    bullet_limit = 20 if max_pages == 1 else (62 if max_pages == 3 else (max_pages * 20 if max_pages >= 4 else 42))
+
+    current_words = state.get("total_words", len(draft.split()))
+    current_bullets = state.get("total_bullet_lines", 0)
+    current_metrics = f"{current_words} words, {current_bullets} bullet lines"
+
+    compressor_template = load_prompt("compressor.txt")
+    prompt = (
+        compressor_template
+        .replace("{max_pages}", str(max_pages))
+        .replace("{target_words}", str(word_limit))
+        .replace("{target_bullet_lines}", str(bullet_limit))
+        .replace("{current_metrics}", current_metrics)
+        .replace("{draft_cv}", draft)
+        .replace("{job_description}", jd)
+    )
+
+    response = llm.invoke([HumanMessage(content=prompt)])
+    compressed_text = llm_text(response.content).strip()
+
+    if compressed_text.startswith("```"):
+        compressed_text = re.sub(r"^```(?:markdown)?\n", "", compressed_text)
+        compressed_text = re.sub(r"\n```$", "", compressed_text).strip()
+
+    compression_count = state.get("compression_count", 0) + 1
+    return {
+        "draft_cv": compressed_text,
+        "compression_count": compression_count,
+    }
+
+
+def _handle_interactive_audit(checklist: list[str], ats_score: dict[str, Any]) -> tuple[bool, str]:
+    """Interactive CLI prompt allowing the user to review the scorecard and guide the audit."""
+    import sys
+    if not sys.stdin.isatty():
+        return False, ""
+
+    print("\n" + "=" * 50)
+    print("🤝 INTERACTIVE AUDITOR REVIEW")
+    print("=" * 50)
+    print("[1] Accept Draft (override audit and mark PASS)")
+    print("[2] Provide Custom Revision Guidance")
+    print("[3] Proceed with Automatic Rewrite Checklist")
+    try:
+        choice = input("Select an option [1-3] (default 3): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return False, ""
+
+    if choice == "1":
+        return True, "PASS"
+    if choice == "2":
+        try:
+            custom_note = input("Enter your custom revision directive for the drafter: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            custom_note = ""
+        if custom_note:
+            feedback = f"USER REVISION DIRECTIVE:\n- {custom_note}\n\nORIGINAL AUDIT CHECKLIST:\n" + "\n".join(
+                [f"- [ ] {item}" for item in checklist]
+            )
+            return True, feedback
+    return False, ""
 
 
 def node_auditor(state: CVPipelineState) -> dict[str, Any]:
@@ -309,6 +417,7 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
         if blocks:
             json_str = blocks[0].strip()
 
+    ats_score: dict[str, Any] = {}
     try:
         audit_data = json.loads(json_str)
         is_pass = audit_data.get("pass", False)
@@ -317,23 +426,29 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
 
         total_score = ats_score.get("total_score", 0)
         logging.info(f"--- ATS SCORECARD: {total_score}/100 ---")
-        print(f"\n📊 [ATS SCORECARD: {total_score}/100]")
         for dimension, details in ats_score.items():
             if isinstance(details, dict):
                 score_val = details.get("score", 0)
                 max_val = details.get("max", 100)
                 justification = details.get("justification", "")
-                print(f"  - {dimension.replace('_', ' ').title()}: {score_val}/{max_val}")
                 logging.info(f"    * {dimension}: {score_val}/{max_val} - {justification}")
 
         if is_pass:
             stored_feedback = "PASS"
-            print("✅ [ATS AUDIT: PASS]")
+            logging.info("ATS AUDIT: PASS")
         else:
             stored_feedback = "REWRITE REQUIRED:\n" + "\n".join([f"- [ ] {item}" for item in checklist])
-            print(f"❌ [ATS AUDIT: REWRITE REQUIRED] - {len(checklist)} items to address.")
+            logging.info(f"ATS AUDIT: REWRITE REQUIRED - {len(checklist)} items to address.")
+            if state.get("interactive", False):
+                handled, custom_feedback = _handle_interactive_audit(checklist, ats_score)
+                if handled:
+                    stored_feedback = custom_feedback
     except Exception as e:
         logging.warning(f"Failed to parse structured auditor JSON: {e}. Falling back to raw text.")
         stored_feedback = feedback
 
-    return {"audit_feedback": stored_feedback, "iteration_count": current_iterations + 1}
+    return {
+        "audit_feedback": stored_feedback,
+        "ats_scorecard": ats_score,
+        "iteration_count": current_iterations + 1,
+    }

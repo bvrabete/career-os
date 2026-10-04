@@ -37,6 +37,7 @@ constraint-dependencies = [
 ]
 
 [project.scripts]
+kb-init = "kb_init:main"
 kb-ingest = "kb_ingest:main"
 cv-gen = "generate_cv:main"
 doc-gen = "generate_document_cli:main"

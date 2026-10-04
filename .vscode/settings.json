@@ -34,5 +34,12 @@
     "python.analysis.ignore": [
         "**/tests/**"
     ],
-    "python.terminal.useEnvFile": true
+    "python.terminal.useEnvFile": true,
+    "antigravity.commandApprovals": {                                                                                                                                       
+        "allowPatterns": [                                                                                                                                                    
+          "uv run pytest*",                                                                                                                                                   
+          "uv run mypy*",                                                                                                                                                     
+          "uv run ruff*"                                                                                                                                                      
+        ]                                                                                                                                                                     
+      }           
 }

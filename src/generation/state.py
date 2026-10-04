@@ -57,7 +57,7 @@ class RegionalStrategy:
         )
 
 
-class CVPipelineState(TypedDict):
+class CVPipelineState(TypedDict, total=False):
     """The state dictionary passed between nodes in the CV generation LangGraph."""
     job_description: str
     target_persona: str
@@ -75,6 +75,11 @@ class CVPipelineState(TypedDict):
     audit_feedback: str
     refiner_feedback: str
     iteration_count: int
+    compression_count: int
+    interactive: bool
+    ats_scorecard: dict[str, Any]
+    total_words: int
+    total_bullet_lines: int
     strategy_override: str
     projects_entries: list[str]
     patents_entries: list[str]

@@ -53,7 +53,8 @@ class TestBootstrappingAndOptions(unittest.TestCase):
         """Test the kb-ingest CLI entrypoint option flows with mock payloads."""
         dummy_file = self.temp_dir / "test_resume.pdf"
         dummy_file.write_text("dummy resume content", encoding="utf-8")
-        
+        bootstrap_wiki_structure(self.wiki_dir)
+
         mock_validate_path.return_value = dummy_file
         mock_collect_files.return_value = [dummy_file]
         mock_load_status.return_value = {"processed": {}}

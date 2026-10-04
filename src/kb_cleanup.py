@@ -186,6 +186,7 @@ def main() -> None:
     parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
     parser.add_argument("--sync-case-studies", action="store_true", help="Synchronize deep-dive case studies into parent experience achievements")
+    parser.add_argument("--generate-catalog", action="store_true", help="Generate or update catalog.json index")
     args = parser.parse_args()
 
     if args.wiki_dir:
@@ -193,6 +194,13 @@ def main() -> None:
 
     from kb_config import get_wiki_dir
     wiki_dir = get_wiki_dir()
+
+    if args.generate_catalog:
+        from tools.catalog import save_catalog
+        print(f"📦 Generating catalog index for: {wiki_dir}")
+        catalog_path = save_catalog(wiki_dir)
+        print(f"✨ Catalog generated at: {catalog_path}")
+        return
 
     if args.sync_case_studies:
         from tools.sync_case_studies import sync_case_studies

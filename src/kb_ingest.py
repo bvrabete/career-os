@@ -210,8 +210,11 @@ def main() -> None:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
     from kb_config import get_wiki_dir
-    from kb_ingest_graph import _bootstrap_wiki_structure
-    _bootstrap_wiki_structure(get_wiki_dir())
+    from ingestion.bootstrapping import is_wiki_initialized
+    wiki_dir = get_wiki_dir()
+    if not is_wiki_initialized(wiki_dir):
+        print(f"❌ Error: The wiki at '{wiki_dir}' is not initialized. Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first.")
+        return
 
     target = validate_path(args.file or args.dir)
     if not target.exists():
@@ -257,6 +260,13 @@ def main() -> None:
             run_skills_sync(get_wiki_dir())
         except Exception as ex:
             print(f"⚠️  Skills synchronization failed: {ex}")
+
+    if total_written > 0 and not args.dry_run:
+        try:
+            from tools.catalog import save_catalog
+            save_catalog(get_wiki_dir())
+        except Exception as ex:
+            logging.debug(f"Catalog index update failed: {ex}")
 
     if args.dry_run:
         print("ℹ️  Dry-run mode — no files were written")

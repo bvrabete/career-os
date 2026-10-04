@@ -5,17 +5,33 @@ from pathlib import Path
 
 SCHEMA_MD = "schema.md"
 MAPPINGS_FILE_NAME = "mappings.md"
+APPLICATIONS_FILE_NAME = "applications.yaml"
+
+
+def is_wiki_initialized(wiki_dir: Path) -> bool:
+    """Checks whether the wiki directory contains the required initialized structure and schema."""
+    if not wiki_dir.exists():
+        return False
+    wiki_root = wiki_dir / "wiki"
+    if not wiki_root.is_dir():
+        return False
+    schema_exists = (wiki_dir / SCHEMA_MD).exists() or (wiki_root / SCHEMA_MD).exists()
+    return schema_exists
 
 
 def _bootstrap_subdirs(wiki_root: Path) -> None:
-    """Create all standard subdirectories under the wiki root."""
+    """Create all standard subdirectories under the wiki root with .gitkeep placeholders."""
     subdirs = [
         "experiences", "education", "entities", "projects", "skills",
-        "sources", "synthesis", "concepts", "notes", "patents",
-        "strategies", "queries", "media", "cover-letters", "case-studies"
+        "sources", "synthesis", "concepts", "notes", "patents", "publications",
+        "strategies", "queries", "media", "cover-letters", "case-studies", "voice"
     ]
     for subdir in subdirs:
-        (wiki_root / subdir).mkdir(parents=True, exist_ok=True)
+        folder = wiki_root / subdir
+        folder.mkdir(parents=True, exist_ok=True)
+        gitkeep = folder / ".gitkeep"
+        if not gitkeep.exists() and not any(folder.iterdir()):
+            gitkeep.touch()
 
 
 def _bootstrap_templates_and_schema(wiki_dir: Path, wiki_root: Path) -> None:
@@ -130,8 +146,10 @@ def _bootstrap_css_templates(wiki_dir: Path) -> None:
 
 
 def _bootstrap_strategies(wiki_root: Path) -> None:
-    """Bootstrap default, generic, strongly-typed regional strategies from the llm-wiki repository directory."""
-    repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki" / "wiki" / "strategies"
+    """Bootstrap default regional strategies from the llm-wiki.template directory."""
+    repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki.template" / "wiki" / "strategies"
+    if not repo_strategies_dir.exists():
+        repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki" / "wiki" / "strategies"
     target_strategies_dir = wiki_root / "strategies"
 
     if repo_strategies_dir.exists():
@@ -146,12 +164,39 @@ def _bootstrap_strategies(wiki_root: Path) -> None:
                     logging.warning(f"Failed to copy strategy template {strategy_file.name}: {e}")
 
 
-def bootstrap_wiki_structure(wiki_dir: Path) -> None:
-    """Seed directory structure, schema.md, and mappings.md if empty or missing."""
+def _bootstrap_voice(wiki_root: Path) -> None:
+    """Bootstrap generic voice template if absent."""
+    repo_voice = Path(__file__).resolve().parent.parent.parent / "llm-wiki.template" / "wiki" / "voice" / "my-voice.md"
+    target_voice = wiki_root / "voice" / "my-voice.md"
+    if not target_voice.exists() and repo_voice.exists():
+        try:
+            target_voice.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(repo_voice, target_voice)
+            logging.info("Bootstrapped my-voice.md template")
+        except Exception as e:
+            logging.warning(f"Failed to copy voice template: {e}")
+
+
+def _bootstrap_crm(wiki_root: Path) -> None:
+    """Bootstrap applications.yaml CRM registry if missing."""
+    target_crm = wiki_root / APPLICATIONS_FILE_NAME
+    if not target_crm.exists():
+        crm_content = (
+            "# CareerOS Applications CRM Registry\n"
+            "# Tracks all generated CVs and application outcomes.\n"
+            "applications: []\n"
+        )
+        target_crm.write_text(crm_content, encoding="utf-8")
+        logging.info("Bootstrapped empty applications.yaml CRM registry")
+
+
+def bootstrap_wiki_structure(wiki_dir: Path, force: bool = False) -> None:
+    """Seed directory structure, schema.md, mappings, and templates if empty, missing, or forced."""
     wiki_root = wiki_dir / "wiki"
 
     needs_bootstrap = (
-        not wiki_dir.exists()
+        force
+        or not wiki_dir.exists()
         or not wiki_root.exists()
         or not any(wiki_root.iterdir() if wiki_root.exists() else [])
     )
@@ -167,3 +212,5 @@ def bootstrap_wiki_structure(wiki_dir: Path) -> None:
     _bootstrap_templates_and_schema(wiki_dir, wiki_root)
     _bootstrap_css_templates(wiki_dir)
     _bootstrap_strategies(wiki_root)
+    _bootstrap_voice(wiki_root)
+    _bootstrap_crm(wiki_root)

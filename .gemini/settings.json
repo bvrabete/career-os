@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "run_command": {
+      "mode": "allowlist",
+      "allowed": [
+        "uv run pytest*",
+        "uv run mypy*",
+        "uv run ruff*"
+      ]
+    }
+  }
+}

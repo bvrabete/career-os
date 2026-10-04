@@ -10,7 +10,9 @@ from typing import Any
 import warnings
 
 from generation import build_graph
+from ingestion.bootstrapping import is_wiki_initialized
 from kb_config import get_wiki_dir
+from tools.crm import record_application
 from utils import validate_path
 from pdf_generator import generate_pdf
 from docx_generator import generate_docx
@@ -33,6 +35,7 @@ def parse_arguments() -> argparse.Namespace:
     args_parser.add_argument(
         "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
     args_parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
+    args_parser.add_argument("--interactive", action="store_true", help="Prompt interactively if the auditor flags issues")
     args_parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
     args_parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
     return args_parser.parse_args()
@@ -270,6 +273,31 @@ updated: {today_str}
     print(f"🔄 Audit iterations required: {final_state.get('iteration_count')}")
     compile_optional_formats(args, draft, out_path, final_state)
 
+    ats_score = None
+    ats_card = final_state.get("ats_scorecard")
+    if isinstance(ats_card, dict) and "total_score" in ats_card:
+        ats_score = ats_card["total_score"]
+
+    pdf_file = str(out_path.with_suffix(".pdf")) if args.generate_pdf else None
+    docx_file = str(out_path.with_suffix(".docx")) if args.generate_docx else None
+
+    crm_record = {
+        "company": company,
+        "job_title": role,
+        "date": today_str,
+        "status": "drafted",
+        "strategy": final_state.get("strategy_info", ""),
+        "ats_score": ats_score,
+        "output_markdown": str(out_path),
+        "output_pdf": pdf_file,
+        "output_docx": docx_file,
+    }
+    try:
+        record_application(get_wiki_dir(), crm_record)
+        print(f"📊 Application logged to CRM registry: {get_wiki_dir() / 'wiki' / 'applications.yaml'}")
+    except Exception as ex:
+        logging.warning(f"Failed to record application to CRM: {ex}")
+
 
 def main() -> None:
     """
@@ -277,6 +305,11 @@ def main() -> None:
     """
     args = parse_arguments()
     _setup_logging()
+
+    wiki_dir = get_wiki_dir()
+    if not is_wiki_initialized(wiki_dir):
+        print(f"❌ Error: The wiki at '{wiki_dir}' is not initialized. Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first.")
+        return
 
     jd_content = _load_job_description(args)
     if jd_content is None:
@@ -290,8 +323,10 @@ def main() -> None:
     inputs = {
         "job_description_raw": jd_content,
         "iteration_count": 0,
+        "compression_count": 0,
         "max_iterations": 3,
-        "strategy_override": args.strategy
+        "strategy_override": args.strategy,
+        "interactive": args.interactive,
     }
     
     try:
