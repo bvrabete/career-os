@@ -1,21 +1,21 @@
-from typing import Any
-
-import yaml
-import os
 import logging
-import warnings
+import os
 from pathlib import Path
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
-from langchain_core.globals import set_llm_cache
+from typing import Any
+import warnings
+
+from dotenv import load_dotenv
 from langchain_community.cache import SQLiteCache
+from langchain_core.globals import set_llm_cache
+import langchain_google_genai
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+import yaml
 
 # Suppress LangChain's pending deprecation warnings regarding cache allowed_objects
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
-from dotenv import load_dotenv
-
-load_dotenv() # Load environment variables from .env
+load_dotenv()  # Load environment variables from .env
 
 # Enable caching to speed up iterative runs and save costs
 # set_llm_cache(SQLiteCache(database_path=".langchain.db"))
@@ -134,7 +134,6 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         )
 
     elif model_type == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
         model_name = step_config.get("MODEL_NAME") or models_map.get("gemini")
         if not model_name:
             raise ValueError(
@@ -147,7 +146,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         elif model_name == "gemini-1.5-pro":
             logging.info(f"Mapping deprecated model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
             model_name = "gemini-2.5-pro"
-        return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+        return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
@@ -174,8 +173,7 @@ def _create_gemini_fallback(model_name: str, step_name: str, temperature: float)
     elif model_name == "gemini-1.5-pro":
         logging.info(f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
         model_name = "gemini-2.5-pro"
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+    return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 
 
 def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, format: str | None):

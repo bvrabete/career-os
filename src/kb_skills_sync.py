@@ -9,6 +9,9 @@ import os
 import sys
 from pathlib import Path
 
+from generation.skills_helper import run_skills_sync
+from kb_config import get_wiki_dir
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Career OS Skills Knowledge-Graph Compiler")
@@ -19,8 +22,6 @@ def main() -> None:
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
-    from kb_config import get_wiki_dir
-    from generation.skills_helper import run_skills_sync
     wiki_dir = get_wiki_dir()
     run_skills_sync(wiki_dir, dry_run=args.dry_run)
 

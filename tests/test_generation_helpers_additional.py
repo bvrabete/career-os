@@ -1,31 +1,44 @@
-"""Additional unit tests for uncovered sections of generation/helpers.py."""
-import unittest
-import tempfile
-import logging
 import json
-import yaml
-import shutil
+import logging
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+import shutil
+import tempfile
+import unittest
+from unittest.mock import MagicMock, patch
+
+from generation.helpers import (
+    _build_combined_body,
+    _compress_and_wrap_experiences,
+    _compress_and_wrap_single_experience,
+    _consolidate_company_roles,
+    _detect_employment_type,
+    _extract_and_clean_achievements,
+    _extract_start_year,
+    _group_old_experiences_by_company,
+    _parse_education_candidate,
+    _prune_recent_frontmatter,
+    _score_experiences_list,
+    _score_single_experience,
+    _select_top_achievements,
+    compress_experience_llm,
+    compress_grouped_experience_llm,
+    generate_skill_bridging_map,
+    invoke_drafter_llm_with_fallback,
+    prune_recent_experience,
+    retrieve_and_deduplicate_education,
+    retrieve_and_score_experiences,
+    retrieve_and_score_notes,
+    retrieve_and_score_patents,
+    retrieve_and_score_projects,
+    retrieve_few_shots,
+    robust_json_loads,
+    score_by_keywords,
+)
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+import yaml
 
 # Suppress debug/info logging during tests
 logging.basicConfig(level=logging.ERROR)
-
-from generation.helpers import (
-    robust_json_loads, score_by_keywords, generate_skill_bridging_map,
-    compress_experience_llm, _prune_recent_frontmatter,
-    _extract_and_clean_achievements, _select_top_achievements,
-    prune_recent_experience, _score_single_experience, _score_experiences_list,
-    _extract_start_year, _detect_employment_type, _build_combined_body,
-    _consolidate_company_roles, _group_old_experiences_by_company,
-    compress_grouped_experience_llm, _compress_and_wrap_single_experience,
-    _compress_and_wrap_experiences, retrieve_and_score_experiences,
-    _parse_education_candidate, retrieve_and_deduplicate_education,
-    retrieve_and_score_projects, retrieve_and_score_patents,
-    retrieve_and_score_notes, retrieve_few_shots,
-    invoke_drafter_llm_with_fallback
-)
 
 
 class TestGenerationHelpersAdditional(unittest.TestCase):

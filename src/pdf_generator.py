@@ -7,9 +7,11 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
-import yaml
 
+from kb_config import get_wiki_dir
 import markdown2
+from utils import clean_markdown_wrapper as _clean_markdown_wrapper
+import yaml
 
 try:
     from weasyprint import CSS, HTML
@@ -36,7 +38,6 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
 
     # Try to resolve relative to the external wiki directory with higher priority
     try:
-        from kb_config import get_wiki_dir
         wiki_dir = get_wiki_dir()
         paths_to_try = [
             wiki_dir / css_template_path,
@@ -65,9 +66,6 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
             return loc
 
     return None
-
-
-from utils import clean_markdown_wrapper as _clean_markdown_wrapper
 
 
 def _extract_frontmatter(content: str) -> tuple[str, dict[str, Any]]:

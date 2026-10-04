@@ -1,5 +1,6 @@
 """Grouping, consolidation, and tenure segmentation for company experiences."""
 
+from collections import defaultdict
 import datetime
 import logging
 from pathlib import Path
@@ -127,7 +128,6 @@ def _split_recent_and_old_experiences(
     deduplicated: list[tuple[int, str, str, str]]
 ) -> tuple[list[tuple[int, str, str, str]], dict[str, list[tuple[tuple[int, str, str, str], dict[str, Any]]]]]:
     """Split deduplicated scored experiences into recent list and old grouped by organization."""
-    from collections import defaultdict
     recent_entries: list[tuple[int, str, str, str]] = []
     old_entries_by_org = defaultdict(list)
 

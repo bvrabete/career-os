@@ -1,27 +1,29 @@
 import argparse
+from datetime import datetime
 import hashlib
 import json
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
+from generation.skills_helper import run_skills_sync
+from ingestion.bootstrapping import is_wiki_initialized
+from kb_config import get_wiki_dir
+import kb_ingest_graph
+from tools.catalog import save_catalog
 from utils import validate_path
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".md", ".txt"}
 
 
 def get_status_file() -> Path:
-    from kb_config import get_wiki_dir
     return get_wiki_dir() / "ingestion_status.json"
 
 
 def get_log_file() -> Path:
-    from kb_config import get_wiki_dir
     return get_wiki_dir() / "wiki" / "log.md"
 
 
@@ -209,8 +211,6 @@ def main() -> None:
     if args.wiki_dir:
         os.environ["LLM_WIKI_DIR"] = args.wiki_dir
 
-    from kb_config import get_wiki_dir
-    from ingestion.bootstrapping import is_wiki_initialized
     wiki_dir = get_wiki_dir()
     if not is_wiki_initialized(wiki_dir):
         print(f"❌ Error: The wiki at '{wiki_dir}' is not initialized. Please run: 'uv run kb-init --wiki-dir {wiki_dir}' first.")
@@ -228,9 +228,7 @@ def main() -> None:
 
     print(f"🔍 Found {len(files)} file(s) to process")
 
-    # Import graph here so we don't pay startup cost before arg validation
-    from kb_ingest_graph import build_ingest_graph
-    app = build_ingest_graph(dry_run=args.dry_run)
+    app = kb_ingest_graph.build_ingest_graph(dry_run=args.dry_run)
     status = load_status()
 
     total_written = 0
@@ -256,14 +254,12 @@ def main() -> None:
     if total_written > 0 and not args.dry_run and not args.skip_skills_sync:
         print("\n✨ Synchronizing knowledge-graph skills...")
         try:
-            from generation.skills_helper import run_skills_sync
             run_skills_sync(get_wiki_dir())
         except Exception as ex:
             print(f"⚠️  Skills synchronization failed: {ex}")
 
     if total_written > 0 and not args.dry_run:
         try:
-            from tools.catalog import save_catalog
             save_catalog(get_wiki_dir())
         except Exception as ex:
             logging.debug(f"Catalog index update failed: {ex}")

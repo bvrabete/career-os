@@ -2,13 +2,28 @@
 import json
 import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import tempfile
-import yaml
-from pathlib import Path
 from typing import Any
 
+from ingestion.bootstrapping import (
+    _bootstrap_css_templates,
+    _bootstrap_strategies,
+    _bootstrap_subdirs,
+    _bootstrap_templates_and_schema,
+    bootstrap_wiki_structure,
+)
+import kb_config
+from utils import (
+    safe_read_text,
+    safe_write_text,
+    sanitize_entity_name,
+    sanitize_slug,
+    validate_path,
+)
+import yaml
 
 SLUG_PATTERN = r'[^a-z0-9]+'
 SCHEMA_MD = "schema.md"
@@ -18,25 +33,19 @@ PATH_TRAVERSAL_ERROR = "Attempted Path Traversal outside home directory"
 INVALID_MAPPINGS_ERROR = "Security Warning: Invalid mappings path or directory traversal detected"
 
 
-from utils import validate_path, sanitize_slug, sanitize_entity_name, safe_read_text, safe_write_text
-
-
 def get_wiki_root() -> Path:
     """Get the absolute path to the wiki folder."""
-    from kb_config import get_wiki_dir
-    return get_wiki_dir() / "wiki"
+    return kb_config.get_wiki_dir() / "wiki"
 
 
 def get_schema_path() -> Path:
     """Get the absolute path to the schema.md file."""
-    from kb_config import get_wiki_dir
-    return get_wiki_dir() / SCHEMA_MD
+    return kb_config.get_wiki_dir() / SCHEMA_MD
 
 
 def get_mappings_path() -> Path:
     """Get the absolute path to the mappings.md file."""
-    from kb_config import get_wiki_dir
-    return get_wiki_dir() / MAPPINGS_FILE_NAME
+    return kb_config.get_wiki_dir() / MAPPINGS_FILE_NAME
 
 
 def load_prompt(filename: str) -> str:
@@ -46,15 +55,6 @@ def load_prompt(filename: str) -> str:
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt template not found at {prompt_path}")
     return prompt_path.read_text(encoding="utf-8")
-
-
-from ingestion.bootstrapping import (
-    _bootstrap_subdirs,
-    _bootstrap_templates_and_schema,
-    _bootstrap_css_templates,
-    _bootstrap_strategies,
-    bootstrap_wiki_structure,
-)
 
 
 def get_safe_mappings_path() -> Path:

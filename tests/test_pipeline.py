@@ -1,22 +1,25 @@
-import unittest
-import tempfile
-from unittest.mock import MagicMock, patch
-from pathlib import Path
+import argparse
 import json
+from pathlib import Path
 import sys
-
-from docx_generator import generate_docx
+import tempfile
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Ensure src is in python path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from generation.state import CVPipelineState
-from generation.nodes import node_analyzer
+from docx_generator import generate_docx
+from generate_cv import _parse_synthesis_metadata, save_outputs
 from generation.helpers import (
-    score_by_keywords as _score_by_keywords,
-    generate_skill_bridging_map as _generate_skill_bridging_map,
     _detect_employment_type,
+    compress_experience_llm as _compress_experience_llm,
+    generate_skill_bridging_map as _generate_skill_bridging_map,
+    prune_recent_experience as _prune_recent_experience,
+    score_by_keywords as _score_by_keywords,
 )
+from generation.nodes import node_analyzer, node_drafter
+from generation.state import CVPipelineState
 
 
 class TestCVGeneratorPipeline(unittest.TestCase):
@@ -146,10 +149,6 @@ class TestCVGeneratorPipeline(unittest.TestCase):
     @patch("generation.helpers.get_model_for_step")
     def test_compress_experience_llm_success(self, mock_get_model):
         """Test that _compress_experience_llm correctly calls retrieval model and compresses."""
-        from generation.helpers import (
-            compress_experience_llm as _compress_experience_llm,
-        )
-
         mock_llm = MagicMock()
         mock_response = MagicMock()
         mock_response.content = "Compressed content summary."
@@ -167,8 +166,6 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self, mock_get_fallback, mock_get_model
     ):
         """Test that node_drafter falls back to configured fallback model when OpenAI raises rate limit exception."""
-        from generation.nodes import node_drafter
-
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
         mock_openai_llm.invoke.side_effect = Exception(
@@ -221,8 +218,6 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         self, mock_get_fallback, mock_get_model
     ):
         """Test that node_drafter raises the original exception when no fallback is configured."""
-        from generation.nodes import node_drafter
-
         # Mock main LLM to raise RateLimitError
         mock_openai_llm = MagicMock()
         mock_openai_llm.invoke.side_effect = RuntimeError(
@@ -267,10 +262,6 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
     def test_prune_recent_experience_top_achievements(self):
         """Test that _prune_recent_experience ranks and limits achievements to the top 4."""
-        from generation.helpers import (
-            prune_recent_experience as _prune_recent_experience,
-        )
-
         # Experience with 6 achievements
         test_content = """---
 type: experience
@@ -378,8 +369,6 @@ class TestDOCXGenerator(unittest.TestCase):
     @patch("docx.Document")
     def test_docx_generation_failure(self, mock_doc):
         """Test docx generation failure handling on document save or creation error."""
-        from docx_generator import generate_docx
-
         # Mock docx.Document raising an exception
         mock_doc.side_effect = Exception("Mocked document creation failure")
 
@@ -392,7 +381,6 @@ class TestSynthesisFileReuse(unittest.TestCase):
 
     def test_parse_synthesis_metadata(self):
         """Test parsing of status and created date from a synthesis file."""
-        from generate_cv import _parse_synthesis_metadata
         with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as f:
             f.write("---\ntype: synthesis\nstatus: Generated\ncreated: 2026-07-01\n---\nDraft content")
             f_path = Path(f.name)
@@ -409,8 +397,6 @@ class TestOutputFolderHandling(unittest.TestCase):
 
     def test_save_outputs_folder_append(self):
         """Test that save_outputs correctly appends the JD's name with .md if out is a folder."""
-        from generate_cv import save_outputs
-        import argparse
 
         with tempfile.TemporaryDirectory(dir=str(Path.home())) as tmp_dir:
             out_dir = Path(tmp_dir) / "output_folder"

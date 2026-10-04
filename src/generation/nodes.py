@@ -1,8 +1,9 @@
 """Nodes for the CV generation pipeline graph."""
 
-import logging
 import json
+import logging
 import re
+import sys
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -12,24 +13,25 @@ from kb_config import (
     get_strategy_default,
     get_wiki_dir,
 )
-from generation.state import CVPipelineState, RegionalStrategy
 from generation.helpers import (
-    llm_text,
-    robust_json_loads,
-    load_prompt,
     generate_skill_bridging_map,
-    retrieve_and_score_experiences,
-    retrieve_and_deduplicate_education,
-    retrieve_languages,
-    retrieve_and_score_projects,
-    retrieve_and_score_patents,
-    retrieve_and_score_notes,
-    retrieve_few_shots,
-    resolve_regional_strategy,
     get_subject_info,
-    parse_and_sort_chronological_entries,
     invoke_drafter_llm_with_fallback,
+    llm_text,
+    load_prompt,
+    parse_and_sort_chronological_entries,
+    resolve_regional_strategy,
+    retrieve_and_deduplicate_education,
+    retrieve_and_score_experiences,
+    retrieve_and_score_notes,
+    retrieve_and_score_patents,
+    retrieve_and_score_projects,
+    retrieve_few_shots,
+    retrieve_languages,
+    robust_json_loads,
 )
+from generation.skills_helper import get_compact_skills_list
+from generation.state import CVPipelineState, RegionalStrategy
 
 
 def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
@@ -125,7 +127,6 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     education_content = retrieve_and_deduplicate_education(wiki_dir)
 
     skills_dir = wiki_dir / "wiki" / "skills"
-    from generation.skills_helper import get_compact_skills_list
     skills_content = get_compact_skills_list(skills_dir, retrieved_exp_slugs)
 
     projects_entries = retrieve_and_score_projects(wiki_dir, keywords, retrieved_exp_slugs)
@@ -356,7 +357,6 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
 
 def _handle_interactive_audit(checklist: list[str], ats_score: dict[str, Any]) -> tuple[bool, str]:
     """Interactive CLI prompt allowing the user to review the scorecard and guide the audit."""
-    import sys
     if not sys.stdin.isatty():
         return False, ""
 

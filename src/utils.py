@@ -3,6 +3,7 @@ General utility functions for text, markdown, and path processing.
 """
 
 import os
+import re
 from pathlib import Path
 
 
@@ -55,7 +56,6 @@ def sanitize_slug(text: str) -> str:
     Strips any characters that are not lowercase/uppercase alphanumeric, hyphens, periods, or underscores.
     This guarantees that the slug cannot contain path traversal or special shell sequence characters.
     """
-    import re
     cleaned = re.sub(r'[^a-zA-Z0-9_\-\.]', '', text)
     return cleaned.strip()
 
@@ -65,7 +65,6 @@ def sanitize_entity_name(text: str) -> str:
     Strips any characters that are not alphanumeric, spaces, hyphens, periods, or underscores.
     This ensures entity names (like persona names or organization names) are fully safe for file-writing.
     """
-    import re
     cleaned = re.sub(r'[^a-zA-Z0-9_\-\.\s]', '', text)
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
@@ -75,7 +74,6 @@ def safe_read_text(path: Path | str) -> str:
     """
     Securely reads text from a file path, breaking static analysis taint propagation via regex reconstruction.
     """
-    import re
     safe_path = validate_path(path)
     safe_str = str(safe_path)
     match = re.match(r'^([a-zA-Z0-9_\-\./\\:]+)$', safe_str)
@@ -90,7 +88,6 @@ def safe_write_text(path: Path | str, content: str) -> None:
     """
     Securely writes text to a file path, breaking static analysis taint propagation via regex reconstruction.
     """
-    import re
     safe_path = validate_path(path)
     safe_str = str(safe_path)
     match = re.match(r'^([a-zA-Z0-9_\-\./\\:]+)$', safe_str)

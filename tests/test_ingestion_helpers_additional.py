@@ -1,25 +1,31 @@
-"""Unit tests for remaining uncovered sections of ingestion/helpers.py."""
-import unittest
+import logging
 import os
-import time
+from pathlib import Path
 import shutil
 import tempfile
-import logging
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+import time
+import unittest
+from unittest.mock import MagicMock, patch
+
+from ingestion.helpers import (
+    SCHEMA_MD,
+    _bootstrap_css_templates,
+    _bootstrap_templates_and_schema,
+    _extract_start_date_from_file,
+    _find_existing_wiki_file,
+    add_persona_mapping_if_missing,
+    bootstrap_wiki_structure,
+    clean_frontmatter,
+    find_existing_education,
+    find_existing_experience,
+    get_persona_slug_from_mappings,
+    resolve_org,
+)
 
 # Set up quiet logger during tests
 logging.basicConfig(level=logging.ERROR)
 
 MAPPINGS_FILE_NAME = "mappings.md"
-
-from ingestion.helpers import (
-    _bootstrap_templates_and_schema, _bootstrap_css_templates,
-    bootstrap_wiki_structure, resolve_org, get_persona_slug_from_mappings,
-    add_persona_mapping_if_missing, clean_frontmatter,
-    _extract_start_date_from_file, _find_existing_wiki_file,
-    find_existing_experience, find_existing_education, SCHEMA_MD
-)
 
 
 class TestIngestionHelpersAdditional(unittest.TestCase):

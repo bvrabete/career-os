@@ -3,19 +3,20 @@ Independent command-line utility to run an external resume-parsing audit via Aff
 Allows users to upload a generated resume and compare parsing results against a target Job Description.
 """
 
-import sys
-import re
 import argparse
 import logging
-import time
 from pathlib import Path
+import re
+import sys
+import time
 from typing import Any, Dict, List, Set
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from tools.external_auditor import AffindaParserClient
 from utils import validate_path
+
+load_dotenv()
 
 # Set up module-level logging
 logger = logging.getLogger(__name__)

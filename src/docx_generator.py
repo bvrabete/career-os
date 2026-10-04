@@ -4,15 +4,18 @@ Uses pure-Python python-docx library to ensure 100% OS-independence.
 """
 
 import logging
-import re
 from pathlib import Path
+import re
 from typing import Any
 
+import docx
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+
+from utils import clean_markdown_wrapper as _clean_markdown_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -201,9 +204,6 @@ def _add_standard_paragraph(
             run.font.color.rgb = color_text
 
 
-from utils import clean_markdown_wrapper as _clean_markdown_wrapper
-
-
 def _resolve_docx_theme(template: str | None) -> dict[str, Any]:
     """Resolves margins, color tokens, and font sizes for the given DOCX template."""
     name = (template or "base").lower()
@@ -249,8 +249,7 @@ def generate_docx(md_content: str, output_path: str, template: str | None = None
     """
     logger.info(f"Generating pure-Python DOCX for {output_path} (theme: {template or 'base'})...")
     try:
-        from docx import Document
-        doc = Document()
+        doc = docx.Document()
         theme = _resolve_docx_theme(template)
 
         # Set theme-calibrated margins

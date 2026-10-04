@@ -1,22 +1,27 @@
-"""Additional unit tests for uncovered sections of ingestion/nodes.py."""
-import unittest
-import tempfile
-import logging
 import json
-import yaml
+import logging
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+import tempfile
+from typing import cast
+import unittest
+from unittest.mock import MagicMock, patch
+
+from ingestion.nodes import (
+    _parse_fallback,
+    _validate_by_type,
+    node_classifier,
+    node_entity_resolver,
+    node_merger,
+    node_parser,
+    node_validator,
+    node_writer,
+)
+from ingestion.state import IngestionState
 from langchain_core.messages import AIMessage
+import yaml
 
 # Suppress debug/info logging during tests
 logging.basicConfig(level=logging.ERROR)
-
-from ingestion.nodes import (
-    _parse_fallback, node_parser, node_classifier, node_entity_resolver,
-    node_merger, node_validator, node_writer, _validate_by_type
-)
-from typing import cast
-from ingestion.state import IngestionState
 
 
 class TestIngestionNodesAdditional(unittest.TestCase):

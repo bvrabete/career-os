@@ -84,6 +84,5 @@ target-version = "py312"
 select = ["E", "F", "W"]
 ignore = [
     "E501",  # Line length handled separately / soft wraps
-    "E402",  # Module level import not at top of file (e.g. dotenv/sys.path before imports)
     "F401",  # Unused imports (in tests and init files)
 ]

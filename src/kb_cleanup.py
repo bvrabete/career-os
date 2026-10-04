@@ -17,11 +17,11 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from kb_config import get_model_for_step, get_wiki_dir
+from tools.catalog import save_catalog
+from tools.sync_case_studies import sync_case_studies
+from utils import validate_path
 
 logger = logging.getLogger(__name__)
-
-
-from utils import validate_path
 
 
 def _llm_text(content: str | list[Any]) -> str:
@@ -194,14 +194,12 @@ def main() -> None:
     wiki_dir = get_wiki_dir()
 
     if args.generate_catalog:
-        from tools.catalog import save_catalog
         print(f"📦 Generating catalog index for: {wiki_dir}")
         catalog_path = save_catalog(wiki_dir)
         print(f"✨ Catalog generated at: {catalog_path}")
         return
 
     if args.sync_case_studies:
-        from tools.sync_case_studies import sync_case_studies
         print(f"🔍 Running case study synchronization on: {wiki_dir}")
         stats = sync_case_studies(wiki_dir, dry_run=args.dry_run)
         print(f"✨ Case study synchronization complete: {stats}")

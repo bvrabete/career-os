@@ -2,19 +2,20 @@
 Unit tests for pdf_generator.py and docx_generator.py.
 """
 
-import unittest
-from unittest.mock import patch, MagicMock
+import os
 from pathlib import Path
 import tempfile
-import os
+import unittest
+from unittest.mock import MagicMock, patch
 
-from pdf_generator import (
-    _clean_markdown_wrapper as pdf_clean,
-    generate_pdf,
-    _extract_frontmatter,
-    _build_header_html,
-)
 from docx_generator import _clean_markdown_wrapper as docx_clean, generate_docx
+from pdf_generator import (
+    _build_header_html,
+    _clean_markdown_wrapper as pdf_clean,
+    _extract_frontmatter,
+    _resolve_css_path,
+    generate_pdf,
+)
 
 
 class TestPdfAndDocxGenerator(unittest.TestCase):
@@ -91,7 +92,6 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
 
     def test_resolve_css_path_themes(self):
         """Test resolving built-in theme names like executive, compact, base."""
-        from pdf_generator import _resolve_css_path
         self.assertIsNotNone(_resolve_css_path("base"))
         self.assertIsNotNone(_resolve_css_path("executive"))
         self.assertIsNotNone(_resolve_css_path("compact"))

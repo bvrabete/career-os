@@ -1,16 +1,18 @@
+from pathlib import Path
+import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from generation.helpers import (
+    _extract_json_block,
+    _prune_recent_frontmatter,
+    compress_experience_llm,
+    generate_skill_bridging_map,
+    load_prompt,
     robust_json_loads,
     score_by_keywords,
-    generate_skill_bridging_map,
-    _extract_json_block,
-    load_prompt,
-    _prune_recent_frontmatter,
-    compress_experience_llm
 )
-from utils import sanitize_slug, sanitize_entity_name, safe_read_text, safe_write_text
+from utils import safe_read_text, safe_write_text, sanitize_entity_name, sanitize_slug
 
 
 class TestGenerationHelpersCoverage(unittest.TestCase):
@@ -106,8 +108,6 @@ class TestGenerationHelpersCoverage(unittest.TestCase):
         self.assertEqual(sanitize_entity_name("malicious/path../inject"), "maliciouspath..inject")
 
     def test_safe_read_write_text(self) -> None:
-        import tempfile
-        from pathlib import Path
         with tempfile.TemporaryDirectory(dir=str(Path.cwd())) as tmp_dir:
             file_path = Path(tmp_dir) / "test_file.txt"
             safe_write_text(file_path, "Secure content")
