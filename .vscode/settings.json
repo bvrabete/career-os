@@ -35,6 +35,7 @@
         "**/tests/**"
     ],
     "python.terminal.useEnvFile": true,
+    "jupyter.widgetScriptSources": ["jsdelivr.com", "unpkg.com"],
     "antigravity.commandApprovals": {                                                                                                                                       
         "allowPatterns": [                                                                                                                                                    
           "uv run pytest*",                                                                                                                                                   

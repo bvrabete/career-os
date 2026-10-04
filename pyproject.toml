@@ -46,11 +46,16 @@ kb-cleanup = "kb_cleanup:main"
 
 [dependency-groups]
 dev = [
-    "ipywidgets>=8.1.0",
+    {include-group = "notebooks"},
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
+]
+notebooks = [
+    "ipykernel>=6.29.0",
+    "ipywidgets>=8.1.0",
+    "jupyterlab>=4.0.0",
 ]
 ingest = [
     "docling>=2.70.0",
