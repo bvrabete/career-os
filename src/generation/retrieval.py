@@ -1,5 +1,6 @@
 """Retrieval functions for wiki candidate information, education, projects, patents, and regional strategy."""
 
+import datetime
 import logging
 from pathlib import Path
 import re
@@ -189,26 +190,53 @@ def retrieve_and_deduplicate_education(wiki_dir: Path) -> list[str]:
     return education_content
 
 
+def _calculate_project_recency_factor(fm: dict[str, Any]) -> float:
+    """Calculate recency factor (0.1 to 1.0) decaying linearly over 15 years from project dates."""
+    dates = fm.get("dates", {})
+    if not isinstance(dates, dict):
+        return 0.5
+    end_val = str(dates.get("end", "")).strip().lower()
+    start_val = str(dates.get("start", "")).strip()
+    current_year = datetime.date.today().year
+
+    target_year = None
+    if end_val in ["present", "current", "ongoing"]:
+        target_year = current_year
+    elif len(end_val) >= 4 and end_val[:4].isdigit():
+        target_year = int(end_val[:4])
+    elif len(start_val) >= 4 and start_val[:4].isdigit():
+        target_year = int(start_val[:4])
+
+    if target_year is None:
+        return 0.5
+
+    years_since = max(0, current_year - target_year)
+    return max(0.1, 1.0 - (years_since / 15.0))
+
+
 def retrieve_and_score_projects(
     wiki_dir: Path, keywords: list[str], retrieved_exp_slugs: list[str]
 ) -> list[str]:
-    """Retrieve and score candidate projects by relevance and links, supporting open-source and side projects."""
+    """Retrieve and score candidate projects by relevance, links, and age decay."""
     projects_dir = wiki_dir / "wiki" / "projects"
-    scored_projects: list[tuple[int, str, str]] = []
+    scored_projects: list[tuple[float, str, str]] = []
     if not projects_dir.exists():
         return []
 
     for f in projects_dir.glob("*.md"):
         try:
             p_content = f.read_text(encoding="utf-8")
-            score = score_by_keywords(p_content, keywords)
+            base_score = float(score_by_keywords(p_content, keywords))
             for slug in retrieved_exp_slugs:
-                if f"[[{slug}]]" in p_content:
-                    score += 5
+                if f"[[{slug}]]" in p_content or f": '{slug}'" in p_content or f": {slug}" in p_content:
+                    base_score += 5.0
             fm = _parse_yaml_frontmatter_from_text(p_content)
             if fm.get("project_nature") in ["open_source", "side_project", "research_prototype"]:
-                score += 2
-            scored_projects.append((score, f.name, p_content))
+                base_score += 2.0
+
+            recency_factor = _calculate_project_recency_factor(fm)
+            final_score = round(base_score * recency_factor, 2)
+            scored_projects.append((final_score, f.name, p_content))
         except Exception:
             pass
 
@@ -216,7 +244,7 @@ def retrieve_and_score_projects(
     projects_entries: list[str] = []
     for p_score, p_name, p_content in scored_projects[:3]:
         projects_entries.append(
-            f"--- PROJECT ENTRY: {p_name} (KEYWORD RELEVANCE SCORE: {p_score}) ---\n"
+            f"--- PROJECT ENTRY: {p_name} (RELEVANCE SCORE: {p_score}) ---\n"
             f"{p_content}\n"
             f"--- END PROJECT ENTRY ---\n"
         )

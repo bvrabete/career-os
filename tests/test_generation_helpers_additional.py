@@ -237,7 +237,16 @@ Outro"""
 
     # 5. Project, Patent, and Note Retrieval
     def test_retrieve_and_score_projects(self):
-        """Test projects retrieval, scoring, and sorting."""
+        """Test projects retrieval, scoring, age decay, and sorting."""
+        from generation.retrieval import _calculate_project_recency_factor
+
+        # Test _calculate_project_recency_factor directly
+        self.assertAlmostEqual(_calculate_project_recency_factor({"dates": {"end": "present"}}), 1.0, places=2)
+        self.assertAlmostEqual(_calculate_project_recency_factor({}), 0.5, places=2)
+        old_factor = _calculate_project_recency_factor({"dates": {"end": "2010-01-01"}})
+        recent_factor = _calculate_project_recency_factor({"dates": {"end": "2024-01-01"}})
+        self.assertGreater(recent_factor, old_factor)
+
         proj_dir = self.wiki_root / "projects"
         proj_dir.mkdir(parents=True, exist_ok=True)
 
