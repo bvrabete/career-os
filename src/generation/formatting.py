@@ -50,24 +50,24 @@ def strip_wikilinks(text: str) -> str:
 def _extract_json_block(text: str) -> str:
     """Extract the innermost JSON object or array string from text, stripping markdown code blocks."""
     text = text.strip()
-    
+
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0].strip()
     elif "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
-        
+
     start_brace = text.find("{")
     start_bracket = text.find("[")
-    
+
     if start_brace == -1 and start_bracket == -1:
         raise ValueError("No JSON object or array found in text")
-        
+
     if start_brace != -1 and (start_bracket == -1 or start_brace < start_bracket):
         end_brace = text.rfind("}")
         if end_brace == -1:
             raise ValueError("Mismatched opening brace '{'")
         return text[start_brace:end_brace+1]
-    
+
     end_bracket = text.rfind("]")
     if end_bracket == -1:
         raise ValueError("Mismatched opening bracket '['")
@@ -87,7 +87,7 @@ def _escape_control_chars_in_strings(text: str) -> str:
         s = match.group(0)
         s_escaped = s.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
         return s_escaped
-    
+
     string_pattern = r'"(?:[^"\\]|\\.)*"'
     return re.sub(string_pattern, replace_control_chars, text)
 
@@ -96,7 +96,7 @@ def robust_json_loads(text: str) -> Any:
     """Robustly parse a JSON string from LLM output, handling preambles, trailing commas, comments, and control characters."""
     if not text:
         raise ValueError("Empty input string")
-        
+
     text = _extract_json_block(text)
     text = _clean_json_comments_and_commas(text)
     text = _escape_control_chars_in_strings(text)
@@ -130,7 +130,7 @@ def compress_experience_llm(content: str) -> str:
         llm = _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_experience.txt")
         prompt = system_template.replace("{CONTENT}", content)
-        
+
         response = llm.invoke([HumanMessage(content=prompt)])
         return llm_text(response.content)
     except Exception as e:
@@ -147,7 +147,7 @@ def compress_experience_to_one_liner_llm(content: str) -> str:
         llm = _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_to_one_liner.txt")
         prompt = system_template.replace("{CONTENT}", content)
-        
+
         response = llm.invoke([HumanMessage(content=prompt)])
         return llm_text(response.content)
     except Exception as e:
@@ -161,7 +161,7 @@ def compress_grouped_experience_llm(content: str) -> str:
         llm = _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_grouped_experience.txt")
         prompt = system_template.replace("{CONTENT}", content)
-        
+
         response = llm.invoke([HumanMessage(content=prompt)])
         return llm_text(response.content)
     except Exception as e:
@@ -178,7 +178,7 @@ def _parse_start_date(entry_str: str) -> tuple[int, int]:
             return (year, month)
         except Exception:
             pass
-            
+
     fallback_match = re.search(r'start:\s*[\'"]?(\d{4}-\d{1,2}-\d{1,2})[\'"]?', entry_str)
     if fallback_match:
         try:
@@ -186,7 +186,7 @@ def _parse_start_date(entry_str: str) -> tuple[int, int]:
             return (year, month)
         except Exception:
             pass
-            
+
     return (1970, 1)
 
 
@@ -197,7 +197,7 @@ def parse_and_sort_chronological_entries(entries: list[str]) -> str:
         name_match = re.search(r'CAREER ENTRY: (.*?\.md)', entry_str)
         if not name_match:
             continue
-            
+
         score_match = re.search(r'SEMANTIC RELEVANCE SCORE: (\d+)', entry_str)
         score = int(score_match.group(1)) if score_match else 0
         entry_name = name_match.group(1)

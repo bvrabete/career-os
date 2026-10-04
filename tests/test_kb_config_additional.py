@@ -38,7 +38,7 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_path_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = True
         mock_default_path.exists.return_value = False
-        
+
         mock_content = "STRATEGY_DEFAULT: 'us-east'\n"
         with patch("builtins.open", mock_open(read_data=mock_content)):
             config = load_config()
@@ -49,7 +49,7 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_default_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = False
         mock_default_path.exists.return_value = True
-        
+
         mock_content = "STRATEGY_DEFAULT: 'apac'\n"
         with patch("builtins.open", mock_open(read_data=mock_content)):
             config = load_config()
@@ -60,7 +60,7 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_neither_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = False
         mock_default_path.exists.return_value = False
-        
+
         with self.assertRaises(FileNotFoundError):
             load_config()
 

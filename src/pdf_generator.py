@@ -130,12 +130,12 @@ def _build_header_html(metadata: dict[str, Any]) -> str:
 def generate_pdf(md_content: str, output_path: str, css_template_path: str | None = None) -> bool:
     """
     Converts Markdown content to a PDF using WeasyPrint and an optional CSS template.
-    
+
     Args:
         md_content: Markdown source string.
         output_path: Path where the resulting PDF will be saved.
         css_template_path: Optional path to a CSS template file for custom styling.
-        
+
     Returns:
         bool: True if generation was successful, False otherwise.
     """

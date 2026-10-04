@@ -81,7 +81,7 @@ def _bootstrap_templates_and_schema(wiki_dir: Path, wiki_root: Path) -> None:
         if not copied_mappings and not target_mappings.exists():
             mappings_template = """# Entity Aliases & Mappings
 
-Use this file to define known typos, variations, and aliases for entities in the Knowledge Graph. 
+Use this file to define known typos, variations, and aliases for entities in the Knowledge Graph.
 The LLM Wiki tool must consult this file during ingestion to prevent duplicate or erroneous entity creation.
 
 ## Organization Mappings

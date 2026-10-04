@@ -21,7 +21,7 @@ def _generate_experiences(
 ) -> None:
     """Generate experience files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     system_prompt = load_prompt("generate_experience.txt")
 
@@ -81,7 +81,7 @@ def _generate_education(
 ) -> None:
     """Generate education files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     edu_system_prompt = load_prompt("generate_education.txt")
 
@@ -193,7 +193,7 @@ def _generate_projects(
 ) -> None:
     """Generate standalone project files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     system_prompt = load_prompt("generate_project.txt")
 
@@ -250,7 +250,7 @@ def _generate_patents(
 ) -> None:
     """Generate standalone patent files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     system_prompt = load_prompt("generate_patent.txt")
 
@@ -306,7 +306,7 @@ def _generate_notes(
 ) -> None:
     """Generate standalone note/feedback files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     system_prompt = load_prompt("generate_note.txt")
 
@@ -318,7 +318,7 @@ def _generate_notes(
 
         related_raw = note.get("related_raw_orgs", [])
         related_slugs = [f"[[{resolved[r]}]]" for r in related_raw if r in resolved]
-        
+
         prompt = f"""CANONICAL ENTITY MAPPING:
 {entity_map_lines}
 
@@ -364,7 +364,7 @@ def _generate_cover_letters(
 ) -> None:
     """Generate cover letter files and append them to wiki_outputs."""
     entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
-    
+
     # Load external system prompt template completely statically
     system_prompt = load_prompt("generate_cover_letter.txt")
 
@@ -424,7 +424,7 @@ def _generate_profile(
 
     slug = get_persona_slug(name)
     target_path = get_wiki_root() / "entities" / f"{slug}.md"
-    
+
     created_str = today_str
     if target_path.exists():
         try:
@@ -441,7 +441,7 @@ def _generate_profile(
 
     tags_str = json.dumps(tags)
     source_basename = Path(source_file).name
-    
+
     overview_text = profile.get("overview", "").strip()
     if not overview_text:
         overview_text = (

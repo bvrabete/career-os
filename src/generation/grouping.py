@@ -22,7 +22,7 @@ def _extract_start_year(fm: dict[str, Any]) -> str:
         start_val = str(fm.get("start", "")).strip()
     elif isinstance(dates, (str, int)):
         start_val = str(dates).strip()
-        
+
     if start_val:
         return start_val[:4]
     return ""
@@ -52,11 +52,11 @@ def _detect_employment_type(fm: dict[str, Any], content: str) -> str:
 
     if "contract" in tags or "contract" in title:
         return "Contract"
-        
+
     first_lines = "\n".join(content.splitlines()[:10]).lower()
     if "(contract)" in first_lines or "contractor" in first_lines:
         return "Contract"
-        
+
     return "Permanent"
 
 
@@ -98,7 +98,7 @@ def _is_parallel_startup_track(fm: dict[str, Any]) -> bool:
     title = str(fm.get("title", "")).lower()
     tags = [str(t).lower() for t in fm.get("tags", [])]
     tracks = [str(tr).lower() for tr in fm.get("tracks", [])]
-    
+
     if "co-founder" in tags or "co-founder" in tracks or "entrepreneurial" in tracks:
         return True
     if any(x in title for x in ["co-founder", "cofounder", "co founder"]):
@@ -115,7 +115,7 @@ def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
         org_str = str(org_raw)
     else:
         org_str = name.replace(".md", "").split("-")[0]
-        
+
     org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_str)
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
@@ -130,7 +130,7 @@ def _split_recent_and_old_experiences(
     from collections import defaultdict
     recent_entries: list[tuple[int, str, str, str]] = []
     old_entries_by_org = defaultdict(list)
-    
+
     for item in deduplicated:
         _, name, content, _ = item
         fm = _parse_yaml_frontmatter_from_text(content)
@@ -139,7 +139,7 @@ def _split_recent_and_old_experiences(
             old_entries_by_org[org].append((item, fm))
         else:
             recent_entries.append(item)
-            
+
     return recent_entries, dict(old_entries_by_org)
 
 
@@ -153,10 +153,10 @@ def _extract_end_date_normalized(fm: dict[str, Any]) -> str:
         end_val = str(fm.get("end", "")).strip()
     elif isinstance(dates, (str, int)):
         end_val = str(dates).strip()
-        
+
     if not end_val or end_val.lower() == "present":
         return datetime.datetime.now().strftime("%Y-%m-%d")
-        
+
     parts = end_val.split('-')
     if len(parts) == 3:
         return end_val
@@ -173,7 +173,7 @@ def _build_combined_body(roles_with_fm: list[tuple[tuple[int, str, str, str], di
     for item, fm in roles_with_fm:
         title = fm.get("title", item[1])
         start_year = _extract_start_date_normalized(fm)[:4]
-        
+
         dates_val = fm.get("dates")
         end_str = "Present"
         if isinstance(dates_val, dict):
@@ -181,10 +181,10 @@ def _build_combined_body(roles_with_fm: list[tuple[tuple[int, str, str, str], di
         elif fm.get("end"):
             end_str = str(fm.get("end", "Present"))
         end_year = end_str[:4] if end_str else "Present"
-        
+
         raw_body = re.sub(r'^---\n.*?\n---', '', item[2], flags=re.DOTALL).strip()
         clean_body = re.sub(r'<!--.*?-->', '', raw_body, flags=re.DOTALL).strip()
-        
+
         body_parts.append(
             f"### ROLE: {title}\n"
             f"DATES: {start_year} to {end_year}\n"
@@ -202,16 +202,16 @@ def _consolidate_company_roles(
         key=lambda x: _extract_start_date_normalized(x[1]),
         reverse=True
     )
-    
+
     max_score = max(x[0][0] for x in roles_with_fm)
     grouped_name = f"grouped-{org}.md"
-    
+
     justifications = [f"[{x[0][1]}]: {x[0][3]}" for x in roles_with_fm if x[0][3] and x[0][3] != "N/A"]
     combined_justification = " | ".join(justifications) if justifications else "Consolidated historical roles."
-    
+
     earliest_start = min(_extract_start_date_normalized(x[1]) for x in roles_with_fm)
     latest_end = max(_extract_end_date_normalized(x[1]) for x in roles_with_fm)
-    
+
     all_skills = []
     for _, fm in roles_with_fm:
         all_skills.extend(fm.get("skills", []))
@@ -222,15 +222,15 @@ def _consolidate_company_roles(
         if sk_clean and sk_clean.lower() not in seen_skills:
             seen_skills.add(sk_clean.lower())
             unique_skills.append(sk_clean)
-            
+
     most_recent_fm = roles_with_fm[0][1]
     org_display = most_recent_fm.get("organization", org.capitalize())
     location = most_recent_fm.get("location", "Unknown")
     emp_type = _detect_employment_type(most_recent_fm, roles_with_fm[0][0][2])
-    
+
     titles = [fm.get("title", "") for _, fm in roles_with_fm if fm.get("title")]
     combined_title = " / ".join(titles) if len(" / ".join(titles)) <= 80 else titles[0]
-    
+
     grouped_fm = {
         "type": "experience",
         "title": combined_title,
@@ -240,11 +240,11 @@ def _consolidate_company_roles(
         "skills": unique_skills,
         "employment_type": emp_type
     }
-    
+
     grouped_fm_str = yaml.dump(grouped_fm, sort_keys=False)
     combined_body = _build_combined_body(roles_with_fm)
     combined_content = f"---\n{grouped_fm_str}---\n\n{combined_body}"
-    
+
     return max_score, grouped_name, combined_content, combined_justification
 
 
@@ -254,17 +254,17 @@ def _group_old_experiences_by_company(
     """Group multiple old experiences at the same company before compression."""
     recent_entries, old_entries_by_org = _split_recent_and_old_experiences(deduplicated)
     grouped_entries: list[tuple[int, str, str, str]] = []
-    
+
     for org, roles_with_fm in old_entries_by_org.items():
         if len(roles_with_fm) == 1:
             grouped_entries.append(roles_with_fm[0][0])
         else:
             consolidated = _consolidate_company_roles(org, roles_with_fm)
             grouped_entries.append(consolidated)
-            
+
     def get_start_date(item: tuple[int, str, str, str]) -> str:
         fm = _parse_yaml_frontmatter_from_text(item[2])
         return _extract_start_date_normalized(fm)
-        
+
     grouped_entries.sort(key=get_start_date, reverse=True)
     return recent_entries + grouped_entries

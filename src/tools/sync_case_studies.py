@@ -54,7 +54,7 @@ def _clean_slug(raw_ref: Any) -> str:
 def _extract_case_study_bullet(fm: dict[str, Any], body: str, slug: str) -> str:
     """Extract or construct a STAR one-liner achievement ending with a wikilink."""
     title = fm.get("title", slug.replace("-", " ").title())
-    
+
     # Try finding quantified results first
     results_match = re.search(r'##\s*Quantified Impact & Results\s*\n+([^#\n]+)', body)
     if results_match:
@@ -150,7 +150,7 @@ def _append_bullet_to_content(exp_content: str, bullet: str) -> str:
 def sync_case_studies(wiki_dir: Path, dry_run: bool = False) -> dict[str, int]:
     """
     Synchronizes all case studies in wiki/case-studies/ with parent experience files.
-    
+
     Returns:
         Summary dict containing counts of processed, synced, already_synced, and unmatched.
     """

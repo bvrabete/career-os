@@ -147,7 +147,7 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
                     existing_related.append(m.group(1) if m else item_str)
 
             merged_related = sorted(list(set(existing_related + new_related)))
-            
+
             # Update frontmatter
             fm["type"] = "skill"
             fm["title"] = fm.get("title", skill_name)
@@ -157,7 +157,7 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
             # Reconstruct content
             fm_str = yaml.dump(fm, default_flow_style=False, sort_keys=False).strip()
             new_content = f"---\n{fm_str}\n---\n\n{body}"
-            
+
             if content.strip() != new_content.strip():
                 print(f"  🔄 [UPDATE] {slug}.md -> Added links to {len(merged_related) - len(existing_related)} new sources.")
                 if not dry_run:
@@ -188,10 +188,10 @@ def get_compact_skills_list(skills_dir: Path, allowed_experience_slugs: list[str
     """Generates a compact, token-efficient summary of candidate's skills and where they were applied."""
     if not skills_dir.exists():
         return []
-    
+
     allowed_set = set(allowed_experience_slugs) if allowed_experience_slugs is not None else None
     compact_skills = []
-    
+
     for f in sorted(skills_dir.glob("*.md")):
         try:
             content = f.read_text(encoding="utf-8")
@@ -206,14 +206,14 @@ def get_compact_skills_list(skills_dir: Path, allowed_experience_slugs: list[str
                     item_str = str(item).strip()
                     m_link = re.match(r"^\[\[(.*?)\]\]$", item_str)
                     related_slugs.append(m_link.group(1) if m_link else item_str)
-                
+
                 # Filter by allowed experience slugs if specified
                 if allowed_set is not None:
                     filtered_related = [r for r in related_slugs if r in allowed_set]
                     if not filtered_related:
                         continue # Skip this skill entirely as it's not linked to any selected experience
                     related_slugs = filtered_related
-                
+
                 if related_slugs:
                     compact_skills.append(f"- **{title}** (Applied in: {', '.join(related_slugs)})")
                 else:
@@ -221,5 +221,5 @@ def get_compact_skills_list(skills_dir: Path, allowed_experience_slugs: list[str
         except Exception as e:
             logger.error("Error reading skill %s: %s", f.name, e)
             continue
-            
+
     return compact_skills

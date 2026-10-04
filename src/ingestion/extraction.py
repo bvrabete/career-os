@@ -18,7 +18,7 @@ def _extract_experience(llm: Any, raw_text: str) -> dict[str, Any]:
             f"spoken languages, projects, and patents from this document:\n\n{raw_text}"
         ))
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -35,7 +35,7 @@ def _extract_cover_letter(llm: Any, raw_text: str) -> dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"Extract cover letter details from this document:\n\n{raw_text}")
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -52,7 +52,7 @@ def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"Extract feedback/performance reviews from this document:\n\n{raw_text}")
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -67,7 +67,7 @@ def node_extractor(state: IngestionState) -> dict[str, Any]:
     logging.info("--- NODE: EXTRACTOR (Pass 1) ---")
     doc_type = state.get("doc_type", "")
     raw_text = state.get("raw_text", "")
-    
+
     roles: list[dict[str, Any]] = []
     education: list[dict[str, Any]] = []
     languages: list[dict[str, Any]] = []
@@ -106,17 +106,17 @@ def node_extractor(state: IngestionState) -> dict[str, Any]:
         )
         if profile:
             logging.info(f"Extracted personal profile for: {profile.get('name')}")
-        
+
     elif doc_type == "cover_letter":
         extracted = _extract_cover_letter(llm, raw_text)
         cover_letters = extracted.get("cover_letters", [])
         logging.info(f"Extracted {len(cover_letters)} cover letter(s)")
-        
+
     elif doc_type == "supplemental":
         extracted = _extract_supplemental(llm, raw_text)
         notes = extracted.get("notes", [])
         logging.info(f"Extracted {len(notes)} note(s)")
-        
+
     else:
         logging.info(f"doc_type='{doc_type}' — skipping extraction")
 

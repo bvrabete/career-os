@@ -56,14 +56,14 @@ def _prune_recent_frontmatter(fm: dict[str, Any], employment_type: str = "Perman
                 "start": start,
                 "end": end or "Present"
             }
-    
+
     fm["employment_type"] = employment_type
-    
+
     pruned_fm: dict[str, Any] = {}
     for key in ["type", "title", "organization", "location", "dates", "skills", "employment_type"]:
         if key in fm:
             pruned_fm[key] = fm[key]
-            
+
     return yaml.dump(pruned_fm, sort_keys=False)
 
 
@@ -72,23 +72,23 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
     achievements: list[str] = []
     clean_lines: list[str] = []
     current_ach: list[str] = []
-    
+
     for line in body.splitlines():
         is_new_ach = bool(re.match(r'^\s*-\s*\*\*Situation', line))
         is_header = line.strip().startswith("##") or line.strip().startswith("###")
-        
+
         if (is_new_ach or is_header) and current_ach:
             achievements.append("\n".join(current_ach))
             current_ach = []
-                
+
         if (is_new_ach or current_ach) and not is_header:
             current_ach.append(line)
         else:
             clean_lines.append(line)
-            
+
     if current_ach:
         achievements.append("\n".join(current_ach))
-        
+
     clean_body = "\n".join(clean_lines).strip()
     return achievements, clean_body
 
@@ -96,25 +96,25 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
 def _select_top_achievements(body: str, keywords: list[str], max_pages: int = 1) -> str:
     """Extract, score, and select only the top achievements based on keyword overlap and page budget."""
     achievements, clean_body = _extract_and_clean_achievements(body)
-    
+
     if achievements:
         scored_ach: list[tuple[int, str]] = []
         for ach in achievements:
             score = score_by_keywords(ach, keywords)
             scored_ach.append((score, ach))
         scored_ach.sort(key=lambda x: x[0], reverse=True)
-        
+
         if max_pages >= 3:
             limit = len(scored_ach)
         elif max_pages == 2:
             limit = 7
         else:
             limit = 4
-            
+
         top_ach = [x[1] for x in scored_ach[:limit]]
         clean_body = re.sub(r'\n{3,}', '\n\n', clean_body).strip()
         body = f"{clean_body}\n\n## Key STAR Achievements\n\n" + "\n".join(top_ach)
-        
+
     return body
 
 
@@ -123,7 +123,7 @@ def prune_recent_experience(
 ) -> str:
     """Prunes a recent experience file to reduce token bloat before sending it to the DRAFTER."""
     content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
-    
+
     fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
     if fm_match:
         try:
@@ -131,7 +131,7 @@ def prune_recent_experience(
             fm = yaml.safe_load(fm_raw) or {}
             pruned_fm_str = _prune_recent_frontmatter(fm, employment_type)
             body = content[fm_match.end():].strip()
-            
+
             if max_pages < 3:
                 narrative_header = "## Narrative & Reflections"
                 idx = body.find(narrative_header)
@@ -141,12 +141,12 @@ def prune_recent_experience(
                         body = body[:idx] + body[next_header_idx:]
                     else:
                         body = body[:idx]
-                    
+
             body = _select_top_achievements(body, keywords, max_pages)
             return f"---\n{pruned_fm_str}---\n\n{body}"
         except Exception as e:
             logger.warning(f"Failed to prune frontmatter: {e}")
-            
+
     return content
 
 
@@ -250,7 +250,7 @@ def calculate_experience_weight(score: int, fm: dict[str, Any]) -> float:
         end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
     except Exception:
         end_date = datetime.date.today()
-    
+
     current_year = datetime.date.today().year
     end_year = end_date.year
     years_since_end = max(0, current_year - end_year)
@@ -261,7 +261,7 @@ def calculate_experience_weight(score: int, fm: dict[str, Any]) -> float:
         start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except Exception:
         start_date = datetime.date.today()
-        
+
     duration_days = (end_date - start_date).days
     duration_years = max(0.0, duration_days / 365.25)
     duration_factor = min(duration_years / 3.0, 1.0)
@@ -277,7 +277,7 @@ def _compress_and_wrap_single_experience(
     fm = _parse_yaml_frontmatter_from_text(content)
     emp_type = _detect_employment_type(fm, content)
     is_startup = _is_parallel_startup_track(fm)
-    
+
     weight = calculate_experience_weight(score, fm)
     logger.info(f"Experience '{name}' calculated weight: {weight:.3f} (Score: {score})")
 

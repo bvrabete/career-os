@@ -427,7 +427,7 @@ class TestOutputFolderHandling(unittest.TestCase):
             synthesis_content = "synthesis"
 
             out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
-            
+
             expected_path = out_dir / "my_jumbo_jd.md"
             self.assertEqual(out_path, expected_path)
             self.assertTrue(out_path.exists())

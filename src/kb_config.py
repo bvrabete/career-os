@@ -84,7 +84,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     config = load_config()
     steps = config.get("STEPS", {})
     models_map = config.get("MODELS", {})
-    
+
     step_config = steps.get(step_name)
     if not step_config:
         raise KeyError(
@@ -96,7 +96,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         raise ValueError(
             f"Pipeline step '{step_name}' in config.yaml is missing required 'TYPE' (e.g. 'gemini', 'openai', 'ollama')."
         )
-    
+
     kwargs: dict[str, Any] = {}
     if model_type == "openai":
         model_name = step_config.get("MODEL_NAME") or models_map.get("openai")
@@ -110,7 +110,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         if model_name.startswith("o1") or model_name.startswith("o3"):
             return ChatOpenAI(model=model_name, **kwargs)
         return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
-    
+
     elif model_type == "ollama":
         model_name = step_config.get("MODEL_NAME") or models_map.get("ollama")
         if not model_name:
@@ -122,13 +122,13 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
         if format:
             kwargs["format"] = format
         return ChatOllama(
-            model=model_name, 
-            base_url=base_url, 
+            model=model_name,
+            base_url=base_url,
             temperature=temperature,
             num_ctx=12288, # Optimized to 12k to guarantee 100% GPU offload under 6GB VRAM without truncating large CV context
             **kwargs
         )
-    
+
     elif model_type == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         model_name = step_config.get("MODEL_NAME") or models_map.get("gemini")
@@ -144,7 +144,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
             logging.info(f"Mapping deprecated model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
             model_name = "gemini-2.5-pro"
         return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
-    
+
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
 
@@ -176,8 +176,8 @@ def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, 
     if format:
         kwargs["format"] = format
     return ChatOllama(
-        model=model_name, 
-        base_url=base_url, 
+        model=model_name,
+        base_url=base_url,
         temperature=temperature,
         num_ctx=8192,
         **kwargs
@@ -193,24 +193,24 @@ def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: 
     step_config = steps.get(step_name)
     if not step_config or "FALLBACK" not in step_config:
         return None
-        
+
     fallback_config = step_config["FALLBACK"]
     model_type = fallback_config.get("TYPE")
     model_name = fallback_config.get("MODEL_NAME")
-    
+
     if not model_type or not model_name:
         return None
-        
+
     if model_type == "openai":
         return _create_openai_fallback(model_name, step_name, temperature, format)
-        
+
     if model_type == "gemini":
         return _create_gemini_fallback(model_name, step_name, temperature)
-        
+
     if model_type == "ollama":
         base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         return _create_ollama_fallback(model_name, base_url, temperature, format)
-        
+
     return None
 
 def get_model(temperature=0):
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         model = get_model_for_step("REFINEMENT")
         m_name = getattr(model, "model_name", getattr(model, "model", "unknown"))
         print(f"Successfully loaded REFINEMENT model: {m_name}")
-        
+
         ex_model = get_model_for_step("EXTRACTION")
         ex_name = getattr(ex_model, "model_name", getattr(ex_model, "model", "unknown"))
         print(f"Successfully loaded EXTRACTION model: {ex_name}")

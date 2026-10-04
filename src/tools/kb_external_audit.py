@@ -29,23 +29,23 @@ def extract_keywords_from_jd(jd_text: str) -> Set[str]:
         "microservices", "redis", "elasticsearch", "sql", "management", "architecture", "agile",
         "devsecops", "terraform", "platform engineering", "api management", "distributed systems"
     }
-    
+
     found: Set[str] = set()
     normalized_jd = jd_text.lower()
     for skill in common_skills:
         if re.search(r'\b' + re.escape(skill) + r'\b', normalized_jd):
             found.add(skill)
-            
+
     return found
 
 
 def calculate_overlap_score(parsed_skills: List[str], jd_keywords: Set[str]) -> Dict[str, Any]:
     """Calculates keyword matching stats between parsed resume skills and job description requirements."""
     parsed_normalized = {s.lower() for s in parsed_skills}
-    
+
     matched = set()
     missed = set()
-    
+
     for keyword in jd_keywords:
         keyword_lower = keyword.lower()
         is_matched = False
@@ -57,9 +57,9 @@ def calculate_overlap_score(parsed_skills: List[str], jd_keywords: Set[str]) -> 
             matched.add(keyword)
         else:
             missed.add(keyword)
-            
+
     score = int((len(matched) / len(jd_keywords) * 100)) if jd_keywords else 100
-    
+
     return {
         "score": score,
         "matched": sorted(matched),
@@ -74,13 +74,13 @@ def _extract_contact_info(parsed_data: Dict[str, Any]) -> tuple[str, str, str]:
         or parsed_data.get("candidateName", {}).get("raw")
         or "Unknown"
     )
-    
+
     emails_list = parsed_data.get("emails") or parsed_data.get("email") or []
     emails = ", ".join([e.get("raw", "") if isinstance(e, dict) else str(e) for e in emails_list]) or "None detected"
-    
+
     phones_list = parsed_data.get("phones") or parsed_data.get("phoneNumber") or []
     phones = ", ".join([p.get("raw", "") if isinstance(p, dict) else str(p) for p in phones_list]) or "None detected"
-    
+
     return contact, emails, phones
 
 
@@ -116,16 +116,16 @@ def _resolve_dates(parsed_fields: Dict[str, Any]) -> tuple[str, str]:
     if not isinstance(dates_obj, dict):
         dates_obj = {}
     parsed_dates = dates_obj.get("parsed") or {} if isinstance(dates_obj, dict) else {}
-    
+
     if not parsed_dates or not isinstance(parsed_dates, dict):
         start_date = parsed_fields.get("startDate") or "N/A"
         end_date = parsed_fields.get("endDate") or "Present"
         return start_date, end_date
-        
+
     start_date = parsed_dates.get("start", {}).get("date") if isinstance(parsed_dates.get("start"), dict) else "N/A"
     if not start_date:
         start_date = "N/A"
-        
+
     is_current = parsed_dates.get("end", {}).get("isCurrent", False) if isinstance(parsed_dates.get("end"), dict) else False
     if is_current:
         end_date = "Present"
@@ -133,7 +133,7 @@ def _resolve_dates(parsed_fields: Dict[str, Any]) -> tuple[str, str]:
         end_date = parsed_dates.get("end", {}).get("date") or "Present"
     else:
         end_date = "Present"
-        
+
     return start_date, end_date
 
 
@@ -156,13 +156,13 @@ def _extract_work_history(parsed_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     for exp in parsed_data.get("workExperience", []):
         if not isinstance(exp, dict):
             continue
-        
+
         parsed_fields = exp.get("parsed") or exp
         title = _resolve_job_title(parsed_fields)
         org = _resolve_organization(parsed_fields)
         start_date, end_date = _resolve_dates(parsed_fields)
         desc = _resolve_description(parsed_fields)
-        
+
         work_history.append({
             "jobTitle": title,
             "organization": org,
@@ -177,11 +177,11 @@ def _format_native_section(native_match_data: Dict[str, Any] | None) -> str:
     """Format the Affinda native scoring breakdown into a rich markdown section."""
     if not native_match_data:
         return ""
-    
+
     overall_score = native_match_data.get("score")
     overall_pct = f"{int(overall_score * 100)}%" if isinstance(overall_score, (int, float)) else "N/A"
     details = native_match_data.get("details", {})
-    
+
     native_section = f"""
 ---
 
@@ -200,7 +200,7 @@ This section represents **Affinda's native machine-learning match predictions** 
         c_score = criterion.get("score")
         c_score_str = f"**{int(c_score * 100)}%**" if isinstance(c_score, (int, float)) else "*N/A / Low weight*"
         native_section += f"| **{lbl}** | {c_score_str} | {val} |\n"
-        
+
     native_section += "\n"
     return native_section
 
@@ -214,11 +214,11 @@ def generate_markdown_report(
     contact, emails, phones = _extract_contact_info(parsed_data)
     work_history = _extract_work_history(parsed_data)
     native_section = _format_native_section(native_match_data)
-    
+
     score = overlap_results["score"]
     matched = overlap_results["matched"]
     missed = overlap_results["missed"]
-    
+
     # Construct the report with beautiful, rich layout
     markdown = f"""# Affinda ATS Parser Audit Report
 
@@ -259,13 +259,13 @@ Affinda extracted the following chronological history from your PDF/DOCX structu
         start = exp.get("startDate", "N/A")
         end = exp.get("endDate", "Present")
         desc = exp.get("jobDescription", "")
-        
+
         markdown += f"""### {idx}. {title} at {org}
 - **Tenure:** `{start}` to `{end}`
 - **Parsed Summary:** {desc or "*No description extracted*"}
 
 """
-        
+
     markdown += """---
 
 ## 💡 Recommended Layout & ATS Adjustments
@@ -280,9 +280,9 @@ def main() -> None:
     parser.add_argument("--resume", required=True, help="Path to the compiled PDF/DOCX/TXT resume file")
     parser.add_argument("--jd", required=True, help="Path to the target Job Description txt file")
     parser.add_argument("--out", help="Path to output markdown report file")
-    
+
     args = parser.parse_args()
-    
+
     try:
         resume_path = validate_path(args.resume)
         jd_path = validate_path(args.jd)
@@ -290,34 +290,34 @@ def main() -> None:
     except ValueError as e:
         print(f"❌ {e}")
         sys.exit(1)
-    
+
     print("🚀 Starting Standalone External ATS Audit Tool...")
-    
+
     if not resume_path.exists():
         print(f"❌ Error: Resume file not found at {resume_path}")
         sys.exit(1)
-        
+
     if not jd_path.exists():
         print(f"❌ Error: JD file not found at {jd_path}")
         sys.exit(1)
-        
+
     try:
         # Load inputs
         jd_text = jd_path.read_text(encoding="utf-8")
-        
+
         # Initialize client and trigger uploads
         client = AffindaParserClient()
-        
+
         print("📁 Uploading and parsing Job Description...")
         jd_response = client.parse_job_description(jd_path)
-        
+
         print("📄 Uploading and parsing Resume...")
         response_data = client.parse_resume(resume_path)
-        
+
         # Extract Identifiers for Native Match API
         resume_id = response_data.get("identifier") or response_data.get("meta", {}).get("identifier")
         jd_id = jd_response.get("identifier") or jd_response.get("meta", {}).get("identifier")
-        
+
         native_match_data = {}
         if resume_id and jd_id:
             try:
@@ -327,13 +327,13 @@ def main() -> None:
                 time.sleep(15)
             except Exception as idx_err:
                 print(f"⚠️ Warning: Could not index resume: {idx_err}")
-                
+
             print("🤖 Requesting native machine-learning match score from Affinda...")
             try:
                 native_match_data = client.get_native_match(resume_id, jd_id)
             except Exception as match_err:
                 print(f"⚠️ Warning: Could not retrieve native match score: {match_err}")
-        
+
         # Analyze overlap
         data_obj = response_data.get("data", {})
         skills_raw = data_obj.get("skills") or data_obj.get("skill") or []
@@ -344,22 +344,22 @@ def main() -> None:
         ]
         jd_keywords = extract_keywords_from_jd(jd_text)
         overlap_results = calculate_overlap_score(parsed_skills, jd_keywords)
-        
+
         # Build Report
         report_md = generate_markdown_report(
             response_data.get("data", {}),
             overlap_results,
             native_match_data
         )
-        
+
         # Write Output
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(report_md, encoding="utf-8")
-        
+
         print("✅ Success! Comparative ATS audit complete. Report written to:")
         print(f"   [Report Link](file://{out_path.resolve()})")
         print(f"📊 [Score: {overlap_results['score']}/100]")
-        
+
     except Exception as e:
         print(f"❌ Ingestion/Comparison Failed: {e}")
         logger.exception("Audit tool failure")

@@ -123,7 +123,7 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
         llm, keywords, persona, jd, max_pages=strategy_obj.max_pages
     )
     education_content = retrieve_and_deduplicate_education(wiki_dir)
-    
+
     skills_dir = wiki_dir / "wiki" / "skills"
     from generation.skills_helper import get_compact_skills_list
     skills_content = get_compact_skills_list(skills_dir, retrieved_exp_slugs)

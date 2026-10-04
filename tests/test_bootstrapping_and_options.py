@@ -26,11 +26,11 @@ class TestBootstrappingAndOptions(unittest.TestCase):
     def test_complete_bootstrap_flow(self):
         """Test that bootstrap_wiki_structure creates all 14 folders and template files."""
         bootstrap_wiki_structure(self.wiki_dir)
-        
+
         # Verify subdirectories are created under wiki/
         wiki_root = self.wiki_dir / "wiki"
         self.assertTrue(wiki_root.is_dir())
-        
+
         expected_subdirs = [
             "experiences", "education", "entities", "projects", "skills",
             "sources", "synthesis", "concepts", "notes", "patents",
@@ -38,7 +38,7 @@ class TestBootstrappingAndOptions(unittest.TestCase):
         ]
         for subdir in expected_subdirs:
             self.assertTrue((wiki_root / subdir).is_dir(), f"Subfolder {subdir} was not bootstrapped.")
-            
+
         # Verify core blueprint templates
         self.assertTrue((self.wiki_dir / "schema.md").is_file())
         self.assertTrue((self.wiki_dir / "mappings.md").is_file())
@@ -59,11 +59,11 @@ class TestBootstrappingAndOptions(unittest.TestCase):
         mock_collect_files.return_value = [dummy_file]
         mock_load_status.return_value = {"processed": {}}
         mock_process_file.return_value = (1, 0, 0)
-        
+
         # Mock Graph compilation
         mock_graph = MagicMock()
         mock_build_graph.return_value = mock_graph
-        
+
         test_args = [
             "kb-ingest",
             "--file", str(dummy_file),
@@ -72,10 +72,10 @@ class TestBootstrappingAndOptions(unittest.TestCase):
             "--force",
             "--skip-skills-sync"
         ]
-        
+
         with patch.object(sys, 'argv', test_args):
             kb_ingest.main()
-            
+
         # Assertions
         mock_build_graph.assert_called_with(dry_run=True)
         self.assertTrue(mock_process_file.call_args[1]["force"])

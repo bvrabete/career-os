@@ -92,7 +92,7 @@ def _clean_frontmatter(content: str) -> str:
 
     lines = content.splitlines()
     boundary_indices = [i for i, line in enumerate(lines) if line.strip() == "---"]
-    
+
     if len(boundary_indices) < 2:
         return content
 
@@ -155,7 +155,7 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
         try:
             response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
             cleaned_content = _clean_frontmatter(_llm_text(response.content))
-            
+
             # Simple validation: ensure frontmatter dashes exist
             if cleaned_content.count("---") >= 2:
                 # Securely construct file path to satisfy static code analysis (prevent path traversal)

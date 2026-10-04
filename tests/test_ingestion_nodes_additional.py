@@ -127,7 +127,7 @@ class TestIngestionNodesAdditional(unittest.TestCase):
         mock_find_page.return_value = existing_file
 
         mock_llm.invoke.return_value = AIMessage(content="---\ntype: experience\ntitle: Merged\n---\nMerged Body")
-        
+
         state_redirect = cast(IngestionState, {
             "source_file": "dummy.md",
             "wiki_outputs": [{

@@ -27,7 +27,7 @@ class TestIngestionNodes(unittest.TestCase):
         mock_page = MagicMock()
         mock_page.extract_text.return_value = "This is extracted test PDF text content. " + "A" * 300
         mock_reader.pages = [mock_page]
-        
+
         with patch("pypdf.PdfReader", return_value=mock_reader):
             text = _parse_via_pypdf(Path("mock.pdf"))
             self.assertIsNotNone(text)
@@ -100,7 +100,7 @@ class TestIngestionNodes(unittest.TestCase):
     def test_node_classifier_success(self, mock_load_prompt, mock_get_model):
         """Test node_classifier extracts JSON correctly from model output."""
         mock_load_prompt.return_value = "Classifier System Instruction"
-        
+
         mock_llm = MagicMock()
         mock_response = AIMessage(content='```json\n{"doc_type": "experience", "reason": "Looks like CV resume"}\n```')
         mock_llm.invoke.return_value = mock_response
@@ -173,7 +173,7 @@ class TestIngestionNodes(unittest.TestCase):
 
         result = node_entity_resolver(state)
         resolved = result["resolved_entities"]
-        
+
         self.assertEqual(resolved.get("Intel Corp"), "intel-corporation")
         self.assertEqual(resolved.get("Google Inc"), "google-inc")
         self.assertEqual(resolved.get("Unknown Corp"), "unknown-corp")

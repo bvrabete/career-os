@@ -105,7 +105,7 @@ def resolve_regional_strategy(wiki_dir: Path, region: str) -> tuple[str, str]:
 def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]) -> dict[str, str]:
     """Ask LLM to construct an explicit key-value mapping of required JD skills to sibling/equivalent candidate skills."""
     skills_summary = "\n".join(skills)
-    
+
     try:
         system_template = _resolve_prompt("skill_bridging_map.txt")
         prompt = (
@@ -113,7 +113,7 @@ def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]
             .replace("{KEYWORDS}", ", ".join(keywords))
             .replace("{SKILLS_SUMMARY}", skills_summary)
         )
-        
+
         response = llm.invoke([HumanMessage(content=prompt)])
         content = llm_text(response.content)
         data = robust_json_loads(content)
@@ -121,7 +121,7 @@ def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]
             return {str(k): str(v) for k, v in data.items()}
     except Exception as e:
         logger.warning(f"Failed to generate skill bridging map: {e}")
-        
+
     return {}
 
 
@@ -137,17 +137,17 @@ def _parse_education_candidate(f: Path) -> dict[str, Any] | None:
             inst_raw = str(fm.get("institution", ""))
             inst_match = BRACKET_LINK_PATTERN.search(inst_raw)
             inst = inst_match.group(1) if inst_match else inst_raw.strip().lower()
-            
+
             dates = fm.get("dates", {})
             if isinstance(dates, dict):
                 start_date_val = str(dates.get("start", ""))
                 if start_date_val:
                     start_year = start_date_val[:4]
             status = str(fm.get("status", ""))
-        
+
         if not inst:
             inst = f.name.replace(".md", "").split("-")[0]
-            
+
         return {
             "path": f,
             "content": edu_text,
@@ -175,9 +175,9 @@ def retrieve_and_deduplicate_education(wiki_dir: Path) -> list[str]:
     def edu_sort_key(x: dict[str, Any]) -> tuple[int, int]:
         is_completed = 1 if "completed" in str(x["status"]).lower() else 0
         return (is_completed, x["size"])
-        
+
     edu_candidates.sort(key=edu_sort_key, reverse=True)
-    
+
     education_content: list[str] = []
     seen_edu: set[tuple[str, str]] = set()
     for item in edu_candidates:
@@ -267,7 +267,7 @@ def retrieve_and_score_notes(
             note_content = f.read_text(encoding="utf-8")
             has_review_tag = "performance-review" in note_content.lower()
             has_relation = any(f"[[{slug}]]" in note_content for slug in retrieved_exp_slugs)
-            
+
             if has_review_tag or has_relation:
                 score = score_by_keywords(note_content, keywords)
                 if has_review_tag:
@@ -331,7 +331,7 @@ def retrieve_languages(wiki_dir: Path) -> list[str]:
     languages_dir = wiki_dir / "wiki" / "languages"
     if not languages_dir.exists():
         return []
-        
+
     languages_content = []
     for f in sorted(languages_dir.glob("*.md")):
         try:
@@ -340,7 +340,7 @@ def retrieve_languages(wiki_dir: Path) -> list[str]:
             title = fm.get("title", f.stem.replace("lang-", "").capitalize())
             proficiency = fm.get("proficiency", "")
             cefr = fm.get("cefr", "")
-            
+
             detail = f" ({cefr})" if cefr else ""
             if proficiency:
                 languages_content.append(f"- **{title}**: {proficiency}{detail}")
@@ -348,5 +348,5 @@ def retrieve_languages(wiki_dir: Path) -> list[str]:
                 languages_content.append(f"- **{title}**")
         except Exception as e:
             logger.error("Error parsing language file %s: %s", f.name, e)
-            
+
     return languages_content

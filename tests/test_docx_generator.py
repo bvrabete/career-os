@@ -68,7 +68,7 @@ class TestDocxGenerator(unittest.TestCase):
         _add_section_header(self.doc, "Section Header", self.color_primary)
         _add_subsection_header(self.doc, "Subsection Header", self.color_primary)
         _add_role_header(self.doc, "Role Header", self.color_primary)
-        
+
         self.assertEqual(self.doc.paragraphs[0].text, "Main Title")
         self.assertEqual(self.doc.paragraphs[1].text, "Section Header")
         self.assertEqual(self.doc.paragraphs[2].text, "Subsection Header")

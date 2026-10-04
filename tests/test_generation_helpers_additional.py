@@ -149,7 +149,7 @@ Outro"""
 
         small_file = exp_dir / "short.md"
         small_file.write_text("Short")
-        
+
         mock_llm = MagicMock()
         res = _score_single_experience(mock_llm, small_file, ["kw"], "persona", "jd", "template")
         self.assertIsNone(res)
@@ -227,7 +227,7 @@ Outro"""
         """Test projects retrieval, scoring, and sorting."""
         proj_dir = self.wiki_root / "projects"
         proj_dir.mkdir(parents=True, exist_ok=True)
-        
+
         p1 = proj_dir / "p1.md"
         p1.write_text("---\ntitle: Project One\ndates:\n  start: 2021-01-01\nskills:\n  - Python\n---\nBuilding super AI backend with Python.")
         p2 = proj_dir / "p2.md"

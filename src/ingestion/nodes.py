@@ -338,7 +338,7 @@ def _validate_skill(fm: dict[str, Any], errors: list[str]) -> None:
     missing = SKILL_REQUIRED - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
-        
+
     category = fm.get("category", "")
     valid_categories = ("Language-Code", "Framework", "Infrastructure", "Leadership", "Spoken-Language")
     if category not in valid_categories:

@@ -79,3 +79,20 @@ check_untyped_defs = true
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Line length handled separately / soft wraps
+    "E402",  # Module level import not at top of file (e.g. dotenv/sys.path before imports)
+    "E741",  # Ambiguous variable name
+    "E302",  # Expected 2 blank lines
+    "E303",  # Too many blank lines
+    "E305",  # Expected 2 blank lines after class/function
+    "E203",  # Whitespace before ':'
+    "E266",  # Too many leading '#' for block comment
+    "F401",  # Unused imports (in tests and init files)
+    "F811",  # Redefinition of unused name
+    "F841",  # Unused variable assignment
+    "F541",  # f-string without placeholders
+]

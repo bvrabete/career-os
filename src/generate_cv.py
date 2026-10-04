@@ -61,14 +61,14 @@ def save_outputs(
     """
     if args.out:
         out_path = validate_path(args.out)
-        
+
         # Check if the output path is a directory or has no file extension
         if out_path.is_dir() or args.out.endswith("/") or args.out.endswith("\\") or not out_path.suffix:
             jd_filename = Path(args.jd).with_suffix(".md").name
             out_path = out_path / jd_filename
-            
+
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Write clean draft to specified path
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(draft)
@@ -77,7 +77,7 @@ def save_outputs(
         # Save Context (Graph State) for debugging
         context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
         state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
-        
+
         with open(context_path, "w", encoding="utf-8") as f:
             json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
         print(f"📦 Context State saved to {context_path}")
@@ -158,15 +158,15 @@ def _setup_logging() -> None:
     """Configures the root logging handlers and logging levels."""
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    
+
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    
+
     file_handler = logging.FileHandler(log_dir / "generation_run.log", encoding="utf-8")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     root_logger.addHandler(file_handler)
-    
+
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
@@ -195,24 +195,24 @@ def _triage_pipeline_exception(e: Exception) -> None:
     """Analyzes pipeline exception and prints user-friendly suggestion triage."""
     err_msg = str(e).lower()
     print(f"\n❌ Pipeline failed with exception: {e}")
-    
+
     if any(keyword in err_msg for keyword in ["api_key", "unauthorized", "credentials", "401"]):
         print(SUGGESTION_STR)
         print("   Your API keys might be invalid or expired.")
         print("   - Verify that OPENAI_API_KEY and GEMINI_API_KEY are correctly set in your environment or .env file.")
-        
+
     elif any(keyword in err_msg for keyword in ["connection", "timeout", "rate limit", "429"]):
         print(SUGGESTION_STR)
         print("   Network connection timeout or API rate limits exceeded.")
         print("   - Wait a moment and retry.")
         print("   - Check if Ollama is running (`curl http://localhost:11434`) if you are using local models.")
-        
+
     elif any(keyword in err_msg for keyword in ["model not found", "not found", "does not exist", "pull"]):
         print(SUGGESTION_STR)
         print("   The specified local model was not found in Ollama.")
         print("   - Run `ollama pull <model_name>` (e.g., `ollama pull qwen2.5:7b`) to download the required model.")
         print("   - Check the MODEL_NAME settings in your config.yaml.")
-        
+
     else:
         print(SUGGESTION_STR)
         print("   - Double-check your config.yaml configuration and ensure that local services (like Ollama) are fully operational.")
@@ -321,7 +321,7 @@ def main() -> None:
     jd_name = Path(args.jd).name
     print(f"🚀 Initializing LangGraph CV Generator Pipeline against `{jd_name}`...")
     app = build_graph()
-    
+
     inputs = {
         "job_description_raw": jd_content,
         "iteration_count": 0,
@@ -330,7 +330,7 @@ def main() -> None:
         "strategy_override": args.strategy,
         "interactive": args.interactive,
     }
-    
+
     try:
         final_state = app.invoke(inputs)
     except Exception as e:

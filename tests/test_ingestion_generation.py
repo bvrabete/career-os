@@ -297,13 +297,13 @@ class TestIngestionGeneration(unittest.TestCase):
         """Test _generate_profile handles both a new profile and reading existing created date on update."""
         mock_get_wiki_root.return_value = Path("/mock/wiki")
         mock_get_persona_slug.return_value = "alice-developer-person"
-        
+
         # Scenario 1: New profile (no existing file)
         with patch("pathlib.Path.exists", return_value=False):
             wiki_outputs = []
             profile = {"name": "Alice Developer", "email": "alice@example.com"}
             _generate_profile(profile, "source.pdf", "2026-06-30", wiki_outputs)
-            
+
             self.assertEqual(len(wiki_outputs), 1)
             self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/entities/alice-developer-person.md")
             self.assertIn("created: 2026-06-30", wiki_outputs[0]["content"])
@@ -316,7 +316,7 @@ class TestIngestionGeneration(unittest.TestCase):
             wiki_outputs = []
             profile = {"name": "Alice Developer", "email": "alice@example.com", "overview": "Experienced SWE"}
             _generate_profile(profile, "source.pdf", "2026-06-30", wiki_outputs)
-            
+
             self.assertEqual(len(wiki_outputs), 1)
             self.assertIn("created: 2024-01-15", wiki_outputs[0]["content"])
             self.assertIn("updated: 2026-06-30", wiki_outputs[0]["content"])

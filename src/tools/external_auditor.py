@@ -72,7 +72,7 @@ class AffindaParserClient:
             attempt += 1
             time.sleep(10)
             poll_resp = requests.get(poll_url, headers=headers)
-            
+
             if poll_resp.status_code != 200:
                 logger.warning(f"Failed to poll Affinda: {poll_resp.status_code}. Retrying...")
                 continue
@@ -104,7 +104,7 @@ class AffindaParserClient:
             raise FileNotFoundError(f"File not found at: {file_path}")
 
         document_data = self._upload_doc_payload(file_path, doc_type_val, is_jd)
-        
+
         try:
             debug_path = validate_path(Path("ai-generated-cvs") / debug_filename)
             debug_path.parent.mkdir(parents=True, exist_ok=True)

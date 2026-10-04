@@ -184,7 +184,7 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         target_subdir = self.wiki_root / "experiences"
         target_subdir.mkdir(parents=True, exist_ok=True)
         mock_get_wiki_root.return_value = self.wiki_root
-        
+
         gen_path = self.wiki_dir / "gen.md"
         self.assertIsNone(_find_existing_wiki_file("experiences", "slug", gen_path))
         gen_path.write_text("Hello")
@@ -193,14 +193,14 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         # Target year ValueError / start date extraction and multiple candidates
         candidate_file_1 = target_subdir / "role_1.md"
         candidate_file_1.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2020-01-01\n---\n")
-        
+
         res = _find_existing_wiki_file("experiences", "slug", gen_path, "invalid-year")
         self.assertEqual(res, candidate_file_1)
 
         # Multiple candidates found (select max modification time or matching year)
         candidate_file_2 = target_subdir / "role_2.md"
         candidate_file_2.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2022-01-01\n---\n")
-        
+
         os.utime(candidate_file_1, (time.time() - 100, time.time() - 100))
         os.utime(candidate_file_2, (time.time(), time.time()))
 
