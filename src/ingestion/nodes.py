@@ -31,7 +31,7 @@ from kb_config import get_model_for_step
 from ingestion.state import IngestionState
 from ingestion.helpers import (
     load_prompt, llm_text, strip_fences, clean_frontmatter,
-    parse_mappings, resolve_org, slugify, get_schema_path, get_wiki_root,
+    parse_mappings, resolve_org,
     find_existing_experience, find_existing_education
 )
 

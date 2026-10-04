@@ -84,5 +84,4 @@ target-version = "py312"
 select = ["E", "F", "W"]
 ignore = [
     "E501",  # Line length handled separately / soft wraps
-    "F401",  # Unused imports (in tests and init files)
 ]

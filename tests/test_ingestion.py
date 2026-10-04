@@ -1,14 +1,10 @@
 """Unit tests for the ingestion pipeline helpers and validation logic."""
 
 import unittest
-import tempfile
 import shutil
-import re
 import uuid
-import os
-import yaml
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from ingestion.helpers import (
     slugify,
     resolve_org,
@@ -25,22 +21,17 @@ from ingestion.helpers import (
     add_persona_mapping_if_missing,
     llm_text,
     strip_fences,
-    _extract_frontmatter_from_fence,
     _clean_frontmatter_lines,
     _clean_body_lines,
     _extract_start_date_from_file,
-    _filter_by_matching_year,
-    _find_existing_wiki_file,
     find_existing_experience,
     find_existing_education,
 )
 from ingestion.nodes import (
-    node_validator,
     _validate_experience,
     _validate_education,
     _validate_skill,
 )
-from ingestion.state import IngestionState
 
 MAPPINGS_FILE_NAME = "mappings.md"
 

@@ -1,6 +1,5 @@
 """Unit tests for the sync_case_studies tool."""
 
-import pytest
 from pathlib import Path
 from tools.sync_case_studies import (
     _clean_slug,

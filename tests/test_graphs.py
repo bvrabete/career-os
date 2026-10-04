@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from langgraph.graph import END
 
-from generation.graph import routing_logic, refiner_guard_routing, auditor_routing, build_graph
+from generation.graph import refiner_guard_routing, auditor_routing, build_graph
 from ingestion.graph import build_ingest_graph
 from generation.state import CVPipelineState
 from ingestion.state import IngestionState

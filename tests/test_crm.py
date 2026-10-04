@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.crm import load_applications, record_application, save_applications
+from tools.crm import load_applications, record_application
 
 
 class TestApplicationsCRM(unittest.TestCase):

@@ -1,10 +1,8 @@
 import os
 import unittest
-import yaml
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
 
-import kb_config
 from kb_config import (
     get_wiki_dir,
     load_config,

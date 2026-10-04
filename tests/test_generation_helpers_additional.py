@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 import shutil
@@ -8,8 +7,6 @@ from unittest.mock import MagicMock, patch
 
 from generation.helpers import (
     _build_combined_body,
-    _compress_and_wrap_experiences,
-    _compress_and_wrap_single_experience,
     _consolidate_company_roles,
     _detect_employment_type,
     _extract_and_clean_achievements,
@@ -26,7 +23,6 @@ from generation.helpers import (
     invoke_drafter_llm_with_fallback,
     prune_recent_experience,
     retrieve_and_deduplicate_education,
-    retrieve_and_score_experiences,
     retrieve_and_score_notes,
     retrieve_and_score_patents,
     retrieve_and_score_projects,
@@ -34,8 +30,7 @@ from generation.helpers import (
     robust_json_loads,
     score_by_keywords,
 )
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-import yaml
+from langchain_core.messages import AIMessage
 
 # Suppress debug/info logging during tests
 logging.basicConfig(level=logging.ERROR)

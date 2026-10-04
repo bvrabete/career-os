@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 import sys
 from typing import Any
-import warnings
 
 from generation import build_graph
 from ingestion.bootstrapping import is_wiki_initialized

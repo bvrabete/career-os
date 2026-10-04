@@ -2,7 +2,6 @@
 import argparse
 import os
 import sys
-from pathlib import Path
 
 from ingestion.bootstrapping import bootstrap_wiki_structure, is_wiki_initialized
 from utils import validate_path

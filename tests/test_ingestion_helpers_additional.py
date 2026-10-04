@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import time
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from ingestion.helpers import (
     SCHEMA_MD,

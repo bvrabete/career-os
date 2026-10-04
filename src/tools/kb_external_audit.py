@@ -5,7 +5,6 @@ Allows users to upload a generated resume and compare parsing results against a 
 
 import argparse
 import logging
-from pathlib import Path
 import re
 import sys
 import time

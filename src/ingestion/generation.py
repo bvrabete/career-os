@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from kb_config import get_model_for_step
 from ingestion.helpers import (
     load_prompt, get_schema_path, get_wiki_root, get_persona_slug,
-    llm_text, clean_frontmatter, slugify, add_persona_mapping_if_missing
+    llm_text, clean_frontmatter, slugify
 )
 from ingestion.state import IngestionState
 

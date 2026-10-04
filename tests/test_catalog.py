@@ -1,5 +1,4 @@
 """Unit tests for knowledge base catalog generation."""
-import json
 import shutil
 import tempfile
 import unittest

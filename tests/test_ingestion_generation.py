@@ -1,6 +1,5 @@
 """Unit tests for the ingestion pipeline generation logic."""
 import unittest
-from datetime import date
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from ingestion.generation import (

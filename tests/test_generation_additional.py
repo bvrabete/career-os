@@ -2,7 +2,6 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 from langchain_core.messages import AIMessage
 from generation.state import RegionalStrategy, CVPipelineState
 from generation.nodes import node_drafter, node_refiner, node_auditor

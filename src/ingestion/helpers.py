@@ -1,19 +1,17 @@
 """Pure Python helpers and utilities for the Ingestion Pipeline."""
-import json
 import logging
 import os
 from pathlib import Path
 import re
-import shutil
 import tempfile
 from typing import Any
 
 from ingestion.bootstrapping import (
-    _bootstrap_css_templates,
-    _bootstrap_strategies,
-    _bootstrap_subdirs,
-    _bootstrap_templates_and_schema,
-    bootstrap_wiki_structure,
+    _bootstrap_css_templates as _bootstrap_css_templates,
+    _bootstrap_strategies as _bootstrap_strategies,
+    _bootstrap_subdirs as _bootstrap_subdirs,
+    _bootstrap_templates_and_schema as _bootstrap_templates_and_schema,
+    bootstrap_wiki_structure as bootstrap_wiki_structure,
 )
 import kb_config
 from utils import (

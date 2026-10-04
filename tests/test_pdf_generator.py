@@ -3,7 +3,6 @@ Unit tests for pdf_generator.py and docx_generator.py.
 """
 
 import os
-from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch

@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 import tempfile
@@ -10,7 +9,6 @@ from ingestion.nodes import (
     _parse_fallback,
     _validate_by_type,
     node_classifier,
-    node_entity_resolver,
     node_merger,
     node_parser,
     node_validator,
@@ -18,7 +16,6 @@ from ingestion.nodes import (
 )
 from ingestion.state import IngestionState
 from langchain_core.messages import AIMessage
-import yaml
 
 # Suppress debug/info logging during tests
 logging.basicConfig(level=logging.ERROR)

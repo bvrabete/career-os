@@ -17,10 +17,10 @@ from kb_config import (
 # Re-export formatting routines
 from generation.formatting import (
     BRACKET_LINK_PATTERN,
-    _clean_json_comments_and_commas,
-    _escape_control_chars_in_strings,
-    _extract_json_block,
-    _parse_start_date,
+    _clean_json_comments_and_commas as _clean_json_comments_and_commas,
+    _escape_control_chars_in_strings as _escape_control_chars_in_strings,
+    _extract_json_block as _extract_json_block,
+    _parse_start_date as _parse_start_date,
     compress_experience_llm,
     compress_experience_to_one_liner_llm,
     compress_grouped_experience_llm,
@@ -34,8 +34,8 @@ from generation.formatting import (
 
 # Re-export retrieval routines
 from generation.retrieval import (
-    _parse_education_candidate,
-    _parse_yaml_frontmatter_from_text,
+    _parse_education_candidate as _parse_education_candidate,
+    _parse_yaml_frontmatter_from_text as _parse_yaml_frontmatter_from_text,
     generate_skill_bridging_map,
     get_subject_info,
     resolve_regional_strategy,
@@ -50,30 +50,30 @@ from generation.retrieval import (
 
 # Re-export grouping routines
 from generation.grouping import (
-    _build_combined_body,
-    _consolidate_company_roles,
-    _detect_employment_type,
-    _extract_end_date_normalized,
-    _extract_start_date_normalized,
-    _extract_start_year,
-    _get_org_slug,
-    _group_old_experiences_by_company,
-    _is_old_role,
-    _is_parallel_startup_track,
-    _split_recent_and_old_experiences,
+    _build_combined_body as _build_combined_body,
+    _consolidate_company_roles as _consolidate_company_roles,
+    _detect_employment_type as _detect_employment_type,
+    _extract_end_date_normalized as _extract_end_date_normalized,
+    _extract_start_date_normalized as _extract_start_date_normalized,
+    _extract_start_year as _extract_start_year,
+    _get_org_slug as _get_org_slug,
+    _group_old_experiences_by_company as _group_old_experiences_by_company,
+    _is_old_role as _is_old_role,
+    _is_parallel_startup_track as _is_parallel_startup_track,
+    _split_recent_and_old_experiences as _split_recent_and_old_experiences,
 )
 
 # Re-export pruning and experience weighting routines
 from generation.pruning import (
-    _compress_and_wrap_experiences,
-    _compress_and_wrap_single_experience,
-    _deduplicate_scored_experiences,
-    _extract_and_clean_achievements,
-    _get_experience_key,
-    _prune_recent_frontmatter,
-    _score_experiences_list,
-    _score_single_experience,
-    _select_top_achievements,
+    _compress_and_wrap_experiences as _compress_and_wrap_experiences,
+    _compress_and_wrap_single_experience as _compress_and_wrap_single_experience,
+    _deduplicate_scored_experiences as _deduplicate_scored_experiences,
+    _extract_and_clean_achievements as _extract_and_clean_achievements,
+    _get_experience_key as _get_experience_key,
+    _prune_recent_frontmatter as _prune_recent_frontmatter,
+    _score_experiences_list as _score_experiences_list,
+    _score_single_experience as _score_single_experience,
+    _select_top_achievements as _select_top_achievements,
     calculate_experience_weight,
     prune_recent_experience,
     retrieve_and_score_experiences,
