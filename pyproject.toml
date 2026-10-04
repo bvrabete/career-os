@@ -85,11 +85,7 @@ select = ["E", "F", "W"]
 ignore = [
     "E501",  # Line length handled separately / soft wraps
     "E402",  # Module level import not at top of file (e.g. dotenv/sys.path before imports)
-    "E741",  # Ambiguous variable name
-    "E203",  # Whitespace before ':'
-    "E266",  # Too many leading '#' for block comment
     "F401",  # Unused imports (in tests and init files)
     "F811",  # Redefinition of unused name
     "F841",  # Unused variable assignment
-    "F541",  # f-string without placeholders
 ]

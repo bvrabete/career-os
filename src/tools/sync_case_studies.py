@@ -211,7 +211,7 @@ def main() -> None:
 
     print(f"🔍 Scanning case studies in: {wiki_dir / 'wiki' / 'case-studies'}")
     stats = sync_case_studies(wiki_dir, dry_run=args.dry_run)
-    print(f"✨ Synchronization Summary:")
+    print("✨ Synchronization Summary:")
     print(f"   Total Case Studies : {stats['total']}")
     print(f"   Newly Synced       : {stats['synced']}")
     print(f"   Already Synced     : {stats['already_synced']}")

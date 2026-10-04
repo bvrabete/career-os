@@ -262,7 +262,7 @@ def _extract_frontmatter_from_fence(content: str) -> str:
             closing_idx = idx
             break
     if closing_idx != -1:
-        fm_lines = [l for l in lines[1:closing_idx] if l.strip() != "---"]
+        fm_lines = [line for line in lines[1:closing_idx] if line.strip() != "---"]
         body_lines = lines[closing_idx+1:]
         return f"---\n{'\n'.join(fm_lines)}\n---\n\n{'\n'.join(body_lines)}"
     return content

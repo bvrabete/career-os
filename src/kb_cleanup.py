@@ -52,7 +52,7 @@ def _strip_outer_markdown_code_block(content: str) -> str:
 
     fm_lines = lines[1:closing_idx]
     body_lines = lines[closing_idx+1:]
-    fm_lines_cleaned = [l for l in fm_lines if l.strip() != "---"]
+    fm_lines_cleaned = [line for line in fm_lines if line.strip() != "---"]
     fm_content = "\n".join(fm_lines_cleaned)
     body_content = "\n".join(body_lines)
     return f"---\n{fm_content}\n---\n\n{body_content}"
