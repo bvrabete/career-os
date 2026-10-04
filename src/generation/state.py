@@ -57,11 +57,65 @@ class RegionalStrategy:
         )
 
 
+@dataclass
+class TrackStrategy:
+    """Strongly-typed representation of a career track CV tailoring strategy."""
+    type: str = "strategy-track"
+    title: str = ""
+    seniority_levels: list[str] = field(default_factory=list)
+    archetype: str = ""
+    focus: list[str] = field(default_factory=list)
+    created: str = ""
+    updated: str = ""
+    body: str = ""
+
+    @classmethod
+    def from_markdown(cls, text: str) -> "TrackStrategy":
+        """Parse raw markdown content with frontmatter into a TrackStrategy."""
+        fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+        if not fm_match:
+            return cls(body=text)
+
+        frontmatter_str = fm_match.group(1)
+        body_text = text[fm_match.end():].strip()
+
+        try:
+            fm = yaml.safe_load(frontmatter_str) or {}
+        except Exception:
+            fm = {}
+
+        seniority_raw = fm.get("seniority_levels", [])
+        seniority_list = (
+            [str(s) for s in seniority_raw]
+            if isinstance(seniority_raw, list)
+            else [str(seniority_raw)]
+        )
+
+        focus_raw = fm.get("focus", [])
+        focus_list = (
+            [str(f) for f in focus_raw]
+            if isinstance(focus_raw, list)
+            else [str(focus_raw)]
+        )
+
+        return cls(
+            type=str(fm.get("type", "strategy-track")),
+            title=str(fm.get("title", "")),
+            seniority_levels=seniority_list,
+            archetype=str(fm.get("archetype", "")),
+            focus=focus_list,
+            created=str(fm.get("created", "")),
+            updated=str(fm.get("updated", "")),
+            body=body_text,
+        )
+
+
 class CVPipelineState(TypedDict, total=False):
     """The state dictionary passed between nodes in the CV generation LangGraph."""
     job_description: str
     target_persona: str
     target_region: str
+    target_track: str
     target_locations: list[str]
     cv_expectations: str
     primary_keywords: list[str]
@@ -70,6 +124,8 @@ class CVPipelineState(TypedDict, total=False):
     skills_entries: list[str]
     strategy_info: str
     strategy_metadata: RegionalStrategy
+    track_strategy_info: str
+    track_strategy_metadata: TrackStrategy
     pdf_template: str
     draft_cv: str
     audit_feedback: str
@@ -81,6 +137,7 @@ class CVPipelineState(TypedDict, total=False):
     total_words: int
     total_bullet_lines: int
     strategy_override: str
+    track_override: str
     projects_entries: list[str]
     patents_entries: list[str]
     notes_entries: list[str]

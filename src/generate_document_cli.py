@@ -21,6 +21,17 @@ def main() -> None:
     """
     Main execution routine for the Markdown to Document generator CLI.
     """
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    if hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     parser = argparse.ArgumentParser(description="Standalone Markdown to PDF/DOCX Document Generator")
     parser.add_argument("--input", required=True, help="Path to the Markdown file")
     parser.add_argument(
@@ -77,6 +88,9 @@ def main() -> None:
     try:
         if args.out:
             output_path = validate_path(args.out)
+            if output_path.is_dir() or args.out.endswith(("/", "\\")) or not output_path.suffix:
+                output_path = output_path / f"{input_path.stem}.{doc_format}"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
         else:
             output_path = validate_path(input_path.with_suffix(f".{doc_format}"))
     except ValueError as e:

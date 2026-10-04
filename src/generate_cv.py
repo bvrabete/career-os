@@ -34,7 +34,12 @@ def parse_arguments() -> argparse.Namespace:
     args_parser.add_argument(
         "--strategy",
         default=None,
-        help="Strategy override ('emea', 'us_tech', 'executive')",
+        help="Location strategy override ('ireland', 'emea', 'us-tech', 'germany', 'netherlands', etc.)",
+    )
+    args_parser.add_argument(
+        "--track",
+        default=None,
+        help="Career track override ('engineering-management', 'staff-principal', 'executive', 'startup-founding-engineer', 'general-engineering')",
     )
     args_parser.add_argument(
         "--template",
@@ -291,12 +296,14 @@ def _save_and_compile_outputs(
     final_state["draft_cv"] = draft
     company = final_state.get("target_organization_slug", "unknown-company")
     role = final_state.get("target_role", "unknown-role")
-    track_val = final_state.get("target_region", "general").upper()
+    track_val = final_state.get("target_track") or "engineering-management"
+    location_val = final_state.get("target_region", "general")
 
     synthesis_content = f"""---
 type: synthesis
 title: "Tailored CV for {role} at {company}"
 track: {track_val}
+location_strategy: {location_val}
 target_role: "{role}"
 target_organization: [[{company}]]
 status: Generated
@@ -343,7 +350,11 @@ def _print_node_feedback(node_name: str, node_state: dict[str, Any]) -> None:
         role = node_state.get("target_role", "N/A")
         company = node_state.get("target_organization_slug", "N/A")
         strategy = node_state.get("target_region", "N/A")
-        logger.info("  🔍 [Node A: Analyzer] Completed -> Target Role: '%s', Org: '%s', Strategy: '%s'", role, company, strategy)
+        track = node_state.get("target_track", "N/A")
+        logger.info(
+            "  🔍 [Node A: Analyzer] Completed -> Target Role: '%s', Org: '%s', Strategy: '%s', Track: '%s'",
+            role, company, strategy, track
+        )
     elif node_name == "retriever":
         exps = len(node_state.get("retrieved_experiences", []))
         skills = len(node_state.get("skills_entries", []))
@@ -416,6 +427,7 @@ def main() -> None:
         "compression_count": 0,
         "max_iterations": 3,
         "strategy_override": args.strategy,
+        "track_override": args.track,
         "interactive": args.interactive,
     }
 

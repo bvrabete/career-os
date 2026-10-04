@@ -120,16 +120,38 @@ def _index_skills(wiki_root: Path) -> list[str]:
     return [f.stem for f in sorted(skills_dir.glob("*.md")) if not f.name.startswith(".")]
 
 
-def _index_strategies(wiki_root: Path) -> list[str]:
-    """Index available regional strategies."""
+def _index_strategies(wiki_root: Path) -> dict[str, list[str]]:
+    """Index available regional and track strategies."""
     strat_dir = wiki_root / "strategies"
     if not strat_dir.is_dir():
-        return []
-    return [
-        f.stem.replace("strategy-", "")
-        for f in sorted(strat_dir.glob("strategy-*.md"))
-        if not f.name.startswith(".")
-    ]
+        return {"locations": [], "tracks": [], "all": []}
+
+    locations: list[str] = []
+    loc_dir = strat_dir / "locations"
+    if loc_dir.is_dir():
+        locations = [
+            f.stem.replace("strategy-", "")
+            for f in sorted(loc_dir.glob("*.md"))
+            if not f.name.startswith(".")
+        ]
+    if not locations:
+        locations = [
+            f.stem.replace("strategy-", "")
+            for f in sorted(strat_dir.glob("strategy-*.md"))
+            if not f.name.startswith(".")
+        ]
+
+    tracks: list[str] = []
+    track_dir = strat_dir / "tracks"
+    if track_dir.is_dir():
+        tracks = [
+            f.stem.replace("track-", "")
+            for f in sorted(track_dir.glob("*.md"))
+            if not f.name.startswith(".")
+        ]
+
+    all_strats = sorted(list(set(locations + tracks)))
+    return {"locations": locations, "tracks": tracks, "all": all_strats}
 
 
 def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
@@ -142,7 +164,8 @@ def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
     projects = _index_projects(wiki_root)
     case_studies = _index_case_studies(wiki_root)
     skills = _index_skills(wiki_root)
-    strategies = _index_strategies(wiki_root)
+    strategies_info = _index_strategies(wiki_root)
+    strategies = strategies_info["all"]
 
     return {
         "metadata": {
@@ -153,6 +176,8 @@ def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
             "total_case_studies": len(case_studies),
             "total_skills_categories": len(skills),
             "total_strategies": len(strategies),
+            "total_location_strategies": len(strategies_info["locations"]),
+            "total_track_strategies": len(strategies_info["tracks"]),
         },
         "experiences": experiences,
         "education": education,
@@ -160,6 +185,8 @@ def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
         "case_studies": case_studies,
         "skills_categories": skills,
         "strategies": strategies,
+        "location_strategies": strategies_info["locations"],
+        "track_strategies": strategies_info["tracks"],
     }
 
 

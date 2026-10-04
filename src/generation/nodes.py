@@ -14,6 +14,7 @@ from kb_config import (
     get_wiki_dir,
 )
 from generation.helpers import (
+    discover_available_strategies,
     generate_skill_bridging_map,
     get_subject_info,
     invoke_drafter_llm_with_fallback,
@@ -21,6 +22,7 @@ from generation.helpers import (
     load_prompt,
     parse_and_sort_chronological_entries,
     resolve_regional_strategy,
+    resolve_track_strategy,
     retrieve_and_deduplicate_education,
     retrieve_and_score_case_studies,
     retrieve_and_score_experiences,
@@ -32,7 +34,7 @@ from generation.helpers import (
     robust_json_loads,
 )
 from generation.skills_helper import get_compact_skills_list
-from generation.state import CVPipelineState, RegionalStrategy
+from generation.state import CVPipelineState, RegionalStrategy, TrackStrategy
 
 
 def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
@@ -42,19 +44,23 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
     jd = str(state.get("job_description") or state.get("job_description_raw") or "")
 
     # Discover available strategies
-    strategies_dir = get_wiki_dir() / "wiki" / "strategies"
-    available_strategies: list[str] = []
-    if strategies_dir.exists():
-        available_strategies = [
-            f.stem.replace("strategy-", "") for f in strategies_dir.glob("strategy-*.md")
-        ]
-
+    wiki_dir = get_wiki_dir()
+    available_locations, available_tracks = discover_available_strategies(wiki_dir)
     default_strategy = get_strategy_default()
+    if not available_tracks:
+        available_tracks = [
+            "engineering-management",
+            "staff-principal",
+            "executive",
+            "startup-founding-engineer",
+            "general-engineering",
+        ]
 
     analyzer_template = load_prompt("analyzer.txt")
     prompt = (
         analyzer_template
-        .replace("{AVAILABLE_STRATEGIES}", ", ".join(available_strategies))
+        .replace("{AVAILABLE_STRATEGIES}", ", ".join(available_locations))
+        .replace("{AVAILABLE_TRACKS}", ", ".join(available_tracks))
         .replace("{DEFAULT_STRATEGY}", default_strategy)
         .replace("{JOB_DESCRIPTION}", jd)
     )
@@ -69,6 +75,7 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         locations = data.get("locations", [])
         expectations = data.get("expectations", "Standard professional CV")
         region = data.get("suggested_region", default_strategy).lower()
+        track = data.get("suggested_track", "engineering-management").lower()
         target_org = data.get("target_organization_slug", "unknown-company").lower()
         target_role = data.get("target_role", "unknown-role")
     except Exception as e:
@@ -80,6 +87,7 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         locations = []
         expectations = "Standard professional CV"
         region = default_strategy
+        track = "engineering-management"
         target_org = "unknown-company"
         target_role = "unknown-role"
 
@@ -88,15 +96,22 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         logging.info(f"Bypassing analyzer strategy inference. Using override: {strategy_override}")
         region = strategy_override.lower()
 
+    track_override = state.get("track_override", "")
+    if track_override:
+        logging.info(f"Bypassing analyzer track inference. Using override: {track_override}")
+        track = track_override.lower()
+
     logging.info(f"Locations detected: {', '.join(locations)}")
     logging.info(f"CV Expectations: {expectations}")
     logging.info(f"Target Region suggested: {region.upper()}")
+    logging.info(f"Target Track suggested: {track.upper()}")
 
     return {
         "job_description": jd,
         "target_persona": persona,
         "primary_keywords": keywords,
         "target_region": region,
+        "target_track": track,
         "target_locations": locations,
         "cv_expectations": expectations,
         "target_organization_slug": target_org,
@@ -113,6 +128,7 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     persona = state.get("target_persona", "")
     keywords = state.get("primary_keywords", [])
     region = state.get("target_region", get_strategy_default())
+    track = state.get("target_track", "engineering-management")
     locations = state.get("target_locations", [])
     expectations = state.get("cv_expectations", "")
 
@@ -120,7 +136,9 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     # Load strategy first to determine page budget
     strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
+    track_strategy_text = resolve_track_strategy(wiki_dir, track)
     strategy_obj = RegionalStrategy.from_markdown(strategy_text)
+    track_obj = TrackStrategy.from_markdown(track_strategy_text)
 
     # Sub-retrievals (with budget-aware pruning)
     selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(
@@ -152,6 +170,9 @@ CV Format Expectations: {expectations}
 
 --- REGIONAL TAILORING STRATEGY ({region.upper()}) ---
 {strategy_text}
+
+--- CAREER TRACK STRATEGY ({track.upper()}) ---
+{track_strategy_text}
 """
 
     return {
@@ -167,6 +188,9 @@ CV Format Expectations: {expectations}
         "skill_bridging_map": skill_bridging_map,
         "strategy_info": context_info,
         "strategy_metadata": strategy_obj,
+        "track_strategy_info": track_strategy_text,
+        "track_strategy_metadata": track_obj,
+        "target_track": track,
         "pdf_template": pdf_template
     }
 

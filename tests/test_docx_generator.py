@@ -127,6 +127,22 @@ Paragraph here."""
         res = generate_docx("# Simple MD", "")
         self.assertFalse(res)
 
+    def test_cli_directory_out(self) -> None:
+        from unittest.mock import patch
+        from generate_document_cli import main as doc_cli_main
+        test_md = "# Title\n\nContent"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_file = Path(tmp_dir) / "My_CV.md"
+            input_file.write_text(test_md, encoding="utf-8")
+            out_dir = Path(tmp_dir) / "docx_outputs"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            with patch("sys.argv", ["doc-gen", "--input", str(input_file), "--out", str(out_dir), "--format", "docx"]):
+                doc_cli_main()
+
+            expected_file = out_dir / "My_CV.docx"
+            self.assertTrue(expected_file.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

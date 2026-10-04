@@ -45,6 +45,15 @@ class TestCatalogIndexing(unittest.TestCase):
         skills_dir.mkdir(parents=True, exist_ok=True)
         (skills_dir / "python.md").write_text("# Python\n", encoding="utf-8")
 
+        # Seed dummy strategies (locations and tracks)
+        loc_dir = self.wiki_dir / "strategies" / "locations"
+        loc_dir.mkdir(parents=True, exist_ok=True)
+        (loc_dir / "ireland.md").write_text("---\ntype: strategy\nregion: [Ireland]\n---\n", encoding="utf-8")
+
+        track_dir = self.wiki_dir / "strategies" / "tracks"
+        track_dir.mkdir(parents=True, exist_ok=True)
+        (track_dir / "engineering-management.md").write_text("---\ntype: strategy-track\n---\n", encoding="utf-8")
+
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
@@ -54,6 +63,10 @@ class TestCatalogIndexing(unittest.TestCase):
         self.assertEqual(cat["metadata"]["total_case_studies"], 1)
         self.assertEqual(cat["metadata"]["total_projects"], 1)
         self.assertEqual(cat["metadata"]["total_skills_categories"], 1)
+        self.assertEqual(cat["metadata"]["total_location_strategies"], 1)
+        self.assertEqual(cat["metadata"]["total_track_strategies"], 1)
+        self.assertIn("ireland", cat["location_strategies"])
+        self.assertIn("engineering-management", cat["track_strategies"])
 
         exp = cat["experiences"][0]
         self.assertEqual(exp["organization"], "Google")

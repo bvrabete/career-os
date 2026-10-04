@@ -8,8 +8,12 @@ import sys
 from typing import Any
 import yaml
 from langchain_core.messages import HumanMessage
-from kb_config import get_strategy_default
 from generation.formatting import BRACKET_LINK_PATTERN, llm_text, load_prompt, robust_json_loads
+from generation.strategy import (
+    discover_available_strategies as discover_available_strategies,
+    resolve_regional_strategy as resolve_regional_strategy,
+    resolve_track_strategy as resolve_track_strategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,33 +78,6 @@ def get_subject_info(wiki_dir: Path) -> str:
             except Exception:
                 pass
     return ""
-
-
-def resolve_regional_strategy(wiki_dir: Path, region: str) -> tuple[str, str]:
-    """Resolve the regional strategy file and template css."""
-    strategy_file = wiki_dir / "wiki" / "strategies" / f"strategy-{region}.md"
-    if not strategy_file.exists():
-        if any(kw in region for kw in ["uk", "london", "united kingdom", "ireland"]):
-            strategy_file = wiki_dir / "wiki" / "strategies" / "strategy-ireland.md"
-        elif any(kw in region for kw in ["emea", "europe", "global", "remote"]):
-            strategy_file = wiki_dir / "wiki" / "strategies" / "strategy-emea.md"
-        else:
-            default_strategy = get_strategy_default()
-            strategy_file = (
-                wiki_dir / "wiki" / "strategies" / f"strategy-{default_strategy}.md"
-            )
-            if not strategy_file.exists():
-                strategy_file = wiki_dir / "wiki" / "strategies" / "strategy-emea.md"
-
-    strategy_text = ""
-    pdf_template = "templates/base.css"
-    if strategy_file.exists():
-        strategy_text = strategy_file.read_text(encoding="utf-8")
-        if strategy_text.startswith("---"):
-            fm = _parse_yaml_frontmatter_from_text(strategy_text)
-            if fm and "pdf_template" in fm:
-                pdf_template = str(fm["pdf_template"]).strip()
-    return strategy_text, pdf_template
 
 
 def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]) -> dict[str, str]:

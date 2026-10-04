@@ -146,7 +146,7 @@ def _bootstrap_css_templates(wiki_dir: Path) -> None:
 
 
 def _bootstrap_strategies(wiki_root: Path) -> None:
-    """Bootstrap default regional strategies from the llm-wiki.template directory."""
+    """Bootstrap default regional and track strategies from the template directory."""
     repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki.template" / "wiki" / "strategies"
     if not repo_strategies_dir.exists():
         repo_strategies_dir = Path(__file__).resolve().parent.parent.parent / "llm-wiki" / "wiki" / "strategies"
@@ -154,14 +154,16 @@ def _bootstrap_strategies(wiki_root: Path) -> None:
 
     if repo_strategies_dir.exists():
         target_strategies_dir.mkdir(parents=True, exist_ok=True)
-        for strategy_file in repo_strategies_dir.glob("strategy-*.md"):
-            target_file = target_strategies_dir / strategy_file.name
+        for strategy_file in repo_strategies_dir.rglob("*.md"):
+            rel_path = strategy_file.relative_to(repo_strategies_dir)
+            target_file = target_strategies_dir / rel_path
             if not target_file.exists():
                 try:
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy(strategy_file, target_file)
-                    logging.info(f"Bootstrapped regional strategy: {strategy_file.name}")
+                    logging.info(f"Bootstrapped strategy: {rel_path}")
                 except Exception as e:
-                    logging.warning(f"Failed to copy strategy template {strategy_file.name}: {e}")
+                    logging.warning(f"Failed to copy strategy template {rel_path}: {e}")
 
 
 def _bootstrap_voice(wiki_root: Path) -> None:
