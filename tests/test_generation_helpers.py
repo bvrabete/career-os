@@ -30,7 +30,6 @@ from generation.helpers import (
 )
 
 
-
 class TestGenerationHelpers(unittest.TestCase):
     """Deterministic, isolated unit tests for CV Generation Helpers."""
 

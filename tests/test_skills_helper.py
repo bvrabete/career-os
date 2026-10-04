@@ -13,6 +13,7 @@ from generation.skills_helper import (
     get_compact_skills_list,
 )
 
+
 class TestSkillsHelper(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.mkdtemp()
@@ -196,7 +197,6 @@ class TestSkillsHelper(unittest.TestCase):
         self.assertIn("- '[[intel]]'", content)
         self.assertIn("Existing body text here.", content)
         self.assertIn("category: Language", content)  # Retains custom pre-seeded properties
-
 
 
 if __name__ == "__main__":

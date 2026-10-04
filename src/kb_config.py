@@ -26,6 +26,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 
+
 def load_config() -> dict[str, Any]:
     env_config = os.getenv("CONFIG_FILE")
     if env_config:
@@ -44,6 +45,7 @@ def load_config() -> dict[str, Any]:
             "Configuration file not found. Ensure 'config.yaml' exists in the workspace root or set the 'CONFIG_FILE' environment variable."
         )
 
+
 def get_wiki_dir() -> Path:
     """Returns the Path to the llm-wiki directory, checking environment variables, config.yaml, or default."""
     env_val = os.getenv("LLM_WIKI_DIR")
@@ -57,6 +59,7 @@ def get_wiki_dir() -> Path:
         return Path(config["WIKI_DIR"])
     return Path("llm-wiki")
 
+
 def get_output_dir() -> Path:
     """Returns the export directory for clean drafts and compiled documents from config.yaml or default."""
     config = load_config()
@@ -67,6 +70,7 @@ def get_output_dir() -> Path:
         return Path(config["OUTPUT_DIR"])
     return Path("ai-generated-cvs")
 
+
 def get_strategy_default() -> str:
     """Returns the default regional strategy from config.yaml or default."""
     config = load_config()
@@ -74,6 +78,7 @@ def get_strategy_default() -> str:
     if isinstance(defaults, dict) and "STRATEGY" in defaults:
         return str(defaults["STRATEGY"])
     return str(config.get("STRATEGY_DEFAULT", "emea"))
+
 
 def get_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
     """
@@ -148,6 +153,7 @@ def get_model_for_step(step_name: str, temperature: float = 0, format: str | Non
     else:
         raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
 
+
 def _create_openai_fallback(model_name: str, step_name: str, temperature: float, format: str | None):
     if not os.getenv("OPENAI_API_KEY"):
         logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
@@ -156,6 +162,7 @@ def _create_openai_fallback(model_name: str, step_name: str, temperature: float,
     if format == "json":
         kwargs["response_format"] = {"type": "json_object"}
     return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
+
 
 def _create_gemini_fallback(model_name: str, step_name: str, temperature: float):
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
@@ -171,6 +178,7 @@ def _create_gemini_fallback(model_name: str, step_name: str, temperature: float)
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 
+
 def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, format: str | None):
     kwargs: dict[str, Any] = {}
     if format:
@@ -182,6 +190,7 @@ def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, 
         num_ctx=8192,
         **kwargs
     )
+
 
 def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
     """
@@ -213,9 +222,11 @@ def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: 
 
     return None
 
+
 def get_model(temperature=0):
     """Legacy wrapper for global model instantiation."""
     return get_model_for_step("REFINEMENT", temperature=temperature)
+
 
 if __name__ == "__main__":
     # Test loading

@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 from utils import validate_path
 
 
-
 def _llm_text(content: str | list[Any]) -> str:
     """
     Coerce LLM content response into a standard string.

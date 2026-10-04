@@ -9,6 +9,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Career OS Skills Knowledge-Graph Compiler")
     parser.add_argument("--wiki-dir", help="Path to llm-wiki folder")
@@ -22,6 +23,7 @@ def main() -> None:
     from generation.skills_helper import run_skills_sync
     wiki_dir = get_wiki_dir()
     run_skills_sync(wiki_dir, dry_run=args.dry_run)
+
 
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent))

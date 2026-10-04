@@ -21,10 +21,6 @@ INVALID_MAPPINGS_ERROR = "Security Warning: Invalid mappings path or directory t
 from utils import validate_path, sanitize_slug, sanitize_entity_name, safe_read_text, safe_write_text
 
 
-
-
-
-
 def get_wiki_root() -> Path:
     """Get the absolute path to the wiki folder."""
     from kb_config import get_wiki_dir
@@ -91,7 +87,6 @@ def get_safe_mappings_path() -> Path:
             raise ValueError(INVALID_MAPPINGS_ERROR)
 
     return validate_path(base_dir.joinpath(*parts))
-
 
 
 def parse_mappings() -> dict[str, str]:

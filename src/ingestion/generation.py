@@ -14,7 +14,6 @@ from ingestion.helpers import (
 from ingestion.state import IngestionState
 
 
-
 def _generate_experiences(
     llm: Any, roles: list[dict[str, Any]], resolved: dict[str, str],
     today_str: str, schema_text: str, wiki_outputs: list[dict[str, Any]]
