@@ -149,11 +149,18 @@ cp .env.example .env
 
 The Knowledge Graph (LLM-Wiki) is fully externalized. You can host it in any directory on your machine by setting the `LLM_WIKI_DIR` env variable or passing the `--wiki-dir` parameter.
 
-When you run ingestion against an empty or missing directory, CareerOS automatically **bootstraps** the whole structure for you:
-* Creates all 14 standard wiki folders (`experiences`, `education`, `projects`, `skills`, `patents`, `notes`, etc.).
-* Seeds a clean, candidate-anonymous `schema.md` blueprint.
-* Seeds a clean `mappings.md` template for entity resolving and organization aliases.
-* Pre-seeds a customization folder at `<LLM_WIKI_DIR>/templates/` with your default CSS stylesheets.
+To scaffold a new clean Knowledge Base with all schema blueprints, entity mappings, and default stylesheets:
+
+```bash
+# Explicitly initialize and scaffold a new wiki directory
+uv run kb-init --wiki-dir /path/to/my-external-wiki
+```
+
+CareerOS automatically sets up:
+* All 14 standard wiki folders (`experiences`, `education`, `projects`, `skills`, `patents`, `notes`, etc.).
+* A clean, candidate-anonymous `schema.md` blueprint.
+* A clean `mappings.md` template for entity resolving and organization aliases.
+* Default styling templates under `<LLM_WIKI_DIR>/templates/` (`base.css`, `executive.css`, `compact.css`).
 
 ```bash
 # Ingest career history from raw files to your external wiki
@@ -174,34 +181,36 @@ uv run cv-gen --jd job-descriptions/target_jd.txt --wiki-dir /path/to/my-externa
 
 If you append `--generate-pdf` or `--generate-docx`, it will compile a clean PDF or Word (.docx) document alongside the Markdown file inside the same synthesis folder, while dynamically filtering out raw tracking frontmatter headers so your resume remains perfectly professional.
 
-#### 💾 Custom File Output
+#### 💾 Custom File Output & Theming
 
-If you want to write a clean Markdown CV to a specific file outside of your LLM-Wiki, pass the `--out` parameter:
+If you want to write a clean Markdown CV to a specific file outside of your LLM-Wiki, pass the `--out` parameter along with styling themes:
 
 ```bash
-uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf --generate-docx
+uv run cv-gen --jd job-descriptions/target_jd.txt --out outputs/My_Tailored_CV.md --wiki-dir /path/to/my-external-wiki --generate-pdf --generate-docx --template executive
 ```
 
 *(When `--out` is specified, a backup duplicate copy is still archived under your wiki synthesis folder automatically for tracking, and a context JSON file is saved adjacent to the custom output for debugging).*
 
 ### 5. Advanced CLI Strategy, PDF & Word Compilation
 
-The generation pipeline supports direct override of region strategy selection, and automatic production-ready PDF or Word document compilation:
+The generation pipeline supports direct override of region strategy selection, theme selection, and automatic production-ready document compilation:
 
 * `--strategy <slug>`: Force-bypasses the analyzer LLM's target region inference and enforces the specified regional strategy (e.g. `ireland`, `emea`, `nl_modern`).
-* `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the regional strategy's designated CSS stylesheet via WeasyPrint.
+* `--template <theme>`: Selects the visual layout theme (`base`, `executive`, `compact`, or a custom `.css` file path). Applies to both PDF and Word (`.docx`) output.
+* `--interactive`: Interactively prompts the user in the terminal if the auditor flags quality or density recommendations.
+* `--generate-pdf`: Compiles a beautifully styled PDF directly from the final tailored markdown using the designated stylesheet via WeasyPrint.
 * `--generate-docx`: Compiles a highly compatible and cleanly structured Word document (`.docx`) from the final tailored markdown using `python-docx` (100% OS-independent, requiring zero external system binaries).
 
 ### 6. Standalone Document Compiler (`doc-gen`)
 
-If you have already generated and customized a Markdown CV (`.md`) file, you can convert it directly to PDF or Microsoft Word (`.docx`) format at any time without re-running the heavy drafting LLMs.
+If you have already generated and customized a Markdown CV (`.md`) file, you can convert it directly to PDF or Microsoft Word (`.docx`) format at any time with theme support:
 
 ```bash
-# Compile to Microsoft Word (DOCX)
-uv run doc-gen --input ai-generated-cvs/my_cv.md --format docx
+# Compile to Microsoft Word (DOCX) using the executive theme
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format docx --template executive
 
-# Compile to styled PDF
-uv run doc-gen --input ai-generated-cvs/my_cv.md --format pdf
+# Compile to styled PDF using the compact (1-page) theme
+uv run doc-gen --input ai-generated-cvs/my_cv.md --format pdf --template compact
 ```
 
 ### 7. Standalone ATS Parser Auditor (`ats-audit`)

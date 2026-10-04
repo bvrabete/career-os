@@ -26,20 +26,24 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
     """
     Resolves the CSS template path by checking several potential locations,
     prioritizing the external wiki directory, and falling back to the repository.
+    Supports theme names (e.g. 'executive', 'compact', 'base') as well as file paths.
     """
     css_path = Path(css_template_path)
     if css_path.exists():
         return css_path
 
+    css_filename = css_template_path if css_template_path.endswith(".css") else f"{css_template_path}.css"
+
     # Try to resolve relative to the external wiki directory with higher priority
     try:
         from kb_config import get_wiki_dir
         wiki_dir = get_wiki_dir()
-        # Check directly in the wiki dir, under wiki_dir/templates, or simple file name under templates
         paths_to_try = [
             wiki_dir / css_template_path,
+            wiki_dir / css_filename,
             wiki_dir / "templates" / css_template_path,
-            wiki_dir / "templates" / Path(css_template_path).name,
+            wiki_dir / "templates" / css_filename,
+            wiki_dir / "templates" / Path(css_filename).name,
         ]
         for p in paths_to_try:
             if p.exists():
@@ -47,18 +51,18 @@ def _resolve_css_path(css_template_path: str) -> Path | None:
     except Exception as e:
         logger.debug(f"Could not resolve via external wiki_dir: {e}")
 
-    # Fallback to repository location if still not found
-    fallback_path = Path(__file__).parent.parent / css_template_path
-    if fallback_path.exists():
-        return fallback_path
-
-    fallback_name_path = Path(__file__).parent.parent / "llm-wiki" / "templates" / Path(css_template_path).name
-    if fallback_name_path.exists():
-        return fallback_name_path
-
-    legacy_fallback = Path(__file__).parent.parent / "templates" / Path(css_template_path).name
-    if legacy_fallback.exists():
-        return legacy_fallback
+    # Fallback to repository template locations if still not found
+    repo_root = Path(__file__).resolve().parent.parent
+    candidate_locations = [
+        repo_root / "llm-wiki.template" / "templates" / Path(css_filename).name,
+        repo_root / "llm-wiki" / "templates" / Path(css_filename).name,
+        repo_root / "templates" / Path(css_filename).name,
+        repo_root / css_template_path,
+        repo_root / css_filename,
+    ]
+    for loc in candidate_locations:
+        if loc.exists():
+            return loc
 
     return None
 

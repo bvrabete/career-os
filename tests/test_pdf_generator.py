@@ -89,6 +89,13 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
             self.assertTrue(success)
             self.assertTrue(os.path.exists(docx_path))
 
+    def test_resolve_css_path_themes(self):
+        """Test resolving built-in theme names like executive, compact, base."""
+        from pdf_generator import _resolve_css_path
+        self.assertIsNotNone(_resolve_css_path("base"))
+        self.assertIsNotNone(_resolve_css_path("executive"))
+        self.assertIsNotNone(_resolve_css_path("compact"))
+
 
 if __name__ == "__main__":
     unittest.main()

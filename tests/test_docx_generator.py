@@ -112,7 +112,15 @@ Paragraph here."""
             out_path = Path(tmp_dir) / "output.docx"
             res = generate_docx(test_md, str(out_path))
             self.assertTrue(res)
-            self.assertTrue(out_path.exists())
+    def test_generate_docx_themed(self) -> None:
+        test_md = "# Executive CV\n\n## Summary\n- High impact leadership."
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_exec = Path(tmp_dir) / "exec.docx"
+            out_comp = Path(tmp_dir) / "comp.docx"
+            self.assertTrue(generate_docx(test_md, str(out_exec), template="executive"))
+            self.assertTrue(generate_docx(test_md, str(out_comp), template="compact"))
+            self.assertTrue(out_exec.exists())
+            self.assertTrue(out_comp.exists())
 
     def test_generate_docx_failure(self) -> None:
         # Invalid output location (e.g. writing to empty string filename or locked path)

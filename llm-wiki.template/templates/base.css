@@ -120,8 +120,50 @@ strong {
     font-weight: 700;
 }
 
-/* Ensure no page breaks inside entries */
-li, p, h3 {
+/* Ensure no page breaks inside critical elements and keep headings with content */
+h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+li, p, h3, tr {
     orphans: 2;
     widows: 2;
+}
+
+li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Table styling for skills, metrics, and comparisons */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6pt 0;
+    font-size: 8.8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+th, td {
+    padding: 3pt 6pt;
+    text-align: left;
+    border-bottom: 0.5pt solid #e0e0e0;
+}
+
+th {
+    font-weight: 700;
+    color: var(--primary-color);
+    border-bottom: 1pt solid var(--primary-color);
+}
+
+/* Inline code tags for technical keywords */
+code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8.5pt;
+    background-color: #f4f6f8;
+    padding: 1pt 3pt;
+    border-radius: 2pt;
+    color: var(--primary-color);
 }

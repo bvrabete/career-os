@@ -35,6 +35,7 @@ def parse_arguments() -> argparse.Namespace:
     args_parser.add_argument(
         "--wiki-dir", help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')")
     args_parser.add_argument("--strategy", help="Strategy key slug to override analyzer's suggested strategy")
+    args_parser.add_argument("--template", help="Document template/theme to use ('base', 'executive', 'compact', or path to CSS)")
     args_parser.add_argument("--interactive", action="store_true", help="Prompt interactively if the auditor flags issues")
     args_parser.add_argument("--generate-pdf", action="store_true", help="Automatically generate PDF CV from Markdown using final stylesheet")
     args_parser.add_argument("--generate-docx", action="store_true", help="Automatically generate Word (docx) CV from Markdown")
@@ -98,7 +99,7 @@ def compile_optional_formats(args: argparse.Namespace, draft: str, out_path: Pat
     if args.generate_pdf:
         print("\n🎨 Compiling to PDF format...")
         try:
-            pdf_template = final_state.get("pdf_template", "templates/base.css")
+            pdf_template = args.template or final_state.get("pdf_template", "templates/base.css")
             pdf_path = out_path.with_suffix(".pdf")
             success = generate_pdf(draft, str(pdf_path), pdf_template)
             if success:
@@ -111,8 +112,9 @@ def compile_optional_formats(args: argparse.Namespace, draft: str, out_path: Pat
     if args.generate_docx:
         print("\n📝 Compiling to Word (docx) format...")
         try:
+            docx_template = args.template or final_state.get("docx_template", "base")
             docx_path = out_path.with_suffix(".docx")
-            success = generate_docx(draft, str(docx_path))
+            success = generate_docx(draft, str(docx_path), template=docx_template)
             if success:
                 print(f"✅ Clean DOCX generated at {docx_path}")
             else:

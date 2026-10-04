@@ -34,7 +34,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--template",
-        help="Path to the CSS template (only applicable for PDF format; overrides default/detected templates)",
+        help="Document template or theme ('base', 'executive', 'compact', or path to CSS)",
     )
     parser.add_argument(
         "--wiki-dir",
@@ -108,9 +108,7 @@ def main() -> None:
 
         success = generate_pdf(md_content, str(output_path), template_path)
     else:
-        if args.template:
-            print("⚠️ Warning: --template is ignored for Word Document (.docx) generation.", file=sys.stderr)
-        success = generate_docx(md_content, str(output_path))
+        success = generate_docx(md_content, str(output_path), template=args.template)
 
     if success:
         print(f"✅ Document generated successfully: {output_path}")

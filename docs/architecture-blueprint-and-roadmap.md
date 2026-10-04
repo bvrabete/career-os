@@ -295,11 +295,14 @@ Phase 0: Wiki Reorganization (llm-wiki-brad)
 
 ### Detailed Phase Tasks
 
-| Phase | Milestone | Key Deliverables |
-|---|---|---|
-| **Phase 0** | **Wiki Reorganization** | Run Step 0 migration on `llm-wiki-brad`: relocate cover letters/resumes via `git mv`, consolidate Intel roles, standardize frontmatter dates. |
-| **Phase 1** | **Parser & Schema Decoupling** | Make `docling` lazy-imported in `src/ingestion/nodes.py`. Define `CompanyTenure` Pydantic models. Update `llm-wiki.template/schema.md`. |
-| **Phase 2** | **Deterministic AST Ingestion** | Refactor `extraction.py` to output Pydantic objects. Implement Python-based deduplication and on-the-spot interactive terminal resolution for factual conflicts. Remove N-call generator loops. |
-| **Phase 3** | **JD Intelligence & Relevance Knapsack** | Implement structured `JobAnalysis` schema, 3-way publisher classification, offline privacy default, and Pydantic intermediate AST (`TailoredCVDocument`). Decompose `src/generation/helpers.py` (1,157L) into `retrieval.py`, `pruning.py`, `formatting.py` (<300L each). Implement Relevance-First Knapsack retrieval with tenure-age shortening. |
-| **Phase 4** | **Typesetting Guard & Fast Compressor** | Calibrate page budget to word and bullet lines (1-page = 450-500 words, 2-page = 950-1050 words). Add conditional Refiner Guard in `src/generation/graph.py`. Implement score-aware Fast Compressor node. Add dual-mode Auditor (autonomous default + `--interactive` flag). |
-| **Phase 5** | **Bootstrapping (kb-init) & CRM** | Implement `kb-init` CLI for safe wiki initialization. Add fail-fast check in `kb-ingest`. Implement `catalog.json` generation and `applications.yaml` CRM appending with same-day in-place overwrite. |
+| Phase | Milestone | Key Deliverables | Status |
+|---|---|---|---|
+| **Phase 0** | **Wiki Reorganization** | Run Step 0 migration on `llm-wiki-brad`: relocate cover letters/resumes via `git mv`, consolidate Intel roles, standardize frontmatter dates. | ✅ Complete |
+| **Phase 1** | **Parser & Schema Decoupling** | Make `docling` lazy-imported in `src/ingestion/nodes.py`. Define `CompanyTenure` Pydantic models. Update `llm-wiki.template/schema.md`. | ✅ Complete |
+| **Phase 2** | **Deterministic AST Ingestion** | Refactor `extraction.py` to output Pydantic objects. Implement Python-based deduplication and on-the-spot interactive terminal resolution for factual conflicts. Remove N-call generator loops. | ✅ Complete |
+| **Phase 3** | **JD Intelligence & Relevance Knapsack** | Implement structured `JobAnalysis` schema, 3-way publisher classification, offline privacy default, and Pydantic intermediate AST (`TailoredCVDocument`). Decompose `src/generation/helpers.py` (1,157L) into `retrieval.py`, `pruning.py`, `formatting.py` (<300L each). Implement Relevance-First Knapsack retrieval with tenure-age shortening. | ✅ Complete |
+| **Phase 4** | **Typesetting Guard & Fast Compressor** | Calibrate page budget to word and bullet lines (1-page = 450-500 words, 2-page = 950-1050 words). Add conditional Refiner Guard in `src/generation/graph.py`. Implement score-aware Fast Compressor node. Add dual-mode Auditor (autonomous default + `--interactive` flag). | ✅ Complete |
+| **Phase 5** | **Bootstrapping (kb-init) & CRM** | Implement `kb-init` CLI for safe wiki initialization. Add fail-fast check in `kb-ingest`. Implement `catalog.json` generation and `applications.yaml` CRM appending with same-day in-place overwrite. | ✅ Complete |
+| **Phase 6** | **Document Compilation & Theming** | CSS3 print break rules (`base.css`). Executive and compact theme templates (`executive.css`, `compact.css`). Themed DOCX generator (`python-docx`). Add `--template` flag to `cv-gen` and `doc-gen`. | ✅ Complete |
+| **Phase 7** | **E2E Validation & Documentation** | Live CLI validation of `kb-init`, `cv-gen`, and `doc-gen`. Unit test verification across all suites (297 tests passing). Full documentation updates in `README.md` and `AGENTS.md`. | ✅ Complete |
+

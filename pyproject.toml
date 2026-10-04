@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.5.3"
+version = "1.6.0"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -50,6 +50,7 @@ dev = [
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
 ]
 ingest = [
     "docling>=2.70.0",
@@ -74,3 +75,7 @@ mypy_path = "src"
 explicit_package_bases = true
 ignore_missing_imports = true
 check_untyped_defs = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"

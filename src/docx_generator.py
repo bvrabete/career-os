@@ -204,27 +204,66 @@ def _add_standard_paragraph(
 from utils import clean_markdown_wrapper as _clean_markdown_wrapper
 
 
-def generate_docx(md_content: str, output_path: str) -> bool:
+def _resolve_docx_theme(template: str | None) -> dict[str, Any]:
+    """Resolves margins, color tokens, and font sizes for the given DOCX template."""
+    name = (template or "base").lower()
+    if "compact" in name:
+        return {
+            "margin": Inches(0.55),
+            "primary": RGBColor(26, 54, 93),
+            "secondary": RGBColor(74, 85, 104),
+            "text": RGBColor(45, 55, 72),
+            "body_size": Pt(9.5),
+            "title_size": Pt(18),
+            "heading_size": Pt(11.5),
+            "space_after": Pt(2),
+        }
+    if "executive" in name:
+        return {
+            "margin": Inches(0.75),
+            "primary": RGBColor(15, 34, 64),
+            "secondary": RGBColor(90, 101, 120),
+            "text": RGBColor(45, 55, 72),
+            "body_size": Pt(10.5),
+            "title_size": Pt(22),
+            "heading_size": Pt(13),
+            "space_after": Pt(3),
+        }
+    return {
+        "margin": Inches(0.75),
+        "primary": RGBColor(19, 56, 75),
+        "secondary": RGBColor(102, 109, 137),
+        "text": RGBColor(40, 40, 40),
+        "body_size": Pt(10.5),
+        "title_size": Pt(22),
+        "heading_size": Pt(13),
+        "space_after": Pt(3),
+    }
+
+
+def generate_docx(md_content: str, output_path: str, template: str | None = None) -> bool:
     """
     Converts Markdown content to a Word Document (.docx) using pure-Python python-docx library,
     ensuring 100% OS-independence (no Pandoc system binary required).
+    Supports selectable themes ('base', 'executive', 'compact').
     """
-    logger.info(f"Generating pure-Python DOCX for {output_path}...")
+    logger.info(f"Generating pure-Python DOCX for {output_path} (theme: {template or 'base'})...")
     try:
         from docx import Document
         doc = Document()
+        theme = _resolve_docx_theme(template)
 
-        # Set standard elegant margins (0.75 inches all around)
+        # Set theme-calibrated margins
         for section in doc.sections:
-            section.top_margin = Inches(0.75)
-            section.bottom_margin = Inches(0.75)
-            section.left_margin = Inches(0.75)
-            section.right_margin = Inches(0.75)
+            section.top_margin = theme["margin"]
+            section.bottom_margin = theme["margin"]
+            section.left_margin = theme["margin"]
+            section.right_margin = theme["margin"]
 
-        # Theme color tokens (Modern Slate Blue theme)
-        color_primary = RGBColor(15, 34, 64)       # Deep slate blue
-        color_secondary = RGBColor(80, 80, 80)     # Muted grey
-        color_text = RGBColor(30, 30, 30)          # Charcoal dark body
+        # Theme color tokens
+        color_primary = theme["primary"]
+        color_secondary = theme["secondary"]
+        color_text = theme["text"]
 
         # Clean leading/trailing markdown code blocks if the entire content is wrapped
         cleaned_md = _clean_markdown_wrapper(md_content)

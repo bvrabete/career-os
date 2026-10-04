@@ -142,6 +142,9 @@ Configure `.env` based on `.env.example`:
 ### Key Commands
 
 ```bash
+# Bootstrap a new external knowledge base
+uv run kb-init --wiki-dir /path/to/llm-wiki
+
 # Ingest career sources into the wiki
 uv run kb-ingest --dir /path/to/raw/sources/ --wiki-dir /path/to/llm-wiki
 uv run kb-ingest --dir /path/to/cover-letters/ --wiki-dir /path/to/llm-wiki
@@ -149,11 +152,12 @@ uv run kb-ingest --dir /path/to/cover-letters/ --wiki-dir /path/to/llm-wiki
 # Generate tailored CV (Zero-config saves directly to wiki/synthesis/)
 uv run cv-gen --jd job-descriptions/target_jd.txt --wiki-dir /path/to/llm-wiki
 
-# Generate tailored CV with custom output and document compilation
-uv run cv-gen --jd job-descriptions/target_jd.txt --out ai-generated-cvs/Tailored_CV.md --wiki-dir /path/to/llm-wiki --generate-pdf --generate-docx
+# Generate tailored CV with custom output, theming, and document compilation
+uv run cv-gen --jd job-descriptions/target_jd.txt --out ai-generated-cvs/Tailored_CV.md --wiki-dir /path/to/llm-wiki --generate-pdf --generate-docx --template executive
 
-# Standalone document rendering
-uv run doc-gen --input ai-generated-cvs/Tailored_CV.md --pdf --docx
+# Standalone document rendering with theme selection
+uv run doc-gen --input ai-generated-cvs/Tailored_CV.md --format pdf --template compact
+uv run doc-gen --input ai-generated-cvs/Tailored_CV.md --format docx --template executive
 
 # Audit wiki data or external profiles
 uv run ats-audit --wiki-dir /path/to/llm-wiki
@@ -177,7 +181,11 @@ career-os/
 │   │   ├── graph.py              # LangGraph compilation & workflow definition
 │   │   ├── nodes.py              # Generation pipeline nodes (analyzer, retriever, drafter, etc.)
 │   │   ├── state.py              # Pydantic schemas and pipeline state
-│   │   ├── helpers.py            # Retrieval, scoring, and text helpers
+│   │   ├── retrieval.py          # Fast-filter scoring & transferable skill equivalence
+│   │   ├── pruning.py            # Frontmatter pruning & achievement selection
+│   │   ├── formatting.py         # Chronological sorting & markdown builders
+│   │   ├── helpers.py            # Core generation facade & text helpers
+│   │   └── skills_helper.py      # Skill bridging and categorization logic
 │   │   └── skills_helper.py      # Skill bridging and categorization logic
 │   ├── ingestion/                # Wiki Ingestion pipeline
 │   │   ├── graph.py              # Ingestion graph orchestration
