@@ -4,6 +4,7 @@ General utility functions for text, markdown, and path processing.
 
 import os
 import re
+import tempfile
 from pathlib import Path
 
 
@@ -42,11 +43,12 @@ def validate_path(path: Path | str) -> Path:
         The validated Path object.
 
     Raises:
-        ValueError: If path traversal or escape outside user home directory is detected.
+        ValueError: If path traversal or escape outside user home or temp directory is detected.
     """
     base_dir = os.path.realpath(os.path.expanduser("~")) + os.sep
+    temp_dir = os.path.realpath(tempfile.gettempdir()) + os.sep
     canonical_path = os.path.realpath(os.path.abspath(path))
-    if not canonical_path.startswith(base_dir):
+    if not (canonical_path.startswith(base_dir) or canonical_path.startswith(temp_dir) or canonical_path == base_dir.rstrip(os.sep) or canonical_path == temp_dir.rstrip(os.sep)):
         raise ValueError(f"Security Warning: Path traversal or escape detected: {path}")
     return Path(canonical_path)
 

@@ -75,7 +75,7 @@ def _parse_via_docling(path: Path, suffix: str) -> str | None:
         return None
     try:
         if suffix == ".pdf":
-            opts = {}
+            opts: dict[Any, Any] = {}
             if callable(PdfPipelineOptions) and callable(PdfFormatOption) and InputFormat is not None:
                 pdf_opts = PdfPipelineOptions()
                 pdf_opts.do_table_structure = True
@@ -90,12 +90,12 @@ def _parse_via_docling(path: Path, suffix: str) -> str | None:
                 }
             converter = DocumentConverter(format_options=opts)
         else:
-            opts = {}
+            simple_opts: dict[Any, Any] = {}
             if callable(PdfFormatOption) and callable(SimplePipeline) and InputFormat is not None:
-                opts = {
+                simple_opts = {
                     InputFormat.PDF: PdfFormatOption(pipeline_cls=SimplePipeline)
                 }
-            converter = DocumentConverter(format_options=opts)
+            converter = DocumentConverter(format_options=simple_opts)
         result = converter.convert(str(path))
         return result.document.export_to_markdown()
     except Exception as e:
