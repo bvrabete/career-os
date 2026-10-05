@@ -1,14 +1,10 @@
 """Unit tests for the ingestion pipeline helpers and validation logic."""
 
 import unittest
-import tempfile
 import shutil
-import re
 import uuid
-import os
-import yaml
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from ingestion.helpers import (
     slugify,
     resolve_org,
@@ -25,22 +21,18 @@ from ingestion.helpers import (
     add_persona_mapping_if_missing,
     llm_text,
     strip_fences,
-    _extract_frontmatter_from_fence,
     _clean_frontmatter_lines,
     _clean_body_lines,
     _extract_start_date_from_file,
-    _filter_by_matching_year,
-    _find_existing_wiki_file,
     find_existing_experience,
     find_existing_education,
 )
 from ingestion.nodes import (
-    node_validator,
     _validate_experience,
     _validate_education,
     _validate_skill,
+    _validate_case_study,
 )
-from ingestion.state import IngestionState
 
 MAPPINGS_FILE_NAME = "mappings.md"
 
@@ -111,6 +103,7 @@ class TestIngestionHelpers(unittest.TestCase):
         ):
             text = load_prompt("test_prompt.txt")
             self.assertEqual(text, "System Prompt Template")
+            mock_read.assert_called_once()
 
     def test_load_prompt_not_found(self):
         """Test load_prompt raises FileNotFoundError if file missing."""
@@ -379,6 +372,26 @@ class TestIngestionValidation(unittest.TestCase):
         errors = []
         _validate_skill(fm, errors)
         self.assertEqual(errors, [])
+
+    def test_validate_case_study_success(self):
+        """Test _validate_case_study succeeds on correct schema."""
+        fm = {
+            "type": "case_study",
+            "title": "Edge Gateway Architecture",
+            "organization": "[[virgin-media]]",
+            "skills": ["Kafka", "Kubernetes"],
+            "tags": ["iot", "edge"],
+        }
+        errors: list[str] = []
+        _validate_case_study(fm, errors)
+        self.assertEqual(errors, [])
+
+    def test_validate_case_study_missing_fields(self):
+        """Test _validate_case_study reports missing required fields."""
+        fm = {"type": "case_study"}
+        errors: list[str] = []
+        _validate_case_study(fm, errors)
+        self.assertTrue(any("Missing frontmatter fields" in err for err in errors))
 
 
 if __name__ == "__main__":

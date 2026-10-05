@@ -81,7 +81,7 @@ class TestIngestionNodesCoverage(unittest.TestCase):
     def test_node_parser_pdf_docling_path(self, mock_docling: MagicMock, mock_pypdf: MagicMock) -> None:
         mock_pypdf.return_value = None # Primary pypdf returns None to force docling path
         mock_docling.return_value = "Docling text"
-        
+
         state = {"source_file": "dummy.pdf"}
         res = node_parser(state) # type: ignore
         self.assertEqual(res, {"raw_text": "Docling text"})
@@ -261,7 +261,7 @@ class TestIngestionNodesCoverage(unittest.TestCase):
     def test_node_writer_conditions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir) / "wiki_file.md"
-            
+
             # Case 1: Skipped due to validation errors
             state1 = {
                 "wiki_outputs": [{

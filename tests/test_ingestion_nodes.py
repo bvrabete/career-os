@@ -1,7 +1,5 @@
 """Unit tests for the ingestion pipeline nodes and parser logic."""
 import unittest
-import json
-import yaml
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
@@ -27,7 +25,7 @@ class TestIngestionNodes(unittest.TestCase):
         mock_page = MagicMock()
         mock_page.extract_text.return_value = "This is extracted test PDF text content. " + "A" * 300
         mock_reader.pages = [mock_page]
-        
+
         with patch("pypdf.PdfReader", return_value=mock_reader):
             text = _parse_via_pypdf(Path("mock.pdf"))
             self.assertIsNotNone(text)
@@ -66,6 +64,7 @@ class TestIngestionNodes(unittest.TestCase):
         with patch("pathlib.Path.read_text", return_value="plain text content") as mock_read:
             text = _parse_fallback(Path("mock.txt"), ".txt")
             self.assertEqual(text, "plain text content")
+            mock_read.assert_called_once()
 
     @patch("pypdf.PdfReader")
     def test_node_parser_pdf_pypdf_flow(self, mock_pdf_reader_cls):
@@ -100,7 +99,7 @@ class TestIngestionNodes(unittest.TestCase):
     def test_node_classifier_success(self, mock_load_prompt, mock_get_model):
         """Test node_classifier extracts JSON correctly from model output."""
         mock_load_prompt.return_value = "Classifier System Instruction"
-        
+
         mock_llm = MagicMock()
         mock_response = AIMessage(content='```json\n{"doc_type": "experience", "reason": "Looks like CV resume"}\n```')
         mock_llm.invoke.return_value = mock_response
@@ -173,7 +172,7 @@ class TestIngestionNodes(unittest.TestCase):
 
         result = node_entity_resolver(state)
         resolved = result["resolved_entities"]
-        
+
         self.assertEqual(resolved.get("Intel Corp"), "intel-corporation")
         self.assertEqual(resolved.get("Google Inc"), "google-inc")
         self.assertEqual(resolved.get("Unknown Corp"), "unknown-corp")

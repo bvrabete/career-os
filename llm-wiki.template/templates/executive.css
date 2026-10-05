@@ -1,0 +1,146 @@
+/* Executive & Boardroom CV Style - Classic Authority */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #0F2240; /* Midnight Navy */
+    --accent-color: #8C7355;  /* Subtle Warm Bronze */
+    --text-color: #2D3748;
+    --light-grey: #5A6578;
+    --bg-color: #ffffff;
+}
+
+@page {
+    size: A4;
+    margin: 1.2cm 1.1cm;
+    @bottom-right {
+        content: counter(page) " of " counter(pages);
+        font-size: 7.5pt;
+        color: var(--light-grey);
+    }
+}
+
+body {
+    font-family: 'Lato', 'Calibri', -apple-system, sans-serif;
+    font-size: 9.2pt;
+    line-height: 1.25;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+.cv-container {
+    width: 100%;
+}
+
+h1 {
+    font-family: 'Georgia', 'Garamond', 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 19pt;
+    color: var(--primary-color);
+    margin-bottom: 3pt;
+    letter-spacing: 0.8pt;
+}
+
+h1 + p {
+    font-size: 8.5pt;
+    color: var(--light-grey);
+    margin-bottom: 10pt;
+    font-weight: 400;
+    letter-spacing: 0.2pt;
+}
+
+h2 {
+    font-family: 'Georgia', 'Garamond', serif;
+    font-weight: 700;
+    font-size: 11pt;
+    color: var(--primary-color);
+    border-bottom: 1pt solid var(--accent-color);
+    padding-bottom: 2pt;
+    margin-top: 12pt;
+    margin-bottom: 5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+h3 {
+    font-weight: 700;
+    font-size: 10pt;
+    color: var(--primary-color);
+    margin-top: 7pt;
+    margin-bottom: 1pt;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+h3 + p {
+    font-size: 8.5pt;
+    margin-top: 0;
+    margin-bottom: 3pt;
+    color: var(--light-grey);
+    font-style: italic;
+}
+
+ul {
+    padding-left: 14pt;
+    margin-bottom: 5pt;
+}
+
+li {
+    margin-bottom: 2pt;
+    line-height: 1.2;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+hr {
+    margin: 8pt 0;
+    border: 0;
+    border-top: 0.5pt solid #d0d5dd;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+strong {
+    font-weight: 700;
+    color: #1a202c;
+}
+
+h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+li, p, h3, tr {
+    orphans: 2;
+    widows: 2;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6pt 0;
+    font-size: 8.8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+th, td {
+    padding: 3pt 6pt;
+    text-align: left;
+    border-bottom: 0.5pt solid #e0e0e0;
+}
+
+th {
+    font-weight: 700;
+    color: var(--primary-color);
+    border-bottom: 1pt solid var(--primary-color);
+}

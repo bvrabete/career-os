@@ -1,25 +1,31 @@
-"""Unit tests for remaining uncovered sections of ingestion/helpers.py."""
-import unittest
+import logging
 import os
-import time
+from pathlib import Path
 import shutil
 import tempfile
-import logging
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+import time
+import unittest
+from unittest.mock import patch
+
+from ingestion.helpers import (
+    SCHEMA_MD,
+    _bootstrap_css_templates,
+    _bootstrap_templates_and_schema,
+    _extract_start_date_from_file,
+    _find_existing_wiki_file,
+    add_persona_mapping_if_missing,
+    bootstrap_wiki_structure,
+    clean_frontmatter,
+    find_existing_education,
+    find_existing_experience,
+    get_persona_slug_from_mappings,
+    resolve_org,
+)
 
 # Set up quiet logger during tests
 logging.basicConfig(level=logging.ERROR)
 
 MAPPINGS_FILE_NAME = "mappings.md"
-
-from ingestion.helpers import (
-    _bootstrap_templates_and_schema, _bootstrap_css_templates,
-    bootstrap_wiki_structure, resolve_org, get_persona_slug_from_mappings,
-    add_persona_mapping_if_missing, clean_frontmatter,
-    _extract_start_date_from_file, _find_existing_wiki_file,
-    find_existing_experience, find_existing_education, SCHEMA_MD
-)
 
 
 class TestIngestionHelpersAdditional(unittest.TestCase):
@@ -184,7 +190,7 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         target_subdir = self.wiki_root / "experiences"
         target_subdir.mkdir(parents=True, exist_ok=True)
         mock_get_wiki_root.return_value = self.wiki_root
-        
+
         gen_path = self.wiki_dir / "gen.md"
         self.assertIsNone(_find_existing_wiki_file("experiences", "slug", gen_path))
         gen_path.write_text("Hello")
@@ -193,14 +199,14 @@ class TestIngestionHelpersAdditional(unittest.TestCase):
         # Target year ValueError / start date extraction and multiple candidates
         candidate_file_1 = target_subdir / "role_1.md"
         candidate_file_1.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2020-01-01\n---\n")
-        
+
         res = _find_existing_wiki_file("experiences", "slug", gen_path, "invalid-year")
         self.assertEqual(res, candidate_file_1)
 
         # Multiple candidates found (select max modification time or matching year)
         candidate_file_2 = target_subdir / "role_2.md"
         candidate_file_2.write_text("---\ntitle: [[slug]]\ndates:\n  start: 2022-01-01\n---\n")
-        
+
         os.utime(candidate_file_1, (time.time() - 100, time.time() - 100))
         os.utime(candidate_file_2, (time.time(), time.time()))
 

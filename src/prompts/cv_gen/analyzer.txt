@@ -9,11 +9,13 @@ TASKS:
 6. Identify 'Target Locations': What are the specific locations (cities, countries, or regions) accepted for this role?
 7. Infer 'CV/Resume Expectations': Based on the company type and location, what kind of cv/resume is expected by the company?
    (e.g., "Standard UK 2-pager", "US-style technical resume", "Detailed DACH-region CV", "High-agency startup profile").
-8. Suggest a 'Strategy Key': Based on the locations and company profile, choose the best fit from the available strategies:
+8. Suggest a 'Location / Regional Strategy': Based on the locations and company profile, choose the best fit from the available strategies:
    Available: [{AVAILABLE_STRATEGIES}]
    Default: {DEFAULT_STRATEGY}
-9. Extract 'Target Organization Slug': The lower-case, kebab-case name of the hiring organization/company (e.g. "google", "intel-corporation").
-10. Extract 'Target Role': The official title of the role being applied for.
+9. Suggest a 'Career Track Strategy': Based on the role title, seniority, and primary deliverables (people management vs systems architecture vs executive leadership vs hands-on engineering), choose the best fit from available tracks:
+   Available Tracks: [{AVAILABLE_TRACKS}]
+10. Extract 'Target Organization Slug': The lower-case, kebab-case name of the hiring organization/company (e.g. "acme-corp", "globex-technologies").
+11. Extract 'Target Role': The official title of the role being applied for.
 
 Return your analysis in the following JSON format:
 {
@@ -22,6 +24,7 @@ Return your analysis in the following JSON format:
   "locations": [...],
   "expectations": "...",
   "suggested_region": "...",
+  "suggested_track": "...",
   "target_organization_slug": "...",
   "target_role": "..."
 }

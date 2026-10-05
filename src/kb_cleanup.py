@@ -6,7 +6,6 @@ partition achievements, semantically deduplicate redundant bullets, and merge fr
 
 import argparse
 import logging
-import os
 import re
 import shutil
 import sys
@@ -16,13 +15,12 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from kb_config import get_model_for_step, get_wiki_dir
-
-logger = logging.getLogger(__name__)
-
-
+from kb_config import get_model_for_step, get_wiki_dir, set_wiki_dir
+from tools.catalog import save_catalog
+from tools.sync_case_studies import sync_case_studies
 from utils import validate_path
 
+logger = logging.getLogger(__name__)
 
 
 def _llm_text(content: str | list[Any]) -> str:
@@ -53,7 +51,7 @@ def _strip_outer_markdown_code_block(content: str) -> str:
 
     fm_lines = lines[1:closing_idx]
     body_lines = lines[closing_idx+1:]
-    fm_lines_cleaned = [l for l in fm_lines if l.strip() != "---"]
+    fm_lines_cleaned = [line for line in fm_lines if line.strip() != "---"]
     fm_content = "\n".join(fm_lines_cleaned)
     body_content = "\n".join(body_lines)
     return f"---\n{fm_content}\n---\n\n{body_content}"
@@ -92,7 +90,7 @@ def _clean_frontmatter(content: str) -> str:
 
     lines = content.splitlines()
     boundary_indices = [i for i, line in enumerate(lines) if line.strip() == "---"]
-    
+
     if len(boundary_indices) < 2:
         return content
 
@@ -155,7 +153,7 @@ def run_cleanup(wiki_dir: Path, dry_run: bool = False) -> None:
         try:
             response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
             cleaned_content = _clean_frontmatter(_llm_text(response.content))
-            
+
             # Simple validation: ensure frontmatter dashes exist
             if cleaned_content.count("---") >= 2:
                 # Securely construct file path to satisfy static code analysis (prevent path traversal)
@@ -183,15 +181,31 @@ def main() -> None:
     CLI Main entry point for the experiences cleanup tool.
     """
     parser = argparse.ArgumentParser(description="Career OS Experiences Retroactive Cleanup Tool")
-    parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to LLM_WIKI_DIR or 'llm-wiki')")
+    parser.add_argument("--wiki-dir", help="Path to llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)")
     parser.add_argument("--dry-run", action="store_true", help="Analyze files but do not modify them")
+    parser.add_argument(
+        "--sync-case-studies", action="store_true",
+        help="Synchronize deep-dive case studies into parent experience achievements"
+    )
+    parser.add_argument("--generate-catalog", action="store_true", help="Generate or update catalog.json index")
     args = parser.parse_args()
 
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
-    from kb_config import get_wiki_dir
     wiki_dir = get_wiki_dir()
+
+    if args.generate_catalog:
+        print(f"📦 Generating catalog index for: {wiki_dir}")
+        catalog_path = save_catalog(wiki_dir)
+        print(f"✨ Catalog generated at: {catalog_path}")
+        return
+
+    if args.sync_case_studies:
+        print(f"🔍 Running case study synchronization on: {wiki_dir}")
+        stats = sync_case_studies(wiki_dir, dry_run=args.dry_run)
+        print(f"✨ Case study synchronization complete: {stats}")
+        return
 
     run_cleanup(wiki_dir, dry_run=args.dry_run)
 

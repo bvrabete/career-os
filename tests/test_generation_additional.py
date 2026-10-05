@@ -2,7 +2,6 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 from langchain_core.messages import AIMessage
 from generation.state import RegionalStrategy, CVPipelineState
 from generation.nodes import node_drafter, node_refiner, node_auditor
@@ -74,7 +73,7 @@ class TestGenerationAdditional(unittest.TestCase):
              patch("generation.nodes.load_prompt") as mock_load_prompt, \
              patch("generation.nodes.parse_and_sort_chronological_entries") as mock_parse, \
              patch("generation.nodes.invoke_drafter_llm_with_fallback") as mock_invoke:
-            
+
             mock_llm = MagicMock()
             mock_get_model.return_value = mock_llm
             mock_load_prompt.return_value = "System template with {job_description} {skills_text}"
@@ -167,7 +166,7 @@ class TestGenerationAdditional(unittest.TestCase):
             mock_llm = MagicMock()
             mock_get_model.return_value = mock_llm
             mock_load_prompt.return_value = "Auditor template"
-            
+
             mock_response_content = (
                 "```json\n"
                 "{\n"

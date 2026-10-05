@@ -7,12 +7,10 @@ CRITIQUE CRITERIA:
 4. ATS RED FLAGS: Check for non-standard headings or unexpanded acronyms.
 5. RELEVANCE: Did we spend too much space on roles that aren't the core 'Target Persona'?
 6. SUMMARY HOOK: Is the professional summary appropriate in length and style for the target region and format expectations, dense, strictly factual, and completely free of fluff or marketing hype?
-7. TIMELINE CONTINUITY, DUAL-TRACK & CHRONOLOGY (CRITICAL):
-   - Verify that the "Work Experience" section is cleanly divided into exactly two level-3 Markdown subsections:
-     A. `### Core Corporate Experience`
-     B. `### Parallel Entrepreneurial & Startup Ventures`
-   - Inside `### Core Corporate Experience`, verify that all standard/corporate roles are in strict REVERSE CHRONOLOGICAL order. For older roles (pre-2016) listed under `#### Earlier Career History`, check if they conform to the page limit.
-   - Do NOT flag dates overlapping between these two separate tracks as timeline violations.
+7. TIMELINE CONTINUITY & CHRONOLOGY (CRITICAL):
+   - Verify that the "Work Experience" section presents all roles in a single, unified, continuous REVERSE CHRONOLOGICAL order without being split into separate subsections.
+   - Verify that each role clearly badges its employment type in square brackets in its header: `### Job Title at Company Name [Role Type]` (e.g. `[Full-Time]`, `[Contract]`, `[Concurrent Contract]`, `[Startup / Co-Founder]`, `[Advisory]`).
+   - Do NOT flag overlapping dates between concurrent contracting roles and startup ventures (e.g., 2017–2020) as timeline errors, provided employment badges distinguish them.
 8. FACTUALITY & SKILLS GROUNDING (CRITICAL):
    - Verify that every technology, language, framework, or tool listed in the Draft CV's "Key Skills" or "Professional Summary" is present in the "Candidate's Actual Skills List".
 

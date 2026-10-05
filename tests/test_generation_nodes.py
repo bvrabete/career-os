@@ -86,6 +86,62 @@ class TestGenerationNodes(unittest.TestCase):
         self.assertEqual(result["cv_expectations"], "Premium")
         self.assertEqual(result["target_organization_slug"], "intel")
         self.assertEqual(result["target_role"], "Architect")
+        self.assertEqual(result["target_track"], "engineering-management")
+
+    @patch("generation.nodes.get_wiki_dir")
+    @patch("generation.nodes.get_model_for_step")
+    @patch("generation.nodes.load_prompt")
+    def test_node_analyzer_with_track(
+        self, mock_load_prompt, mock_get_model, mock_get_wiki_dir
+    ):
+        """Test node_analyzer parses suggested_track and honors track_override."""
+        mock_load_prompt.return_value = "template"
+        mock_wiki = MagicMock()
+        mock_wiki.__truediv__.return_value.__truediv__.return_value.exists.return_value = False
+        mock_get_wiki_dir.return_value = mock_wiki
+
+        mock_llm = MagicMock()
+        mock_response = AIMessage(
+            content='{"persona": "Staff SWE", "keywords": ["python"], "locations": [], "expectations": "", "suggested_region": "ireland", "suggested_track": "staff-principal", "target_organization_slug": "stripe", "target_role": "Staff Engineer"}'
+        )
+        mock_llm.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_llm
+
+        state: CVPipelineState = {
+            "job_description": "Staff Engineer role",
+            "target_persona": "",
+            "target_region": "",
+            "target_locations": [],
+            "cv_expectations": "",
+            "primary_keywords": [],
+            "selected_entries": [],
+            "education_entries": [],
+            "skills_entries": [],
+            "strategy_info": "",
+            "pdf_template": "",
+            "draft_cv": "",
+            "audit_feedback": "",
+            "refiner_feedback": "",
+            "iteration_count": 0,
+            "strategy_override": "",
+            "track_override": "",
+            "projects_entries": [],
+            "patents_entries": [],
+            "notes_entries": [],
+            "few_shot_examples": [],
+            "skill_bridging_map": {},
+            "target_organization_slug": "",
+            "target_role": "",
+            "strategy_metadata": cast(Any, {}),
+            "languages_entries": [],
+        }
+
+        result = node_analyzer(state)
+        self.assertEqual(result["target_track"], "staff-principal")
+
+        state["track_override"] = "executive"
+        result_override = node_analyzer(state)
+        self.assertEqual(result_override["target_track"], "executive")
 
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")

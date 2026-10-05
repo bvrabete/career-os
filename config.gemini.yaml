@@ -1,11 +1,13 @@
 # Model Selection Definitions
 MODELS:
-  ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  gemini: "gemini-2.5-flash" # Default fast API model
+  ollama: "qwen2.5:7b"         # Default fast local model (100% GPU offload under 6GB VRAM)
+  gemini: "gemini-2.5-flash"    # Default fast API model
+  gemini_pro: "gemini-2.5-pro"  # High-reasoning executive drafting & audit model
+  gemini_lite: "gemini-2.5-flash-lite" # Ultra-low latency classification model
 
 # Pipeline Step Configurations (Pure Gemini-Assisted Setup)
-# Optimized to run exclusively using a Google Gemini API Key, leveraging the absolute latest models.
-# Uses lightweight gemini-2.5-flash for cost/speed efficiency and gemini-2.5-pro for high-reasoning tasks.
+# Optimized to run exclusively using a Google Gemini API Key, leveraging the latest models.
+# Uses lightweight gemini-2.5-flash/flash-lite for speed/cost efficiency and gemini-2.5-pro for high-reasoning tasks.
 STEPS:
   EXTRACTION:
     TYPE: "gemini"
@@ -13,7 +15,7 @@ STEPS:
 
   REFINEMENT:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-flash" # Cost-efficient narrative verification
+    MODEL_NAME: "gemini-2.5-flash" # Cost-efficient narrative verification & budget compression
 
   MERGE:
     TYPE: "gemini"
@@ -34,16 +36,16 @@ STEPS:
 
   DRAFTING:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-pro" # Massive 2-million context window to hold entire career wiki
+    MODEL_NAME: "gemini-2.5-pro" # High-fidelity executive drafting with 1M context window
 
   AUDIT:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-flash" # Cloud-based recruiter critic (fast and accurate)
+    MODEL_NAME: "gemini-2.5-pro" # Senior recruiter critic & strict ATS gap analysis
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-flash" # Fast document classification
+    MODEL_NAME: "gemini-2.5-flash-lite" # Ultra-fast, cost-efficient document classification
 
   INGESTION_EXTRACT:
     TYPE: "gemini"
@@ -51,7 +53,7 @@ STEPS:
 
   INGESTION_GENERATE:
     TYPE: "gemini"
-    MODEL_NAME: "gemini-2.5-pro" # Perfect schema compliance for frontmatter generation
+    MODEL_NAME: "gemini-2.5-flash" # Fast, high-fidelity schema-compliant frontmatter generation
 
   INGESTION_MERGE:
     TYPE: "gemini"
@@ -59,6 +61,18 @@ STEPS:
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 
-# Configuration Defaults
+# Workspace Paths & Directories
+PATHS:
+  WIKI_DIR: "llm-wiki"            # Canonical Knowledge Base SSoT directory
+  OUTPUT_DIR: "ai-generated-cvs"   # Export directory for clean drafts and compiled PDF/DOCX
+
+# Application & Generation Defaults
+DEFAULTS:
+  STRATEGY: "emea"                # Deterministic regional strategy (override via CLI --strategy)
+  TRACK: "Corporate"              # Default professional domain track
+  GENERATE_PDF: false             # Auto-compile PDF to OUTPUT_DIR
+  GENERATE_DOCX: false            # Auto-compile DOCX to OUTPUT_DIR
+
+# Backward compatibility aliases
 TRACK_DEFAULT: "Corporate"
 STRATEGY_DEFAULT: "emea"

@@ -6,11 +6,11 @@ Allows converting compiled CV Markdown files into styled PDF or Word (.docx) doc
 import argparse
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
 from docx_generator import generate_docx
+from kb_config import set_wiki_dir
 from pdf_generator import generate_pdf
 from utils import validate_path
 
@@ -21,6 +21,17 @@ def main() -> None:
     """
     Main execution routine for the Markdown to Document generator CLI.
     """
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    if hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     parser = argparse.ArgumentParser(description="Standalone Markdown to PDF/DOCX Document Generator")
     parser.add_argument("--input", required=True, help="Path to the Markdown file")
     parser.add_argument(
@@ -34,19 +45,19 @@ def main() -> None:
     )
     parser.add_argument(
         "--template",
-        help="Path to the CSS template (only applicable for PDF format; overrides default/detected templates)",
+        help="Document template or theme ('base', 'executive', 'compact', or path to CSS)",
     )
     parser.add_argument(
         "--wiki-dir",
         "--llm-wiki",
         dest="wiki_dir",
-        help="Path to the llm-wiki folder (defaults to LLM_WIKI_DIR env var or 'llm-wiki')",
+        help="Path to the llm-wiki folder (defaults to PATHS.WIKI_DIR in config.yaml)",
     )
 
     args = parser.parse_args()
 
     if args.wiki_dir:
-        os.environ["LLM_WIKI_DIR"] = args.wiki_dir
+        set_wiki_dir(args.wiki_dir)
 
     # Validate input path
     try:
@@ -77,6 +88,9 @@ def main() -> None:
     try:
         if args.out:
             output_path = validate_path(args.out)
+            if output_path.is_dir() or args.out.endswith(("/", "\\")) or not output_path.suffix:
+                output_path = output_path / f"{input_path.stem}.{doc_format}"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
         else:
             output_path = validate_path(input_path.with_suffix(f".{doc_format}"))
     except ValueError as e:
@@ -108,9 +122,7 @@ def main() -> None:
 
         success = generate_pdf(md_content, str(output_path), template_path)
     else:
-        if args.template:
-            print("⚠️ Warning: --template is ignored for Word Document (.docx) generation.", file=sys.stderr)
-        success = generate_docx(md_content, str(output_path))
+        success = generate_docx(md_content, str(output_path), template=args.template)
 
     if success:
         print(f"✅ Document generated successfully: {output_path}")

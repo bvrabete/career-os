@@ -41,3 +41,11 @@ config.yaml
 # Generated files
 ai-generated-cvs/*
 plans/*
+
+# Test sandbox wiki 
+test-sandbox-wiki/
+
+# Local symbolic links
+jd
+llm-wiki
+output
