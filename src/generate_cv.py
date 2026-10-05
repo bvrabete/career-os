@@ -10,7 +10,7 @@ from typing import Any
 
 from generation import build_graph
 from ingestion.bootstrapping import is_wiki_initialized
-from kb_config import get_wiki_dir, set_wiki_dir
+from kb_config import get_output_dir, get_wiki_dir, set_wiki_dir
 from tools.crm import record_application
 from utils import validate_path
 from pdf_generator import generate_pdf
@@ -86,38 +86,43 @@ def save_outputs(
 ) -> Path:
     """
     Saves the generated CV (Markdown draft), contexts, and archives to the appropriate paths.
+    Always archives synthesis metadata to LLM-Wiki synthesis folder.
+    Exported output defaults to OUTPUT_DIR (from config.yaml) using the JD filename if --out is omitted.
     """
-    if args.out:
-        out_path = validate_path(args.out)
-
-        # Check if the output path is a directory or has no file extension
-        if out_path.is_dir() or args.out.endswith("/") or args.out.endswith("\\") or not out_path.suffix:
-            jd_filename = Path(args.jd).with_suffix(".md").name
-            out_path = out_path / jd_filename
-
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write clean draft to specified path
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(draft)
-        logger.info("Build complete! Clean Markdown saved to %s", out_path)
-
-        # Save Context (Graph State) for debugging
-        context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
-        state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
-
-        with open(context_path, "w", encoding="utf-8") as f:
-            json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
-        logger.info("Context State saved to %s", context_path)
-        return out_path
-
-    # Also automatically save to synthesis-archive in LLM-Wiki
+    # 1. Always save synthesis archive in LLM-Wiki
     synthesis_path.parent.mkdir(parents=True, exist_ok=True)
     with open(synthesis_path, "w", encoding="utf-8") as f:
         f.write(synthesis_content)
     logger.info("Synthesis archive auto-saved to Wiki: %s", synthesis_path)
 
-    return synthesis_path
+    # 2. Determine target export path
+    jd_stem = Path(args.jd).stem
+    jd_filename = f"{jd_stem}.md"
+
+    if args.out:
+        out_path = validate_path(args.out)
+        if out_path.is_dir() or args.out.endswith("/") or args.out.endswith("\\") or not out_path.suffix:
+            out_path = out_path / jd_filename
+    else:
+        out_dir = validate_path(get_output_dir())
+        out_path = out_dir / jd_filename
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write clean draft to export path
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(draft)
+    logger.info("Build complete! Clean Markdown saved to %s", out_path)
+
+    # Save Context (Graph State) for debugging
+    context_path = validate_path(out_path.with_name(f"{out_path.stem}_context.json"))
+    state_to_save = {k: v for k, v in final_state.items() if k != "draft_cv"}
+
+    with open(context_path, "w", encoding="utf-8") as f:
+        json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
+    logger.info("Context State saved to %s", context_path)
+
+    return out_path
 
 
 def compile_optional_formats(args: argparse.Namespace, draft: str, out_path: Path, final_state: dict[str, Any]) -> None:
