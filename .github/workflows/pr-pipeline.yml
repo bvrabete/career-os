@@ -34,10 +34,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install Dependencies
-        run: uv sync --dev
+        run: uv sync --frozen --dev
 
       - name: Run Ruff Lint Checks
-        run: uv run ruff check src tests
+        run: uv run --frozen ruff check src tests
 
   type-check:
     name: Mypy Type Verification
@@ -53,15 +53,15 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install Dependencies
-        run: uv sync --all-groups
+        run: uv sync --frozen --all-groups
 
       - name: Run Mypy
-        run: uv run mypy
+        run: uv run --frozen mypy
 
   test:
     name: Unit Tests & Coverage
@@ -79,18 +79,18 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install Dependencies
-        run: uv sync --all-groups
+        run: uv sync --frozen --all-groups
 
       - name: Create dummy config file
         run: touch config.yaml
 
       - name: Run Unit Tests with Coverage
-        run: uv run pytest --cov=src --cov-report=xml:coverage.xml
+        run: uv run --frozen pytest --cov=src --cov-report=xml:coverage.xml
 
       - name: SonarQube Scan
         if: env.SONAR_TOKEN != ''
