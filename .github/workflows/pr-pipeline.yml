@@ -2,9 +2,9 @@ name: PR Pipeline & CI
 
 on:
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 concurrency:
@@ -85,6 +85,9 @@ jobs:
 
       - name: Install Dependencies
         run: uv sync --all-groups
+
+      - name: Create dummy config file
+        run: touch config.yaml
 
       - name: Run Unit Tests with Coverage
         run: uv run pytest --cov=src --cov-report=xml:coverage.xml
