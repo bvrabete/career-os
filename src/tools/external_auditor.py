@@ -28,7 +28,14 @@ class AffindaError(Exception):
 class AffindaParserClient:
     """Client for interacting with Affinda's resume parsing and scoring API."""
 
-    def __init__(self, api_key: str | None = None, workspace_id: str | None = None, collection_id: str | None = None, document_type: str | None = None, document_type_jd: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        workspace_id: str | None = None,
+        collection_id: str | None = None,
+        document_type: str | None = None,
+        document_type_jd: str | None = None,
+    ) -> None:
         self.api_key = api_key or os.getenv("AFFINDA_API_KEY")
         self.workspace_id = workspace_id or os.getenv("AFFINDA_WORKSPACE")
         self.collection_id = collection_id or os.getenv("AFFINDA_COLLECTION")
@@ -72,7 +79,7 @@ class AffindaParserClient:
             attempt += 1
             time.sleep(10)
             poll_resp = requests.get(poll_url, headers=headers)
-            
+
             if poll_resp.status_code != 200:
                 logger.warning(f"Failed to poll Affinda: {poll_resp.status_code}. Retrying...")
                 continue
@@ -88,7 +95,10 @@ class AffindaParserClient:
             if (status == "completed") or (is_ready is True):
                 return doc_data
 
-            logger.info(f"⏳ Processing: ready={is_ready}, status='{status}'. Polling in 10 seconds (Attempt {attempt}/{max_attempts})...")
+            logger.info(
+                f"⏳ Processing: ready={is_ready}, status='{status}'. "
+                f"Polling in 10 seconds (Attempt {attempt}/{max_attempts})..."
+            )
 
         raise TimeoutError("Affinda parsing timed out before completion.")
 
@@ -104,7 +114,7 @@ class AffindaParserClient:
             raise FileNotFoundError(f"File not found at: {file_path}")
 
         document_data = self._upload_doc_payload(file_path, doc_type_val, is_jd)
-        
+
         try:
             debug_path = validate_path(Path("ai-generated-cvs") / debug_filename)
             debug_path.parent.mkdir(parents=True, exist_ok=True)
@@ -149,7 +159,9 @@ class AffindaParserClient:
                 "meta": {"identifier": "mock-jd-98765", "status": "completed"},
                 "data": {"name": "Mock Job Description"}
             }
-        return self._upload_and_poll_document(file_path, self.document_type_jd, "affinda_jd_debug_response.json", is_jd=True)
+        return self._upload_and_poll_document(
+            file_path, self.document_type_jd, "affinda_jd_debug_response.json", is_jd=True
+        )
 
     def get_native_match(self, resume_id: str, jd_id: str) -> Dict[str, Any]:
         """Fetch the native resume-to-job matching score and breakdown from Affinda."""

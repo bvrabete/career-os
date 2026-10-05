@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.5.1"
+version = "1.6.1"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -12,6 +12,7 @@ dependencies = [
     "langchain-openai>=0.2.12",
     "langgraph>=0.3.25",
     "markdown2>=2.5.5",
+    "pypdf>=6.14.2",
     "python-docx>=1.1.2",
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
@@ -22,7 +23,7 @@ dependencies = [
 
 [tool.uv]
 package = true
-required-environments = [
+environments = [
     "sys_platform == 'darwin' and platform_machine == 'x86_64'",  # Intel Mac
     "sys_platform == 'darwin' and platform_machine == 'arm64'",   # Apple Silicon
     "sys_platform == 'linux' and platform_machine == 'x86_64'",   # Linux / CI
@@ -36,17 +37,26 @@ constraint-dependencies = [
 ]
 
 [project.scripts]
+kb-init = "kb_init:main"
 kb-ingest = "kb_ingest:main"
 cv-gen = "generate_cv:main"
 doc-gen = "generate_document_cli:main"
 ats-audit = "tools.kb_external_audit:main"
 kb-cleanup = "kb_cleanup:main"
+kb-skills-sync = "kb_skills_sync:main"
 
 [dependency-groups]
 dev = [
+    {include-group = "notebooks"},
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+]
+notebooks = [
+    "ipykernel>=6.29.0",
+    "ipywidgets>=8.1.0",
+    "jupyterlab>=4.0.0",
 ]
 ingest = [
     "docling>=2.70.0",
@@ -66,8 +76,19 @@ omit = [
     "src/tools/**"
 ]
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 mypy_path = "src"
 explicit_package_bases = true
 ignore_missing_imports = true
 check_untyped_defs = true
+files = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Line length handled separately / soft wraps
+]

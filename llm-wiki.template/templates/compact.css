@@ -1,0 +1,143 @@
+/* Compact CV Style - High-Density 1-Page Optimization */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #1A365D; /* Deep Classic Navy */
+    --accent-color: #2B6CB0;  /* Slate Blue */
+    --text-color: #2D3748;
+    --light-grey: #4A5568;
+    --bg-color: #ffffff;
+}
+
+@page {
+    size: A4;
+    margin: 0.8cm 0.8cm;
+    @bottom-right {
+        content: counter(page) " of " counter(pages);
+        font-size: 7pt;
+        color: var(--light-grey);
+    }
+}
+
+body {
+    font-family: 'Lato', 'Arial', -apple-system, sans-serif;
+    font-size: 8.5pt;
+    line-height: 1.15;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+.cv-container {
+    width: 100%;
+}
+
+h1 {
+    font-family: 'Lato', sans-serif;
+    font-weight: 800;
+    font-size: 16pt;
+    color: var(--primary-color);
+    margin-bottom: 1pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3pt;
+}
+
+h1 + p {
+    font-size: 8pt;
+    color: var(--light-grey);
+    margin-bottom: 5pt;
+    font-weight: 400;
+}
+
+h2 {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 9.8pt;
+    color: var(--primary-color);
+    border-bottom: 1pt solid var(--accent-color);
+    padding-bottom: 1pt;
+    margin-top: 6pt;
+    margin-bottom: 3pt;
+    text-transform: uppercase;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+h3 {
+    font-weight: 700;
+    font-size: 9pt;
+    color: var(--primary-color);
+    margin-top: 4pt;
+    margin-bottom: 1pt;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+h3 + p {
+    font-size: 8pt;
+    margin-top: 0;
+    margin-bottom: 2pt;
+    color: var(--light-grey);
+    line-height: 1.1;
+}
+
+ul {
+    padding-left: 11pt;
+    margin-bottom: 3pt;
+}
+
+li {
+    margin-bottom: 1pt;
+    line-height: 1.12;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+hr {
+    margin: 4pt 0;
+    border: 0;
+    border-top: 0.5pt solid #e2e8f0;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+strong {
+    font-weight: 700;
+}
+
+h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+li, p, h3, tr {
+    orphans: 2;
+    widows: 2;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4pt 0;
+    font-size: 8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+th, td {
+    padding: 2pt 4pt;
+    text-align: left;
+    border-bottom: 0.5pt solid #edf2f7;
+}
+
+th {
+    font-weight: 700;
+    color: var(--primary-color);
+}

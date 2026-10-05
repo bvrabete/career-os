@@ -17,8 +17,11 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | concept | `wiki/concepts/` | Methodologies (Agile, Scrum) or domain-specific frameworks |
 | note | `wiki/notes/` | Unfiltered personal reflections, "My Voice" snippets, and unsorted details |
 | patent | `wiki/patents/` | Detailed records of patents and inventions |
+| publication | `wiki/publications/` | Peer-reviewed articles, conference papers, whitepapers, and book chapters |
 | strategy | `wiki/strategies/` | Relocation profiles, contact strategy variants, and regional tailoring |
 | query | `wiki/queries/` | Reconciliation of conflicting data points from old CVs |
+| case_study | `wiki/case-studies/` | In-depth technical architecture whitepapers, system designs, and platform migration reports |
+| profile | `wiki/profile.md` | Canonical candidate profile, contact links, baseline summary & domains |
 | overview | `wiki/` | High-level project summary (one per project) |
 
 ## Naming Conventions
@@ -29,7 +32,9 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 - Skills: `skill-name.md` (e.g., `python.md`)
 - Languages: `lang-language-name.md` (e.g., `lang-english.md`)
 - Notes: `note-slug.md` (e.g., `note-leadership-reflections.md`)
+- Case Studies: `company-topic-slug.md` (e.g., `virgin-media-gitops-architecture-overview.md`)
 - Patents: `patent-id-slug.md` (e.g., `patent-us12345678-distributed-caching.md`)
+- Publications: `pub-slug.md` (e.g., `pub-distributed-edge-telemetry.md`)
 - Strategies: `strategy-region-slug.md` (e.g., `strategy-ireland.md`)
 - Projects: `project-name.md` (e.g., `project-cloud-migration.md`)
 - Sources: `source-name.md` (e.g., `jane-doe-resume-2026.md`)
@@ -94,6 +99,25 @@ updated: YYYY-MM-DD
 ---
 ```
 
+### Case Study Page
+
+```yaml
+---
+type: case_study
+title: "Technical Whitepaper, System Design, or Architecture Title"
+organization: [[entity-slug]]
+related_experience: [[experience-slug]]
+dates:
+  start: YYYY-MM-DD
+  end: YYYY-MM-DD
+skills: [skill-slug-1, skill-slug-2]
+tags: [architecture, distributed-systems, microservices, performance, migration]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [source-slug-1]
+---
+```
+
 ### Patent Page
 
 ```yaml
@@ -103,11 +127,68 @@ title: "Patent Title"
 id: "Patent ID (e.g., US-12345678-B2)"
 inventors: ["Jane Doe", "Co-Inventor"]
 organization: [[entity-slug]]
+tenure: [[experience-slug]] # Optional, link to employment tenure where the invention was conceived
+grant_date: YYYY-MM-DD
 link: "URL to patent"
-skills: [skill-slug]
+skills: [skill-slug-1, skill-slug-2]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
+```
+
+### Publication Page
+
+```yaml
+---
+type: publication
+title: "Publication Title"
+doi: "10.1109/..." # or arXiv ID / ISBN
+publication_type: journal_article | conference_paper | book_chapter | whitepaper
+venue: "Journal or Conference Name"
+date: YYYY-MM-DD
+authors: ["Jane Doe", "Co-Author"]
+is_first_author: true | false
+peer_reviewed: true | false
+organization: [[entity-slug]] # Employer or Academic Institution
+tenure: [[experience-slug]]   # Optional, link to employment tenure
+education: [[education-slug]] # Optional, link to degree/academic stint
+link: "https://doi.org/..."
+skills: [skill-slug-1, skill-slug-2]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+### Project Page
+
+```yaml
+---
+type: project
+title: "Project Name"
+project_nature: open_source | side_project | research_prototype | enterprise_initiative
+status: active | completed | archived
+repo_url: "https://github.com/..." # Optional
+demo_url: "https://..."           # Optional
+dates:
+  start: YYYY-MM-DD
+  end: YYYY-MM-DD | Present
+skills: [skill-slug-1, skill-slug-2]
+domains: ["Domain A", "Domain B"]
+organization: [[entity-slug]]     # Optional, only if developed within an employer
+tenure: [[experience-slug]]       # Optional, link to employment tenure
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+```markdown
+# Project Name
+
+## Overview & Architecture
+[Problem solved, technical architecture, and system design]
+
+## Key Technical Achievements
+- [STAR achievement bullet with concrete metrics and technologies]
 ```
 
 ### Strategy Page
@@ -177,6 +258,31 @@ skills: [skill-slug]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
+```
+
+### Case Study Page
+
+```yaml
+---
+type: case_study
+title: "Technical Case Study Title"
+organization: [[entity-slug]]
+tenure: [[experience-slug]]
+skills: [skill-slug-1, skill-slug-2]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [source-slug]
+---
+# Technical Case Study Title
+
+## Context & Problem
+[Problem description and architectural constraints]
+
+## Architecture & Technical Implementation
+[Detailed technical architecture, patterns, components, and code/design decisions]
+
+## Quantified Impact & Results
+[Measurable metrics, benchmarks, SLA improvements, cost savings]
 ```
 
 ### Source Page
@@ -319,6 +425,22 @@ Every experience file must follow this structural layout. Note that STAR achieve
 
 ## Related Work & Value
 [Business impact of the patent, links to [[experiences]] where it was conceived.]
+```
+
+### Publication Template (`wiki/publications/`)
+
+```markdown
+# [Publication Title]
+
+## Abstract
+[Summary of the research problem, methodology, and primary findings.]
+
+## Key Innovations & Findings
+- [Core scientific or architectural breakthrough]
+- [Empirical performance, scaling, or benchmark results]
+
+## Related Work & Roles
+[Links to [[experiences]] or [[education]] where the research was performed.]
 ```
 
 ### Project Template (`wiki/projects/`)

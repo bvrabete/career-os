@@ -1,12 +1,11 @@
 import os
 import unittest
-import yaml
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
 
-import kb_config
 from kb_config import (
     get_wiki_dir,
+    set_wiki_dir,
     load_config,
     get_strategy_default,
     get_model_for_step,
@@ -19,18 +18,24 @@ class TestKBConfigAdditional(unittest.TestCase):
 
     def setUp(self) -> None:
         self.original_env = dict(os.environ)
+        set_wiki_dir(None)
 
     def tearDown(self) -> None:
+        set_wiki_dir(None)
         os.environ.clear()
         os.environ.update(self.original_env)
 
-    def test_get_wiki_dir_env_set(self) -> None:
-        os.environ["LLM_WIKI_DIR"] = "custom-wiki-path"
+    def test_set_wiki_dir_override(self) -> None:
+        set_wiki_dir("custom-wiki-path")
         self.assertEqual(get_wiki_dir(), Path("custom-wiki-path"))
+        set_wiki_dir(None)
 
-    def test_get_wiki_dir_env_unset(self) -> None:
-        if "LLM_WIKI_DIR" in os.environ:
-            del os.environ["LLM_WIKI_DIR"]
+    @patch("kb_config.load_config", return_value={"PATHS": {"WIKI_DIR": "my-config-wiki"}})
+    def test_get_wiki_dir_from_config(self, mock_load: MagicMock) -> None:
+        self.assertEqual(get_wiki_dir(), Path("my-config-wiki"))
+
+    @patch("kb_config.load_config", return_value={})
+    def test_get_wiki_dir_fallback(self, mock_load: MagicMock) -> None:
         self.assertEqual(get_wiki_dir(), Path("llm-wiki"))
 
     @patch("kb_config.CONFIG_PATH")
@@ -38,7 +43,7 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_path_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = True
         mock_default_path.exists.return_value = False
-        
+
         mock_content = "STRATEGY_DEFAULT: 'us-east'\n"
         with patch("builtins.open", mock_open(read_data=mock_content)):
             config = load_config()
@@ -49,7 +54,7 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_default_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = False
         mock_default_path.exists.return_value = True
-        
+
         mock_content = "STRATEGY_DEFAULT: 'apac'\n"
         with patch("builtins.open", mock_open(read_data=mock_content)):
             config = load_config()
@@ -60,10 +65,9 @@ class TestKBConfigAdditional(unittest.TestCase):
     def test_load_config_neither_exists(self, mock_default_path: MagicMock, mock_config_path: MagicMock) -> None:
         mock_config_path.exists.return_value = False
         mock_default_path.exists.return_value = False
-        
-        config = load_config()
-        self.assertIn("MODELS", config)
-        self.assertEqual(config.get("STRATEGY_DEFAULT"), "emea")
+
+        with self.assertRaises(FileNotFoundError):
+            load_config()
 
     @patch("kb_config.load_config")
     def test_get_strategy_default(self, mock_load: MagicMock) -> None:
@@ -71,15 +75,13 @@ class TestKBConfigAdditional(unittest.TestCase):
         self.assertEqual(get_strategy_default(), "latam")
 
     @patch("kb_config.load_config")
-    def test_get_model_for_step_fallback(self, mock_load: MagicMock) -> None:
-        # Step name not found, falls back to REFINEMENT (ollama default in default config)
+    def test_get_model_for_step_missing_step(self, mock_load: MagicMock) -> None:
         mock_load.return_value = {
             "STEPS": {"REFINEMENT": {"TYPE": "ollama", "MODEL_NAME": "qwen"}},
             "OLLAMA_BASE_URL": "http://ollama-test"
         }
-        with patch("kb_config.ChatOllama") as mock_ollama:
+        with self.assertRaises(KeyError):
             get_model_for_step("UNKNOWN_STEP")
-            mock_ollama.assert_called_once()
 
     @patch("kb_config.load_config")
     def test_get_model_for_step_openai(self, mock_load: MagicMock) -> None:

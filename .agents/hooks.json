@@ -1,4 +1,4 @@
-{
+﻿{
   "sonar-secrets": {
     "enabled": true,
     "PreToolUse": [
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"sonar/hooks/pretool-secrets.sh\"",
+            "command": "bash .agents/sonar/hooks/pretool-secrets.sh",
             "timeout": 60
           }
         ]

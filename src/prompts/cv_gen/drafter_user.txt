@@ -34,6 +34,10 @@ PERFORMANCE REVIEW NOTES ("My Voice" peer praise and evidence):
 {notes_text}
 
 ---
+ARCHITECTURAL CASE STUDIES (Deep technical initiatives, distributed systems, and platform modernization details):
+{case_studies_text}
+
+---
 EDUCATION ENTRIES:
 {education_text}
 

@@ -1,31 +1,40 @@
-"""Additional unit tests for uncovered sections of generation/helpers.py."""
-import unittest
-import tempfile
 import logging
-import json
-import yaml
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+import shutil
+import tempfile
+import unittest
+from unittest.mock import MagicMock, patch
+
+from generation.helpers import (
+    _build_combined_body,
+    _consolidate_company_roles,
+    _detect_employment_type,
+    _extract_and_clean_achievements,
+    _extract_start_year,
+    _group_old_experiences_by_company,
+    _parse_education_candidate,
+    _prune_recent_frontmatter,
+    _score_experiences_list,
+    _score_single_experience,
+    _select_top_achievements,
+    compress_experience_llm,
+    compress_grouped_experience_llm,
+    generate_skill_bridging_map,
+    invoke_drafter_llm_with_fallback,
+    prune_recent_experience,
+    retrieve_and_deduplicate_education,
+    retrieve_and_score_notes,
+    retrieve_and_score_patents,
+    retrieve_and_score_projects,
+    retrieve_few_shots,
+    robust_json_loads,
+    score_by_keywords,
+)
+from generation.pruning import _compress_and_wrap_experiences
+from langchain_core.messages import AIMessage
 
 # Suppress debug/info logging during tests
 logging.basicConfig(level=logging.ERROR)
-
-from generation.helpers import (
-    robust_json_loads, score_by_keywords, generate_skill_bridging_map,
-    compress_experience_llm, _prune_recent_frontmatter,
-    _extract_and_clean_achievements, _select_top_achievements,
-    prune_recent_experience, _score_single_experience, _score_experiences_list,
-    _extract_start_year, _detect_employment_type, _build_combined_body,
-    _consolidate_company_roles, _group_old_experiences_by_company,
-    compress_grouped_experience_llm, _compress_and_wrap_single_experience,
-    _compress_and_wrap_experiences, retrieve_and_score_experiences,
-    _parse_education_candidate, retrieve_and_deduplicate_education,
-    retrieve_and_score_projects, retrieve_and_score_patents,
-    retrieve_and_score_notes, retrieve_few_shots,
-    invoke_drafter_llm_with_fallback
-)
 
 
 class TestGenerationHelpersAdditional(unittest.TestCase):
@@ -149,7 +158,7 @@ Outro"""
 
         small_file = exp_dir / "short.md"
         small_file.write_text("Short")
-        
+
         mock_llm = MagicMock()
         res = _score_single_experience(mock_llm, small_file, ["kw"], "persona", "jd", "template")
         self.assertIsNone(res)
@@ -166,6 +175,10 @@ Outro"""
         self.assertEqual(_detect_employment_type({}, "This is a contractor role"), "Contract")
         self.assertEqual(_detect_employment_type({}, "consulting (contract) work"), "Contract")
         self.assertEqual(_detect_employment_type({}, "Regular permanent job"), "Permanent")
+        self.assertEqual(_detect_employment_type({"title": "Co-Founder and CTO"}, ""), "Startup / Co-Founder")
+        self.assertEqual(_detect_employment_type({"employment_type": "co_founder"}, ""), "Startup / Co-Founder")
+        self.assertEqual(_detect_employment_type({"title": "Technical Advisor"}, ""), "Advisory")
+        self.assertEqual(_detect_employment_type({"employment_type": "advisory"}, ""), "Advisory")
 
     def test_build_combined_body(self):
         """Test combining multiple experiences chronologically or otherwise."""
@@ -224,10 +237,19 @@ Outro"""
 
     # 5. Project, Patent, and Note Retrieval
     def test_retrieve_and_score_projects(self):
-        """Test projects retrieval, scoring, and sorting."""
+        """Test projects retrieval, scoring, age decay, and sorting."""
+        from generation.retrieval import _calculate_project_recency_factor
+
+        # Test _calculate_project_recency_factor directly
+        self.assertAlmostEqual(_calculate_project_recency_factor({"dates": {"end": "present"}}), 1.0, places=2)
+        self.assertAlmostEqual(_calculate_project_recency_factor({}), 0.5, places=2)
+        old_factor = _calculate_project_recency_factor({"dates": {"end": "2010-01-01"}})
+        recent_factor = _calculate_project_recency_factor({"dates": {"end": "2024-01-01"}})
+        self.assertGreater(recent_factor, old_factor)
+
         proj_dir = self.wiki_root / "projects"
         proj_dir.mkdir(parents=True, exist_ok=True)
-        
+
         p1 = proj_dir / "p1.md"
         p1.write_text("---\ntitle: Project One\ndates:\n  start: 2021-01-01\nskills:\n  - Python\n---\nBuilding super AI backend with Python.")
         p2 = proj_dir / "p2.md"
@@ -245,14 +267,25 @@ Outro"""
         pat_dir.mkdir(parents=True, exist_ok=True)
 
         p1 = pat_dir / "pat1.md"
-        p1.write_text("---\ntitle: Patent One\nid: US123456\n---\nNovel neural networks.")
+        p1.write_text("---\ntitle: Patent One\nid: US123456\norganization: '[[intel-corporation]]'\n---\nNovel neural networks.")
         p2 = pat_dir / "pat2.md"
-        p2.write_text("---\ntitle: Patent Two\nid: US789101\n---\nCrypto security protocol.")
+        p2.write_text("---\ntitle: Patent Two\nid: US789101\ntenure: intel-platform-architect-and-tech-lead\n---\nCrypto security protocol.")
 
         with patch("generation.helpers.get_wiki_dir", return_value=self.wiki_dir):
-            res = retrieve_and_score_patents(self.wiki_dir, ["Neural", "networks"], ["intel"])
+            res = retrieve_and_score_patents(self.wiki_dir, ["Neural", "networks"], ["intel-corporation", "intel-platform-architect-and-tech-lead"])
             self.assertEqual(len(res), 2)
             self.assertIn("pat1.md", res[0])
+
+    def test_compress_and_wrap_experiences_constituent_slugs(self):
+        """Test that _compress_and_wrap_experiences populates constituent and org slugs."""
+        exp_1 = (10, "intel-role-1.md", "---\norganization: [[intel-corp]]\ntitle: Eng 1\n---\nBody 1", "Just 1")
+        exp_2 = (20, "smartrs-cto.md", "---\norganization: [[smartrs]]\ntitle: CTO\nemployment_type: co_founder\n---\nBody 2", "Just 2")
+        dedup = [exp_1, exp_2]
+        _, slugs = _compress_and_wrap_experiences(dedup, ["Python"], max_pages=1)
+        self.assertIn("intel-role-1", slugs)
+        self.assertIn("intel-corp", slugs)
+        self.assertIn("smartrs-cto", slugs)
+        self.assertIn("smartrs", slugs)
 
     def test_retrieve_and_score_notes(self):
         """Test notes retrieval, scoring, and sorting."""
@@ -365,6 +398,16 @@ Outro"""
             invoke_drafter_llm_with_fallback(mock_llm, "system", "prompt")
         # Should raise the ORIGINAL rate limit error
         self.assertIn("rate_limit", str(ctx.exception))
+
+    def test_heading_double_hash_sanitization(self):
+        """Verify regex cleans duplicate heading hash markers cleanly."""
+        import re
+        sample = "### ### Job Title at Org [Full-Time]\n## ## Section\n# # Header"
+        cleaned = re.sub(r'^(#{1,6})\s*#{1,6}\s+', r'\1 ', sample, flags=re.MULTILINE)
+        self.assertEqual(
+            cleaned,
+            "### Job Title at Org [Full-Time]\n## Section\n# Header",
+        )
 
 
 if __name__ == "__main__":

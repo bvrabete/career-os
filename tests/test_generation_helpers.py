@@ -30,7 +30,6 @@ from generation.helpers import (
 )
 
 
-
 class TestGenerationHelpers(unittest.TestCase):
     """Deterministic, isolated unit tests for CV Generation Helpers."""
 
@@ -73,11 +72,7 @@ class TestGenerationHelpers(unittest.TestCase):
             "key": "val",
             "arr": [1, 2,],
         }"""
-        expected = """{
-            
-            
-            "key": "val",
-            "arr": [1, 2]}"""
+        expected = "{\n            \n            \n            \"key\": \"val\",\n            \"arr\": [1, 2]}"
         self.assertEqual(
             _clean_json_comments_and_commas(raw).strip(),
             expected.strip()

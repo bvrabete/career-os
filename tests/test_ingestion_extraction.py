@@ -143,6 +143,27 @@ class TestIngestionExtraction(unittest.TestCase):
         self.assertEqual(outputs["extracted_notes"][0]["content"], "Outstanding leadership")
 
     @patch("ingestion.extraction.get_model_for_step")
+    @patch("ingestion.extraction._extract_case_study")
+    def test_node_extractor_case_study(self, mock_extract, mock_get_model):
+        """Test node_extractor with doc_type case_study."""
+        mock_get_model.return_value = MagicMock()
+        mock_extract.return_value = {
+            "case_study": {
+                "title": "Edge Gateway Architecture",
+                "related_raw_org": "Virgin Media",
+                "skills": ["Kafka", "Kubernetes"],
+                "tags": ["architecture"],
+                "star_achievement": "Built edge gateway handling 10k rps."
+            }
+        }
+        state = IngestionState(doc_type="case_study", raw_text="## Architecture Specification")
+        outputs = node_extractor(state)
+        self.assertEqual(len(outputs["extracted_case_studies"]), 1)
+        cs = outputs["extracted_case_studies"][0]
+        self.assertEqual(cs["title"], "Edge Gateway Architecture")
+        self.assertEqual(cs["raw_text"], "## Architecture Specification")
+
+    @patch("ingestion.extraction.get_model_for_step")
     def test_node_extractor_unknown_doc_type(self, mock_get_model):
         """Test node_extractor with an unknown doc_type."""
         mock_get_model.return_value = MagicMock()

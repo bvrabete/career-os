@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import tempfile
 import shutil
 
@@ -12,6 +12,7 @@ from generation.skills_helper import (
     run_skills_sync,
     get_compact_skills_list,
 )
+
 
 class TestSkillsHelper(unittest.TestCase):
     def setUp(self) -> None:
@@ -74,10 +75,10 @@ class TestSkillsHelper(unittest.TestCase):
         # Setup directory with valid and invalid files
         target_dir = self.wiki_dir / "exp"
         target_dir.mkdir()
-        
+
         file1 = target_dir / "role1.md"
         file1.write_text("---\nskills:\n  - Python\n  - Git\n---", encoding="utf-8")
-        
+
         file2 = target_dir / "role2.md"
         file2.write_text("---\nskills:\n  - Git\n  - Docker\n---", encoding="utf-8")
 
@@ -120,10 +121,10 @@ class TestSkillsHelper(unittest.TestCase):
         # 2. Active run sync (should write the files)
         run_skills_sync(self.wiki_dir, dry_run=False)
         self.assertTrue(skills_dir.exists())
-        
+
         python_skill_file = skills_dir / "python.md"
         self.assertTrue(python_skill_file.exists())
-        
+
         content = python_skill_file.read_text(encoding="utf-8")
         self.assertIn("title: Python", content)
         self.assertIn("related_experiences:", content)
@@ -132,7 +133,7 @@ class TestSkillsHelper(unittest.TestCase):
     def test_get_compact_skills_list_various(self) -> None:
         """Test generating token-efficient list with and without experience filtering."""
         skills_dir = self.wiki_dir / "wiki" / "skills"
-        
+
         # Missing skills directory
         self.assertEqual(get_compact_skills_list(skills_dir), [])
 
@@ -190,13 +191,12 @@ class TestSkillsHelper(unittest.TestCase):
 
         self.assertTrue(py_file.exists())
         content = py_file.read_text(encoding="utf-8")
-        
+
         # Verify both google and intel are in related experiences list
         self.assertIn("- '[[google]]'", content)
         self.assertIn("- '[[intel]]'", content)
         self.assertIn("Existing body text here.", content)
         self.assertIn("category: Language", content)  # Retains custom pre-seeded properties
-
 
 
 if __name__ == "__main__":

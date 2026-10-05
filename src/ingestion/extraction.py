@@ -18,7 +18,7 @@ def _extract_experience(llm: Any, raw_text: str) -> dict[str, Any]:
             f"spoken languages, projects, and patents from this document:\n\n{raw_text}"
         ))
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -35,7 +35,7 @@ def _extract_cover_letter(llm: Any, raw_text: str) -> dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"Extract cover letter details from this document:\n\n{raw_text}")
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -52,7 +52,7 @@ def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"Extract feedback/performance reviews from this document:\n\n{raw_text}")
     ])
-    
+
     raw = llm_text(response.content).strip()
     try:
         return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
@@ -62,18 +62,36 @@ def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
         return {}
 
 
+def _extract_case_study(llm: Any, raw_text: str) -> dict[str, Any]:
+    """Extract engineering case study metadata and STAR summary using the LLM and external prompt."""
+    system_prompt = load_prompt("extraction_case_study.txt")
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=f"Extract case study metadata and STAR summary from this document:\n\n{raw_text}")
+    ])
+
+    raw = llm_text(response.content).strip()
+    try:
+        return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
+    except Exception as e:
+        logging.warning(f"Could not parse extractor JSON for case_study: {e}")
+        logging.warning(f"Response was: {raw[:500]}")
+        return {}
+
+
 def node_extractor(state: IngestionState) -> dict[str, Any]:
     """Pass 1: Extract raw structured data based on doc_type. No canonicalization yet."""
     logging.info("--- NODE: EXTRACTOR (Pass 1) ---")
     doc_type = state.get("doc_type", "")
     raw_text = state.get("raw_text", "")
-    
+
     roles: list[dict[str, Any]] = []
     education: list[dict[str, Any]] = []
     languages: list[dict[str, Any]] = []
     projects: list[dict[str, Any]] = []
     patents: list[dict[str, Any]] = []
     notes: list[dict[str, Any]] = []
+    case_studies: list[dict[str, Any]] = []
     cover_letters: list[dict[str, Any]] = []
     profile: dict[str, Any] = {}
 
@@ -86,6 +104,7 @@ def node_extractor(state: IngestionState) -> dict[str, Any]:
             "extracted_projects": projects,
             "extracted_patents": patents,
             "extracted_notes": notes,
+            "extracted_case_studies": case_studies,
             "extracted_cover_letters": cover_letters,
             "extracted_profile": profile
         }
@@ -106,17 +125,25 @@ def node_extractor(state: IngestionState) -> dict[str, Any]:
         )
         if profile:
             logging.info(f"Extracted personal profile for: {profile.get('name')}")
-        
+
     elif doc_type == "cover_letter":
         extracted = _extract_cover_letter(llm, raw_text)
         cover_letters = extracted.get("cover_letters", [])
         logging.info(f"Extracted {len(cover_letters)} cover letter(s)")
-        
+
     elif doc_type == "supplemental":
         extracted = _extract_supplemental(llm, raw_text)
         notes = extracted.get("notes", [])
         logging.info(f"Extracted {len(notes)} note(s)")
-        
+
+    elif doc_type == "case_study":
+        extracted = _extract_case_study(llm, raw_text)
+        cs = extracted.get("case_study")
+        if cs:
+            cs["raw_text"] = raw_text
+            case_studies = [cs]
+            logging.info(f"Extracted case study: {cs.get('title')}")
+
     else:
         logging.info(f"doc_type='{doc_type}' — skipping extraction")
 
@@ -127,6 +154,7 @@ def node_extractor(state: IngestionState) -> dict[str, Any]:
         "extracted_projects": projects,
         "extracted_patents": patents,
         "extracted_notes": notes,
+        "extracted_case_studies": case_studies,
         "extracted_cover_letters": cover_letters,
         "extracted_profile": profile
     }

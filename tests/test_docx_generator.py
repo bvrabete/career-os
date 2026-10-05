@@ -68,7 +68,7 @@ class TestDocxGenerator(unittest.TestCase):
         _add_section_header(self.doc, "Section Header", self.color_primary)
         _add_subsection_header(self.doc, "Subsection Header", self.color_primary)
         _add_role_header(self.doc, "Role Header", self.color_primary)
-        
+
         self.assertEqual(self.doc.paragraphs[0].text, "Main Title")
         self.assertEqual(self.doc.paragraphs[1].text, "Section Header")
         self.assertEqual(self.doc.paragraphs[2].text, "Subsection Header")
@@ -112,12 +112,36 @@ Paragraph here."""
             out_path = Path(tmp_dir) / "output.docx"
             res = generate_docx(test_md, str(out_path))
             self.assertTrue(res)
-            self.assertTrue(out_path.exists())
+    def test_generate_docx_themed(self) -> None:
+        test_md = "# Executive CV\n\n## Summary\n- High impact leadership."
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_exec = Path(tmp_dir) / "exec.docx"
+            out_comp = Path(tmp_dir) / "comp.docx"
+            self.assertTrue(generate_docx(test_md, str(out_exec), template="executive"))
+            self.assertTrue(generate_docx(test_md, str(out_comp), template="compact"))
+            self.assertTrue(out_exec.exists())
+            self.assertTrue(out_comp.exists())
 
     def test_generate_docx_failure(self) -> None:
         # Invalid output location (e.g. writing to empty string filename or locked path)
         res = generate_docx("# Simple MD", "")
         self.assertFalse(res)
+
+    def test_cli_directory_out(self) -> None:
+        from unittest.mock import patch
+        from generate_document_cli import main as doc_cli_main
+        test_md = "# Title\n\nContent"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_file = Path(tmp_dir) / "My_CV.md"
+            input_file.write_text(test_md, encoding="utf-8")
+            out_dir = Path(tmp_dir) / "docx_outputs"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            with patch("sys.argv", ["doc-gen", "--input", str(input_file), "--out", str(out_dir), "--format", "docx"]):
+                doc_cli_main()
+
+            expected_file = out_dir / "My_CV.docx"
+            self.assertTrue(expected_file.exists())
 
 
 if __name__ == "__main__":

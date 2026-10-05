@@ -1,0 +1,7 @@
+;; Logseq configuration for CareerOS LLM-Wiki
+{:preferred-format :markdown
+ :preferred-heading-level 2
+ :journal/enabled? false
+ :pages-directory "wiki"
+ :feature/enable-whiteboards? false
+ :graph/view {:open-graph-on-startup false}}
