@@ -4,7 +4,9 @@ import json
 import logging
 import re
 import sys
-from typing import Any
+from typing import Any, Literal
+from langgraph.types import Command
+from langgraph.graph import END
 
 from langchain_core.messages import HumanMessage
 
@@ -262,7 +264,6 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
     return {"draft_cv": llm_text(response.content)}
 
-
 def _resolve_max_pages(state: CVPipelineState) -> int:
     """Resolves the target maximum page count from state metadata or strategy description."""
     strategy_meta = state.get("strategy_metadata")
@@ -320,27 +321,40 @@ def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int
     return False, "", words, bullet_lines
 
 
-def node_refiner(state: CVPipelineState) -> dict[str, Any]:
+def node_refiner(state: CVPipelineState) -> Command[Literal["compressor", "auditor"]]:
     """Verify that the drafted CV does not violate calibrated typesetting limits."""
     logging.info("--- NODE D: REFINER GUARD ---")
     draft = state.get("draft_cv", "")
     max_pages = _resolve_max_pages(state)
     is_over, feedback, words, bullets = check_typesetting_budget(draft, max_pages)
 
+    compression_count = state.get("compression_count", 0)
+
     if is_over:
+        goto_node = "compressor" if compression_count < 2 else "auditor"
+        if goto_node == "compressor":
+            logging.warning(
+                f"Refiner guard triggered fast compressor (pass {compression_count + 1}/2) due to page budget overflow."
+            )
         logging.warning(f"Refiner guard: over budget ({words} words, {bullets} bullets, max {max_pages} pages).")
-        return {
-            "refiner_feedback": feedback,
-            "total_words": words,
-            "total_bullet_lines": bullets,
-        }
+        return Command(
+            update={
+                "refiner_feedback": feedback,
+                "total_words": words,
+                "total_bullet_lines": bullets,
+            },
+            goto=goto_node
+        )
 
     logging.info(f"Refiner guard: within budget ({words} words, {bullets} bullets, max {max_pages} pages).")
-    return {
-        "refiner_feedback": "",
-        "total_words": words,
-        "total_bullet_lines": bullets,
-    }
+    return Command(
+        update={
+            "refiner_feedback": "",
+            "total_words": words,
+            "total_bullet_lines": bullets,
+        },
+        goto="auditor"
+    )
 
 
 def node_compressor(state: CVPipelineState) -> dict[str, Any]:
@@ -418,7 +432,7 @@ def _handle_interactive_audit(checklist: list[str], ats_score: dict[str, Any]) -
     return False, ""
 
 
-def node_auditor(state: CVPipelineState) -> dict[str, Any]:
+def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"]]:
     """Perform a brutal human-like ATS compliance audit, returning a PASS or a checklist of rewrite actions."""
     logging.info("--- NODE D: AUDITOR ---")
     llm = get_model_for_step("AUDIT")
@@ -445,7 +459,7 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
     # Clean markdown json code blocks if present and parse the scorecard
     json_str = feedback
     if "```" in json_str:
-        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', json_str, re.DOTALL)
+        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', re.DOTALL)
         if blocks:
             json_str = blocks[0].strip()
 
@@ -479,8 +493,14 @@ def node_auditor(state: CVPipelineState) -> dict[str, Any]:
         logging.warning(f"Failed to parse structured auditor JSON: {e}. Falling back to raw text.")
         stored_feedback = feedback
 
-    return {
-        "audit_feedback": stored_feedback,
-        "ats_scorecard": ats_score,
-        "iteration_count": current_iterations + 1,
-    }
+    # Determine next routing step based on feedback and iterations
+    is_pass = "PASS" in stored_feedback or (current_iterations + 1) >= 3
+
+    return Command(
+        update={
+            "audit_feedback": stored_feedback,
+            "ats_scorecard": ats_score,
+            "iteration_count": current_iterations + 1,
+        },
+        goto=END if is_pass else "drafter"
+    )

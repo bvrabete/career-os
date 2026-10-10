@@ -7,8 +7,8 @@ TASKS:
 4. Leadership & Governance: Extract the expected team sizes, vendor management requirements, or cross-functional alignment needs.
 5. Extract 10-15 'Primary Keywords' critical for ATS and human review.
 6. Identify 'Target Locations': What are the specific locations (cities, countries, or regions) accepted for this role?
-7. Infer 'CV/Resume Expectations': Based on the company type and location, what kind of cv/resume is expected by the company?
-   (e.g., "Standard UK 2-pager", "US-style technical resume", "Detailed DACH-region CV", "High-agency startup profile").
+7. Infer 'CV/Resume Expectations': Based on the company type and detected location/region, what kind of CV/resume is expected by the hiring organization?
+   Ensure the expectations align with the regional norms of the target location (e.g., "Dutch/European direct competency-based CV", "Standard UK/Ireland 2-pager", "Detailed DACH-region qualification CV", "US-style concise technical resume").
 8. Suggest a 'Location / Regional Strategy': Based on the locations and company profile, choose the best fit from the available strategies:
    Available: [{AVAILABLE_STRATEGIES}]
    Default: {DEFAULT_STRATEGY}

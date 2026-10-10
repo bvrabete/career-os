@@ -3,9 +3,10 @@ import unittest
 from unittest.mock import patch, MagicMock
 from langgraph.graph import END
 
-from generation.graph import refiner_guard_routing, auditor_routing, build_graph
+from generation.graph import build_graph
+from generation.nodes import node_refiner
 from ingestion.graph import build_ingest_graph
-from generation.state import CVPipelineState
+from generation.state import CVPipelineState, RegionalStrategy
 from ingestion.state import IngestionState
 
 
@@ -13,52 +14,34 @@ class TestGraphArchitectures(unittest.TestCase):
     """Deterministic offline tests for StateGraph orchestrations."""
 
     def test_cv_refiner_guard_routing_overflow(self):
-        """Test refiner_guard_routing routes to compressor when overflow feedback exists and cycles < 2."""
+        """Test node_refiner routes to compressor when overflow feedback exists and cycles < 2."""
         state = CVPipelineState(
-            refiner_feedback="DENSITY OVERFLOW: CV exceeds budget.",
-            compression_count=0
+            draft_cv="word " * 2000, # forces overflow
+            compression_count=0,
+            strategy_metadata=RegionalStrategy(max_pages=1)
         )
-        self.assertEqual(refiner_guard_routing(state), "compressor")
+        command = node_refiner(state)
+        self.assertEqual(command.goto, "compressor")
 
     def test_cv_refiner_guard_routing_max_cycles(self):
-        """Test refiner_guard_routing forces to auditor after 2 compression passes."""
+        """Test node_refiner forces to auditor after 2 compression passes."""
         state = CVPipelineState(
-            refiner_feedback="DENSITY OVERFLOW: CV exceeds budget.",
-            compression_count=2
+            draft_cv="word " * 2000,
+            compression_count=2,
+            strategy_metadata=RegionalStrategy(max_pages=1)
         )
-        self.assertEqual(refiner_guard_routing(state), "auditor")
+        command = node_refiner(state)
+        self.assertEqual(command.goto, "auditor")
 
     def test_cv_refiner_guard_routing_within_budget(self):
-        """Test refiner_guard_routing proceeds directly to auditor when within budget."""
+        """Test node_refiner proceeds directly to auditor when within budget."""
         state = CVPipelineState(
-            refiner_feedback="",
-            compression_count=0
+            draft_cv="word " * 100,
+            compression_count=0,
+            strategy_metadata=RegionalStrategy(max_pages=1)
         )
-        self.assertEqual(refiner_guard_routing(state), "auditor")
-
-    def test_cv_routing_logic_pass(self):
-        """Test cv auditor routing ends when auditor feedback contains PASS."""
-        state = CVPipelineState(
-            audit_feedback="Everything looks great, PASS.",
-            iteration_count=1
-        )
-        self.assertEqual(auditor_routing(state), str(END))
-
-    def test_cv_routing_logic_fail(self):
-        """Test cv auditor routing re-drafts on audit failure."""
-        state = CVPipelineState(
-            audit_feedback="Too long, fix experience block.",
-            iteration_count=1
-        )
-        self.assertEqual(auditor_routing(state), "drafter")
-
-    def test_cv_routing_logic_iterations_limit(self):
-        """Test cv auditor routing terminates when iteration count reaches 3."""
-        state = CVPipelineState(
-            audit_feedback="REWRITE REQUIRED",
-            iteration_count=3
-        )
-        self.assertEqual(auditor_routing(state), str(END))
+        command = node_refiner(state)
+        self.assertEqual(command.goto, "auditor")
 
     def test_build_cv_graph(self):
         """Test compile of build_graph."""

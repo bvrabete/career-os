@@ -361,7 +361,7 @@ def _print_node_feedback(node_name: str, node_state: dict[str, Any]) -> None:
             role, company, strategy, track
         )
     elif node_name == "retriever":
-        exps = len(node_state.get("retrieved_experiences", []))
+        exps = len(node_state.get("selected_entries") or node_state.get("retrieved_experiences") or [])
         skills = len(node_state.get("skills_entries", []))
         logger.info("  📦 [Node B: Retriever] Completed -> Selected %d experiences, %d skills", exps, skills)
     elif node_name == "drafter":
