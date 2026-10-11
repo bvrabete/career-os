@@ -4,6 +4,7 @@ title: "Executive Leadership Track"
 seniority_levels: [VP of Engineering, CTO, Head of Technology, Chief Architect, C-Level]
 archetype: "Enterprise Strategy, Budget & Organizational Transformation"
 focus: [Business-Tech Alignment, CapEx/OpEx Budgeting, Enterprise Scale, Org Design, Board Governance]
+org_culture: corporate
 created: 2026-09-20
 updated: 2026-09-20
 ---

@@ -67,6 +67,50 @@ STEPS:
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 
-# Future configurations (e.g., prompt weights, track defaults)
+# Workspace Paths & Directories
+PATHS:
+  WIKI_DIR: "llm-wiki"            # Canonical Knowledge Base SSoT directory
+  OUTPUT_DIR: "output"   # Export directory for clean drafts and compiled PDF/DOCX
+
+# Application & Generation Defaults
+DEFAULTS:
+  STRATEGY: "emea"                # Deterministic regional strategy (override via CLI --strategy)
+  TRACK: "Corporate"              # Default professional domain track
+  GENERATE_PDF: false             # Auto-compile PDF to OUTPUT_DIR
+  GENERATE_DOCX: false            # Auto-compile DOCX to OUTPUT_DIR
+
+# Backward compatibility aliases
 TRACK_DEFAULT: "Corporate"
 STRATEGY_DEFAULT: "emea"
+
+# Experience Scoring & Selection Optimization
+SCORING:
+  FACTORS:
+    ATS_SCORE: 0.50
+    RECENCY: 0.30
+    DURATION: 0.20
+  DURATION_CAP_YEARS: 3.0
+  RECENCY_HORIZON_YEARS: 15.0
+
+  EMPLOYMENT_TYPE_MULTIPLIERS:
+    Permanent: 1.00
+    Startup / Co-Founder: 1.00
+    Contract: 0.85
+    Advisory: 0.75
+
+  CULTURE_MULTIPLIERS:
+    corporate:
+      Permanent: 1.00
+      Contract: 1.00
+      Startup / Co-Founder: 0.80
+      Advisory: 0.85
+    startup:
+      Permanent: 1.00
+      Contract: 1.00
+      Startup / Co-Founder: 1.10
+      Advisory: 1.00
+
+  TIERS:
+    TIER_1_EXPANDED: 0.70
+    TIER_2_BALANCED: 0.45
+    TIER_3_COMPRESSED: 0.30

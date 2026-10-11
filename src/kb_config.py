@@ -249,6 +249,48 @@ def get_model(temperature=0):
     return get_model_for_step("REFINEMENT", temperature=temperature)
 
 
+def get_scoring_config() -> dict[str, Any]:
+    """Returns the scoring configuration dictionary from config.yaml with sensible fallbacks."""
+    config = load_config()
+    scoring = config.get("SCORING")
+    if isinstance(scoring, dict):
+        return scoring
+    return {
+        "FACTORS": {
+            "ATS_SCORE": 0.50,
+            "RECENCY": 0.30,
+            "DURATION": 0.20,
+        },
+        "DURATION_CAP_YEARS": 3.0,
+        "RECENCY_HORIZON_YEARS": 15.0,
+        "EMPLOYMENT_TYPE_MULTIPLIERS": {
+            "Permanent": 1.00,
+            "Startup / Co-Founder": 1.00,
+            "Contract": 0.85,
+            "Advisory": 0.75,
+        },
+        "CULTURE_MULTIPLIERS": {
+            "corporate": {
+                "Permanent": 1.00,
+                "Contract": 1.00,
+                "Startup / Co-Founder": 0.80,
+                "Advisory": 0.85,
+            },
+            "startup": {
+                "Permanent": 1.00,
+                "Contract": 1.00,
+                "Startup / Co-Founder": 1.10,
+                "Advisory": 1.00,
+            },
+        },
+        "TIERS": {
+            "TIER_1_EXPANDED": 0.70,
+            "TIER_2_BALANCED": 0.45,
+            "TIER_3_COMPRESSED": 0.30,
+        },
+    }
+
+
 if __name__ == "__main__":
     # Test loading
     try:

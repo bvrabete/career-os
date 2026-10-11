@@ -6,7 +6,6 @@ import re
 import sys
 from typing import Any, Literal
 from langgraph.types import Command
-from langgraph.graph import END
 
 from langchain_core.messages import HumanMessage
 
@@ -144,7 +143,13 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     # Sub-retrievals (with budget-aware pruning)
     selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(
-        llm, keywords, persona, jd, max_pages=strategy_obj.max_pages
+        llm,
+        keywords,
+        persona,
+        jd,
+        max_pages=strategy_obj.max_pages,
+        target_track=track,
+        org_culture=track_obj.org_culture,
     )
     education_content = retrieve_and_deduplicate_education(wiki_dir)
 
@@ -331,7 +336,7 @@ def node_refiner(state: CVPipelineState) -> Command[Literal["compressor", "audit
     compression_count = state.get("compression_count", 0)
 
     if is_over:
-        goto_node = "compressor" if compression_count < 2 else "auditor"
+        goto_node: Literal["compressor", "auditor"] = "compressor" if compression_count < 2 else "auditor"
         if goto_node == "compressor":
             logging.warning(
                 f"Refiner guard triggered fast compressor (pass {compression_count + 1}/2) due to page budget overflow."
@@ -459,7 +464,7 @@ def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"
     # Clean markdown json code blocks if present and parse the scorecard
     json_str = feedback
     if "```" in json_str:
-        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', re.DOTALL)
+        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', json_str, re.DOTALL)
         if blocks:
             json_str = blocks[0].strip()
 
@@ -495,6 +500,7 @@ def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"
 
     # Determine next routing step based on feedback and iterations
     is_pass = "PASS" in stored_feedback or (current_iterations + 1) >= 3
+    goto_target: Literal["drafter", "__end__"] = "__end__" if is_pass else "drafter"
 
     return Command(
         update={
@@ -502,5 +508,5 @@ def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"
             "ats_scorecard": ats_score,
             "iteration_count": current_iterations + 1,
         },
-        goto=END if is_pass else "drafter"
+        goto=goto_target
     )

@@ -281,6 +281,31 @@ Keep cognitive complexity **strictly below 15** per function/method:
 - **User Manages Git Exclusively**: The user manages git directly. Agents must **NEVER** run git staging or commit commands (`git add`, `git commit`, `git push`, etc.).
 - **No Check-Ins Without Prior User Review**: All code changes must remain unstaged in the working directory so the user can thoroughly inspect and review them before check-in.
 
+### Python Runtime & Package Management
+- **Always use `uv`**: Never invoke `python`, `python3`, `pip`, or `pytest` directly. Every Python execution and package operation must go through `uv`:
+  - Run scripts:      `uv run python script.py`
+  - Run tests:        `uv run pytest`
+  - Run type checker: `uv run mypy`
+  - Run linter:       `uv run ruff check src tests`
+  - Add packages:     `uv add <package>`
+  - Install deps:     `uv sync` / `uv sync --group dev`
+- **Rationale**: `uv` manages the project's virtual environment and lock file; bypassing it risks inconsistent interpreter versions, missing dependencies, and broken lock-file state.
+
+### Codebase Search & Discovery
+- **MCP Graph First**: Always use the `codebase-memory-mcp` knowledge graph as the **primary tool** for code discovery. Prefer graph tools over grep/glob/file-search for locating functions, classes, routes, and variables.
+- **Priority Order**:
+  1. `search_graph` — find functions, classes, routes, or variables by name pattern.
+  2. `trace_path` — trace callers or callees of a specific function.
+  3. `get_code_snippet` — retrieve exact source for a known qualified name.
+  4. `check_index_coverage` — validate candidate paths and missed ranges before making negative or exhaustive claims.
+  5. `query_graph` — run Cypher queries for complex structural patterns.
+  6. `get_architecture` — high-level project summary for orientation.
+- **Fall back to grep/glob only when**:
+  - Searching for string literals, error messages, or configuration values.
+  - Searching non-code files (Dockerfiles, shell scripts, YAML configs).
+  - MCP tools return insufficient or inconclusive results.
+- **Coverage Check**: After candidate paths are known, call `check_index_coverage` once with all evidence paths before making any exhaustive or negative claims about the codebase.
+
 ---
 
 ## 7. Definition of Done (Pre-Finalization Checklist)

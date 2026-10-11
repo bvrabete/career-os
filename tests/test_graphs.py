@@ -1,7 +1,6 @@
 """Unit tests for the CV generation and ingestion graph architectures."""
 import unittest
 from unittest.mock import patch, MagicMock
-from langgraph.graph import END
 
 from generation.graph import build_graph
 from generation.nodes import node_refiner

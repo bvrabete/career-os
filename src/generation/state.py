@@ -65,6 +65,7 @@ class TrackStrategy:
     seniority_levels: list[str] = field(default_factory=list)
     archetype: str = ""
     focus: list[str] = field(default_factory=list)
+    org_culture: str = "corporate"
     created: str = ""
     updated: str = ""
     body: str = ""
@@ -98,16 +99,27 @@ class TrackStrategy:
             else [str(focus_raw)]
         )
 
+        org_culture_raw = str(fm.get("org_culture", "")).strip().lower()
+        if not org_culture_raw:
+            title_lower = str(fm.get("title", "")).lower()
+            archetype_lower = str(fm.get("archetype", "")).lower()
+            if any(k in title_lower or k in archetype_lower for k in ["startup", "founding", "founder"]):
+                org_culture_raw = "startup"
+            else:
+                org_culture_raw = "corporate"
+
         return cls(
             type=str(fm.get("type", "strategy-track")),
             title=str(fm.get("title", "")),
             seniority_levels=seniority_list,
             archetype=str(fm.get("archetype", "")),
             focus=focus_list,
+            org_culture=org_culture_raw,
             created=str(fm.get("created", "")),
             updated=str(fm.get("updated", "")),
             body=body_text,
         )
+
 
 
 class CVPipelineState(TypedDict, total=False):

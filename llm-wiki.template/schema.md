@@ -19,6 +19,7 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | patent | `wiki/patents/` | Detailed records of patents and inventions |
 | publication | `wiki/publications/` | Peer-reviewed articles, conference papers, whitepapers, and book chapters |
 | strategy | `wiki/strategies/` | Relocation profiles, contact strategy variants, and regional tailoring |
+| strategy-track | `wiki/strategies/tracks/` | Career domain archetypes, seniority scopes, and org culture alignment |
 | query | `wiki/queries/` | Reconciliation of conflicting data points from old CVs |
 | case_study | `wiki/case-studies/` | In-depth technical architecture whitepapers, system designs, and platform migration reports |
 | profile | `wiki/profile.md` | Canonical candidate profile, contact links, baseline summary & domains |
@@ -36,6 +37,7 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 - Patents: `patent-id-slug.md` (e.g., `patent-us12345678-distributed-caching.md`)
 - Publications: `pub-slug.md` (e.g., `pub-distributed-edge-telemetry.md`)
 - Strategies: `strategy-region-slug.md` (e.g., `strategy-ireland.md`)
+- Strategy Tracks: `track-slug.md` (e.g., `engineering-management.md`, `startup-founding-engineer.md`)
 - Projects: `project-name.md` (e.g., `project-cloud-migration.md`)
 - Sources: `source-name.md` (e.g., `jane-doe-resume-2026.md`)
 - Synthesis: `synthesis-variant-name.md` (e.g., `synthesis-cto-startup.md`)
@@ -58,7 +60,7 @@ location: "City, Country"
 dates: 
   start: YYYY-MM-DD
   end: YYYY-MM-DD | Present
-employment_type: Permanent | Contract  # Optional, defaults to Permanent
+employment_type: Permanent | Contract | Startup / Co-Founder | Advisory  # Optional, defaults to Permanent
 tracks: [Track-A, Track-B] # Functional specializations tailored to your industry (e.g. Management, Engineering, Sales, Medical, etc.)
 skills: [skill-slug-1, skill-slug-2]
 tags: [role-level, industry]
@@ -199,6 +201,21 @@ type: strategy
 title: "Region Strategy"
 region: [Ireland, Netherlands, Germany, USA]
 focus: [Contact, Relocation, Tone]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+### Strategy Track Page
+
+```yaml
+---
+type: strategy-track
+title: "Track Title"
+seniority_levels: [Senior, Lead, Principal, Manager]
+archetype: "Domain Archetype Description"
+focus: [Focus-Area-1, Focus-Area-2]
+org_culture: corporate | startup  # Optional, default: corporate (or startup for founding/startup tracks)
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---

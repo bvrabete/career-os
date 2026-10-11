@@ -106,11 +106,12 @@ To ensure a perfectly structured, compact, and compliant CV, the generation pipe
 * **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
 * **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
 * **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
-* **Multi-Factor Experience Weighting (4-Tier Routing Engine)**: Evaluates each role based on *ATS Score Relevance* (50%), *Recency Decay* over 15 years (30%), and *Duration Factor* up to 3 years (20%). It dynamically routes roles to four distinct compression tiers:
-  * *Tier 1 (High Weight & Recent)*: Full detail with custom pruning.
-  * *Tier 2 (Medium-High Weight)*: Light compression keeping up to 4 key achievements.
-  * *Tier 3 (Medium Weight)*: Aggressive LLM summary collapsed into a short paragraph.
-  * *Tier 4 (Historic / Low Weight)*: Ultra-historic (15+ years) or low-relevance roles are pre-compressed into exactly one highly optimized, keyword-rich ATS-aligned sentence, guaranteeing zero chronological gaps or omissions while saving massive page budget.
+* **Multi-Objective Experience Scoring & Selection**: Formulates role selection as a two-stage optimization problem to prevent short contract engagements from overshadowing multi-year institutional leadership:
+  * **Stage 1 (Calibrated Value $V_i$)**: Combines multi-factor base relevance (*ATS Keyword Relevance* 50%, *Recency Decay* over 15 years 30%, and *Tenure Duration* up to 3 years 20%) with structural **Employment-Type Multipliers** (e.g., Permanent 1.00, Contract 0.85, Advisory 0.75) and **Org-Culture Alignment Multipliers** (`corporate` vs `startup`).
+  * **Stage 2 (Knapsack Budgeting & Detail Allocation)**: Sorts candidates by calibrated value $V_i$ (rather than raw LLM score) and allocates content density across calibrated tiers:
+    * *Tier 1 (Expanded STAR Detail, $V_i \ge 0.70$ and $<10$y)*: Full STAR achievements (6–8 bullets).
+    * *Tier 2 (Balanced STAR Detail, $0.45 \le V_i < 0.70$ and $<15$y)*: Top 4–7 STAR achievements.
+    * *Tier 3 (One-Liner / High-Level Compression, $V_i < 0.45$ or $\ge 15$y)*: Pre-compressed into single-line ATS summaries to guarantee zero chronological gaps without page bloat.
 
 ---
 
@@ -262,16 +263,73 @@ To run local models, you must first install Ollama:
 
 We provide several predefined configurations tailored for different hardware setups:
 
-1. **`config.yaml` (Active Default / Low VRAM Local-First)**:
-   Optimized specifically to run **100% on GPU under 6GB VRAM**. By using `llama3.1:8b` and `qwen2.5:7b`, it completely avoids slow CPU offloading, making local execution near-instantaneous. Heavy drafting is offloaded to OpenAI's `gpt-4o` (which handles >30k token contexts effortlessly).
-2. **`config.hybrid-openai.yaml` (Cloud-Assisted OpenAI Hybrid)**:
-   A high-speed, high-precision layout pairing local Ollama models with OpenAI APIs (`gpt-4o` and `gpt-4o-mini`) for intensive parsing, drafting, and deduplication tasks.
-3. **`config.hybrid-gemini.yaml` (Cloud-Assisted Gemini Hybrid)**:
-   A fast, high-context layout pairing local Ollama models with Google Gemini APIs (`gemini-1.5-flash` and `gemini-1.5-pro`) for extensive drafting and schema-extraction tasks.
-4. **`config.original-heavy.yaml` (High-End Local)**:
-   The original model setup utilizing high-parameter local models (`qwen2.5:14b` and `gemma2:27b`) for high-reasoning local matching. Recommended only if you have 16GB+ VRAM or a dedicated cluster.
+1. **`config.yaml` (Active Configuration)**:
+   The active configuration file loaded by CareerOS.
+2. **`config.openai.yaml` (Pure OpenAI-Assisted)**:
+   Runs exclusively via OpenAI API using `gpt-4o-mini` for lightweight tasks and `o3-mini` for high-reasoning drafting, audit, and ingestion tasks.
+3. **`config.gemini.yaml` (Pure Google Gemini)**:
+   Runs exclusively via Gemini API using `gemini-2.5-flash` and `gemini-2.5-pro`.
+4. **`config.low-vram-local.yaml` (Low VRAM Local-First)**:
+   Optimized specifically to run **100% on GPU under 6GB VRAM** using `llama3.1:8b` and `qwen2.5:7b`, with heavy drafting offloaded to cloud API.
+5. **`config.hybrid-openai.yaml` (Cloud-Assisted OpenAI Hybrid)**:
+   Pairs local Ollama models with OpenAI APIs for intensive parsing, drafting, and deduplication tasks.
+6. **`config.hybrid-gemini.yaml` (Cloud-Assisted Gemini Hybrid)**:
+   Pairs local Ollama models with Google Gemini APIs for drafting and schema-extraction tasks.
+7. **`config.local-heavy.yaml` (High-End Local)**:
+   Utilizes high-parameter local models (`qwen2.5:14b` and `gemma2:27b`) for local matching and generation (recommended for 16GB+ VRAM).
 
-*To activate an alternative setup, simply overwrite `config.yaml` with your chosen template (e.g., `cp config.hybrid-openai.yaml config.yaml`).*
+*To activate an alternative setup, simply copy your chosen template to `config.yaml` (e.g., `cp config.openai.yaml config.yaml`).*
+
+---
+
+### 🎯 Multi-Objective Scoring Configuration (`SCORING`)
+
+CareerOS centralizes all experience scoring parameters in `config.yaml` under `SCORING:`:
+
+```yaml
+SCORING:
+  FACTORS:
+    ATS_SCORE: 0.50          # Keyword relevance weight
+    RECENCY: 0.30            # Recency decay weight
+    DURATION: 0.20           # Tenure duration weight
+  DURATION_CAP_YEARS: 3.0    # Duration saturation cap
+  RECENCY_HORIZON_YEARS: 15.0 # Horizon for linear recency decay
+
+  EMPLOYMENT_TYPE_MULTIPLIERS:
+    Permanent: 1.00
+    Startup / Co-Founder: 1.00
+    Contract: 0.85           # Discounts short-term contract gigs
+    Advisory: 0.75
+
+  CULTURE_MULTIPLIERS:
+    corporate:
+      Permanent: 1.00
+      Contract: 1.00
+      Startup / Co-Founder: 0.80 # De-emphasizes startup roles for corporate targets
+      Advisory: 0.85
+    startup:
+      Permanent: 1.00
+      Contract: 1.00
+      Startup / Co-Founder: 1.10 # Boosts entrepreneurial roles for startup targets
+      Advisory: 1.00
+
+  TIERS:
+    TIER_1_EXPANDED: 0.70       # Expanded STAR achievements (6-8 bullets)
+    TIER_2_BALANCED: 0.45       # Balanced STAR achievements (4-7 bullets)
+    TIER_3_COMPRESSED: 0.30     # One-liner ATS summary compression
+```
+
+#### Track Frontmatter Overrides
+Any career track strategy file under `<LLM_WIKI_DIR>/wiki/strategies/tracks/<track>.md` can specify its target organizational culture:
+
+```yaml
+---
+type: strategy-track
+title: "Engineering Management Track"
+org_culture: corporate # or 'startup'
+...
+---
+```
 
 ---
 

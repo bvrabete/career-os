@@ -294,6 +294,88 @@ strategy content text"""
         weight = calculate_experience_weight(30, fm)
         self.assertLess(weight, 0.40)  # Should route to Tier 3
 
+    def test_calculate_experience_weight_discounts_contract_role(self):
+        """Test calculate_experience_weight discounts contract roles vs permanent roles of equal score."""
+        fm_perm = {
+            "dates": {"start": "2023-01-01", "end": "Present"},
+            "employment_type": "Permanent",
+        }
+        fm_contract = {
+            "dates": {"start": "2023-01-01", "end": "Present"},
+            "employment_type": "Contract",
+        }
+        weight_perm = calculate_experience_weight(85, fm_perm, employment_type="Permanent", org_culture="corporate")
+        weight_contract = calculate_experience_weight(
+            85, fm_contract, employment_type="Contract", org_culture="corporate"
+        )
+        self.assertLess(weight_contract, weight_perm)
+        self.assertAlmostEqual(weight_contract, round(weight_perm * 0.85, 4), places=2)
+
+    def test_calculate_experience_weight_discounts_startup_for_corporate(self):
+        """Test calculate_experience_weight discounts startup/co-founder roles when target is corporate."""
+        fm_startup = {
+            "dates": {"start": "2023-01-01", "end": "Present"},
+            "employment_type": "Startup / Co-Founder",
+        }
+        fm_perm = {
+            "dates": {"start": "2023-01-01", "end": "Present"},
+            "employment_type": "Permanent",
+        }
+        weight_corp = calculate_experience_weight(
+            85, fm_startup, employment_type="Startup / Co-Founder", org_culture="corporate"
+        )
+        weight_perm = calculate_experience_weight(
+            85, fm_perm, employment_type="Permanent", org_culture="corporate"
+        )
+        self.assertLess(weight_corp, weight_perm)
+        self.assertAlmostEqual(weight_corp, round(weight_perm * 0.80, 4), places=2)
+
+    def test_calculate_experience_weight_boosts_startup_for_startup_track(self):
+        """Test calculate_experience_weight boosts startup/co-founder roles when target is startup."""
+        fm_startup = {
+            "dates": {"start": "2023-01-01", "end": "2024-01-01"},
+            "employment_type": "Startup / Co-Founder",
+        }
+        fm_perm = {
+            "dates": {"start": "2023-01-01", "end": "2024-01-01"},
+            "employment_type": "Permanent",
+        }
+        weight_startup_track = calculate_experience_weight(
+            80, fm_startup, employment_type="Startup / Co-Founder", org_culture="startup"
+        )
+        weight_perm_track = calculate_experience_weight(
+            80, fm_perm, employment_type="Permanent", org_culture="startup"
+        )
+        self.assertGreater(weight_startup_track, weight_perm_track)
+        self.assertAlmostEqual(weight_startup_track, round(min(1.0, weight_perm_track * 1.10), 4), places=2)
+
+    def test_short_contract_cannot_outrank_permanent_role_across_variances(self):
+        """Test short contract (high score 95) cannot outrank 2.5yr permanent role (moderate score 80)."""
+        current_year = datetime.date.today().year
+        fm_contract_6mo = {
+            "dates": {
+                "start": f"{current_year}-01-01",
+                "end": f"{current_year}-07-01",
+            },
+            "employment_type": "Contract",
+        }
+        fm_perm_2_5yr = {
+            "dates": {
+                "start": f"{current_year - 3}-01-01",
+                "end": f"{current_year}-07-01",
+            },
+            "employment_type": "Permanent",
+        }
+        contract_weight = calculate_experience_weight(
+            95, fm_contract_6mo, employment_type="Contract", org_culture="corporate"
+        )
+        perm_weight = calculate_experience_weight(
+            80, fm_perm_2_5yr, employment_type="Permanent", org_culture="corporate"
+        )
+        self.assertGreater(perm_weight, contract_weight)
+        self.assertGreaterEqual(perm_weight, 0.70)
+        self.assertLess(contract_weight, 0.70)
+
 
 if __name__ == "__main__":
     unittest.main()
