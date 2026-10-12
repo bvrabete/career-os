@@ -425,7 +425,8 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_refiner(state)
-        self.assertIn("DENSITY ERROR: The CV is too long", result["refiner_feedback"])
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertIn("DENSITY ERROR: The CV is too long", res_dict["refiner_feedback"])
 
     def test_node_refiner_short(self):
         """Test node_refiner returns empty feedback when CV length is acceptable."""
@@ -458,7 +459,8 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_refiner(state)
-        self.assertEqual(result["refiner_feedback"], "")
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertEqual(res_dict["refiner_feedback"], "")
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
@@ -498,8 +500,9 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_auditor(state)
-        self.assertEqual(result["audit_feedback"], "AUDIT FEEDBACK TEXT")
-        self.assertEqual(result["iteration_count"], 2)
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertEqual(res_dict["audit_feedback"], "AUDIT FEEDBACK TEXT")
+        self.assertEqual(res_dict["iteration_count"], 2)
 
 
 if __name__ == "__main__":

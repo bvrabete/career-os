@@ -291,6 +291,32 @@ def get_scoring_config() -> dict[str, Any]:
     }
 
 
+def get_coverage_selection_enabled() -> bool:
+    """Returns whether coverage-aware evidence selection is enabled in config.yaml."""
+    config = load_config()
+    gen = config.get("GENERATION")
+    if isinstance(gen, dict) and "ENABLE_COVERAGE_SELECTION" in gen:
+        return bool(gen["ENABLE_COVERAGE_SELECTION"])
+    return True
+
+
+def get_coverage_selection_config() -> dict[str, Any]:
+    """Returns the coverage-aware evidence selection configuration dictionary."""
+    config = load_config()
+    gen = config.get("GENERATION")
+    if isinstance(gen, dict) and isinstance(gen.get("COVERAGE_SELECTION"), dict):
+        return gen["COVERAGE_SELECTION"]
+    return {
+        "TARGET_PAGE_BUDGET": 2,
+        "CONTENT_BUDGET_WORDS": 700,
+        "ALPHA_MARGINAL_COVERAGE": 0.50,
+        "BETA_EVIDENCE_QUALITY": 0.30,
+        "GAMMA_ROLE_CALIBRATION": 0.20,
+        "REDUNDANCY_PENALTY": 0.60,
+        "MIN_ESSENTIAL_COVERAGE": 0.85,
+    }
+
+
 if __name__ == "__main__":
     # Test loading
     try:

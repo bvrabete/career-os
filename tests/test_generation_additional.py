@@ -115,20 +115,23 @@ class TestGenerationAdditional(unittest.TestCase):
 
         # 1-page strategy over budget
         res_1_page = node_refiner(base_state)
-        self.assertTrue("DENSITY ERROR" in res_1_page["refiner_feedback"])
+        res_1_dict = res_1_page.update if (hasattr(res_1_page, "update") and isinstance(res_1_page.update, dict)) else res_1_page
+        self.assertTrue("DENSITY ERROR" in res_1_dict["refiner_feedback"])
 
         # 3-page strategy within budget
         state_3_page = base_state.copy()
         state_3_page["strategy_metadata"] = RegionalStrategy(max_pages=3)
         res_3_page = node_refiner(state_3_page)
-        self.assertEqual(res_3_page["refiner_feedback"], "")
+        res_3_dict = res_3_page.update if (hasattr(res_3_page, "update") and isinstance(res_3_page.update, dict)) else res_3_page
+        self.assertEqual(res_3_dict["refiner_feedback"], "")
 
         # 4-page strategy within budget
         state_4_page = base_state.copy()
         state_4_page["draft_cv"] = "A" * 15000  # limit is 12500 + 4000 = 16500
         state_4_page["strategy_metadata"] = RegionalStrategy(max_pages=4)
         res_4_page = node_refiner(state_4_page)
-        self.assertEqual(res_4_page["refiner_feedback"], "")
+        res_4_dict = res_4_page.update if (hasattr(res_4_page, "update") and isinstance(res_4_page.update, dict)) else res_4_page
+        self.assertEqual(res_4_dict["refiner_feedback"], "")
 
     def test_node_auditor_scorecard_parsing_variations(self):
         """Test node_auditor parsing with code blocks and structured scorecard details."""
@@ -182,8 +185,9 @@ class TestGenerationAdditional(unittest.TestCase):
             mock_llm.invoke.return_value = AIMessage(content=mock_response_content)
 
             res = node_auditor(state)
-            self.assertEqual(res["audit_feedback"], "PASS")
-            self.assertEqual(res["iteration_count"], 2)
+            res_dict = res.update if (hasattr(res, "update") and isinstance(res.update, dict)) else res
+            self.assertEqual(res_dict["audit_feedback"], "PASS")
+            self.assertEqual(res_dict["iteration_count"], 2)
 
         # Test fallback on invalid JSON format
         with patch("generation.nodes.get_model_for_step") as mock_get_model, \
@@ -194,7 +198,8 @@ class TestGenerationAdditional(unittest.TestCase):
             mock_llm.invoke.return_value = AIMessage(content="This is not a JSON string at all.")
 
             res = node_auditor(state)
-            self.assertEqual(res["audit_feedback"], "This is not a JSON string at all.")
+            res_dict = res.update if (hasattr(res, "update") and isinstance(res.update, dict)) else res
+            self.assertEqual(res_dict["audit_feedback"], "This is not a JSON string at all.")
 
 
 if __name__ == "__main__":

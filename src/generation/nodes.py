@@ -248,6 +248,14 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
 
     chronological_entries_text = parse_and_sort_chronological_entries(entries)
 
+    manifest = state.get("selection_manifest")
+    selection_manifest_text = "None"
+    if manifest and isinstance(manifest, dict):
+        selected_ev = manifest.get("selected_evidence", [])
+        if selected_ev:
+            lines = [f"- [{item.get('role_or_project', 'Evidence')}] {item.get('text', '')}" for item in selected_ev if isinstance(item, dict)]
+            selection_manifest_text = "\n".join(lines)
+
     system_prompt = load_prompt("drafter_system.txt")
     user_template = load_prompt("drafter_user.txt")
 
@@ -255,6 +263,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         job_description=jd,
         feedback_instruction=feedback_instruction,
         strategy_info=strategy,
+        selection_manifest_text=selection_manifest_text,
         skill_bridge_text=skill_bridge_text,
         few_shots_text=few_shots_text,
         chronological_entries_text=chronological_entries_text,

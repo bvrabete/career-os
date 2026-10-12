@@ -10,6 +10,10 @@ SUBJECT & STRATEGY:
 {strategy_info}
 
 ---
+PRE-SELECTED EVIDENCE MANIFEST (Prioritize these achievements to ensure 100% requirement coverage):
+{selection_manifest_text}
+
+---
 SKILL BRIDGING MAP (Use to align skill names):
 {skill_bridge_text}
 

@@ -1,7 +1,8 @@
 """State definition for the CV generation pipeline."""
 from dataclasses import dataclass, field
 import re
-from typing import TypedDict, Any
+from typing import TypedDict, Any, Literal
+from pydantic import BaseModel, Field
 import yaml
 
 
@@ -121,6 +122,77 @@ class TrackStrategy:
         )
 
 
+class RequirementSupport(BaseModel):
+    """Semantic or keyword support relationship between an evidence item and a requirement."""
+    requirement_id: str
+    relevance_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    support_strength: Literal["primary", "secondary", "supporting"] = "supporting"
+    rationale: str = ""
+
+
+class JobRequirement(BaseModel):
+    """Explicit, typed, weighted requirement extracted from a target job description."""
+    id: str
+    text: str
+    category: Literal[
+        "core_technical",
+        "system_architecture",
+        "leadership_management",
+        "domain_specialization",
+        "delivery_methodology",
+        "business_impact",
+        "cultural_soft_skill"
+    ] = "core_technical"
+    priority: Literal["essential", "important", "supporting"] = "important"
+    weight: float = Field(default=1.0, ge=0.1, le=2.0)
+    keywords: list[str] = Field(default_factory=list)
+    source_text: str = ""
+    notes: str = ""
+
+
+class EvidenceItem(BaseModel):
+    """Normalized atomic unit of evidence (achievement bullet, project, patent, note) for selection."""
+    id: str
+    source_ref: str  # e.g., "experiences/acme-corp.md:achievements[2]"
+    source_type: Literal["experience", "project", "patent", "case_study", "note"]
+    role_or_project: str
+    text: str
+    existing_role_score: float = 0.0
+    keyword_relevance: float = 0.0
+    impact_assessment: float = 0.5  # 0.0 to 1.0 based on metrics/scope
+    evidence_confidence: float = 1.0
+    estimated_words: int = 0
+    supports: list[RequirementSupport] = Field(default_factory=list)
+    redundancy_group: str = ""  # cluster key e.g. "aws_cloud_migration"
+    selection_status: Literal["selected", "marginal_pass", "excluded"] = "excluded"
+    selection_reason: str = ""
+    exclusion_reason: str = ""
+
+
+class SelectionConfig(BaseModel):
+    """Knapsack optimization configuration parameters."""
+    target_page_budget: int = 2
+    content_budget_words: int = 700
+    alpha_marginal_coverage: float = 0.50
+    beta_evidence_quality: float = 0.30
+    gamma_role_calibration: float = 0.20
+    redundancy_penalty_multiplier: float = 0.60
+    min_essential_coverage_ratio: float = 0.85
+
+
+class SelectionManifest(BaseModel):
+    """Machine-readable evidence selection record informing Drafter and Auditor."""
+    schema_version: str = "1.0.0"
+    run_id: str = ""
+    content_budget_words: int = 700
+    estimated_selected_words: int = 0
+    requirements: list[JobRequirement] = Field(default_factory=list)
+    selected_evidence: list[EvidenceItem] = Field(default_factory=list)
+    uncovered_requirements: list[JobRequirement] = Field(default_factory=list)
+    excluded_evidence: list[EvidenceItem] = Field(default_factory=list)
+    coverage_summary: dict[str, float] = Field(default_factory=dict)
+    selection_config: SelectionConfig = Field(default_factory=SelectionConfig)
+
 
 class CVPipelineState(TypedDict, total=False):
     """The state dictionary passed between nodes in the CV generation LangGraph."""
@@ -159,3 +231,7 @@ class CVPipelineState(TypedDict, total=False):
     languages_entries: list[str]
     target_organization_slug: str
     target_role: str
+    requirements: list[dict[str, Any]]
+    candidate_evidence: list[dict[str, Any]]
+    selection_manifest: dict[str, Any] | None
+

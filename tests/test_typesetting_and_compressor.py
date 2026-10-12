@@ -61,8 +61,9 @@ class TestTypesettingAndCompressor(unittest.TestCase):
             strategy_metadata=RegionalStrategy(max_pages=2)
         )
         res = node_refiner(state)
-        self.assertTrue(bool(res["refiner_feedback"]))
-        self.assertIn("DENSITY OVERFLOW", res["refiner_feedback"])
+        res_dict = res.update if (hasattr(res, "update") and isinstance(res.update, dict)) else res
+        self.assertTrue(bool(res_dict["refiner_feedback"]))
+        self.assertIn("DENSITY OVERFLOW", res_dict["refiner_feedback"])
 
         # Under budget draft
         ok_draft = ("word " * 400)
@@ -71,7 +72,8 @@ class TestTypesettingAndCompressor(unittest.TestCase):
             strategy_metadata=RegionalStrategy(max_pages=2)
         )
         res_ok = node_refiner(state_ok)
-        self.assertEqual(res_ok["refiner_feedback"], "")
+        res_ok_dict = res_ok.update if (hasattr(res_ok, "update") and isinstance(res_ok.update, dict)) else res_ok
+        self.assertEqual(res_ok_dict["refiner_feedback"], "")
 
     @patch("generation.nodes.get_model_for_step")
     def test_node_compressor(self, mock_get_model):
@@ -88,8 +90,9 @@ class TestTypesettingAndCompressor(unittest.TestCase):
             compression_count=0
         )
         result = node_compressor(state)
-        self.assertEqual(result["draft_cv"], "# Compressed CV\n- Impact 1")
-        self.assertEqual(result["compression_count"], 1)
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertEqual(res_dict["draft_cv"], "# Compressed CV\n- Impact 1")
+        self.assertEqual(res_dict["compression_count"], 1)
 
     @patch("generation.nodes.get_model_for_step")
     def test_node_auditor_pass(self, mock_get_model):
@@ -107,9 +110,10 @@ class TestTypesettingAndCompressor(unittest.TestCase):
             iteration_count=0
         )
         result = node_auditor(state)
-        self.assertEqual(result["audit_feedback"], "PASS")
-        self.assertEqual(result["ats_scorecard"]["total_score"], 95)
-        self.assertEqual(result["iteration_count"], 1)
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertEqual(res_dict["audit_feedback"], "PASS")
+        self.assertEqual(res_dict["ats_scorecard"]["total_score"], 95)
+        self.assertEqual(res_dict["iteration_count"], 1)
 
     @patch("generation.nodes.get_model_for_step")
     def test_node_auditor_fail(self, mock_get_model):
@@ -128,9 +132,10 @@ class TestTypesettingAndCompressor(unittest.TestCase):
             interactive=False
         )
         result = node_auditor(state)
-        self.assertIn("REWRITE REQUIRED", result["audit_feedback"])
-        self.assertIn("Add metrics", result["audit_feedback"])
-        self.assertEqual(result["ats_scorecard"]["total_score"], 68)
+        res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
+        self.assertIn("REWRITE REQUIRED", res_dict["audit_feedback"])
+        self.assertIn("Add metrics", res_dict["audit_feedback"])
+        self.assertEqual(res_dict["ats_scorecard"]["total_score"], 68)
 
 
 if __name__ == "__main__":

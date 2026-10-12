@@ -13,6 +13,11 @@ from generation.nodes import (
     node_compressor,
     node_auditor
 )
+from generation.selection_nodes import (
+    node_requirement_mapper,
+    node_evidence_selector,
+)
+from kb_config import get_coverage_selection_enabled
 
 
 def build_graph() -> Any:
@@ -30,10 +35,22 @@ def build_graph() -> Any:
     workflow.add_node("compressor", node_compressor, retry_policy=llm_retry)
     workflow.add_node("auditor", node_auditor, retry_policy=llm_retry) # auditor handles its own Command routing
 
+    enable_selection = get_coverage_selection_enabled()
+    if enable_selection:
+        workflow.add_node("requirement_mapper", node_requirement_mapper, retry_policy=llm_retry)
+        workflow.add_node("evidence_selector", node_evidence_selector)
+
     # Establish linear transitions
     workflow.set_entry_point("analyzer")
     workflow.add_edge("analyzer", "retriever")
-    workflow.add_edge("retriever", "drafter")
+
+    if enable_selection:
+        workflow.add_edge("retriever", "requirement_mapper")
+        workflow.add_edge("requirement_mapper", "evidence_selector")
+        workflow.add_edge("evidence_selector", "drafter")
+    else:
+        workflow.add_edge("retriever", "drafter")
+
     workflow.add_edge("drafter", "refiner")
 
     # Command routing from refiner handles branching to compressor or auditor

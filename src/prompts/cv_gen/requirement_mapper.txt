@@ -1,0 +1,18 @@
+You are an executive talent strategist and technical recruiter. Your task is to dissect a Job Description (JD) into structured, explicit, weighted requirements.
+
+Job Description:
+{JOB_DESCRIPTION}
+
+Target Persona / Strategy Context:
+{TARGET_PERSONA}
+
+Return a valid JSON object with the key "requirements", containing a list of objects with the following schema:
+- "id": "req-1", "req-2", etc.
+- "text": Concise description of the specific skill, experience, metric, or competency required.
+- "category": One of ["core_technical", "system_architecture", "leadership_management", "domain_specialization", "delivery_methodology", "business_impact", "cultural_soft_skill"]
+- "priority": One of ["essential", "important", "supporting"]
+- "weight": Float between 0.1 and 2.0 (essential core requirements should be 1.5 - 2.0, supporting 0.5 - 1.0)
+- "keywords": List of explicit keywords, frameworks, or metrics associated with this requirement.
+- "source_text": Direct snippet from the JD corresponding to this requirement.
+
+Focus on extracting distinct, actionable requirements that can be backed by concrete career evidence. Avoid generic boilerplate.

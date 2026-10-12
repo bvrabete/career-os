@@ -122,6 +122,13 @@ def save_outputs(
         json.dump(state_to_save, f, indent=2, cls=EnhancedJSONEncoder)
     logger.info("Context State saved to %s", context_path)
 
+    manifest = final_state.get("selection_manifest")
+    if manifest:
+        manifest_path = validate_path(out_path.with_name(f"{out_path.stem}_selection_manifest.json"))
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, cls=EnhancedJSONEncoder)
+        logger.info("Selection Manifest saved to %s", manifest_path)
+
     return out_path
 
 
@@ -364,6 +371,15 @@ def _print_node_feedback(node_name: str, node_state: dict[str, Any]) -> None:
         exps = len(node_state.get("selected_entries") or node_state.get("retrieved_experiences") or [])
         skills = len(node_state.get("skills_entries", []))
         logger.info("  📦 [Node B: Retriever] Completed -> Selected %d experiences, %d skills", exps, skills)
+    elif node_name == "requirement_mapper":
+        reqs = len(node_state.get("requirements", []))
+        cands = len(node_state.get("candidate_evidence", []))
+        logger.info("  🎯 [Requirement Mapper] Extracted %d JD requirements, normalized %d candidate items", reqs, cands)
+    elif node_name == "evidence_selector":
+        manifest = node_state.get("selection_manifest") or {}
+        sel_ev = len(manifest.get("selected_evidence", []))
+        cov = manifest.get("coverage_summary", {}).get("total_coverage", 0.0)
+        logger.info("  🧮 [Evidence Selector] Selected %d evidence items (Total Requirement Coverage: %.1f%%)", sel_ev, cov * 100)
     elif node_name == "drafter":
         draft_len = len(node_state.get("draft_cv", ""))
         logger.info("  ✍️ [Node C: Drafter] Completed -> Draft CV generated (%d chars)", draft_len)
