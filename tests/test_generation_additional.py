@@ -1,43 +1,42 @@
 """Additional unit tests to boost coverage in src/generation/state.py and src/generation/nodes.py."""
 
-import unittest
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
 from generation.state import RegionalStrategy, CVPipelineState
 from generation.nodes import node_drafter, node_refiner, node_auditor
 
 
-class TestGenerationAdditional(unittest.TestCase):
+class TestGenerationAdditional:
     """Test suite covering edge cases and error handling paths in generation state and nodes."""
 
     def test_regional_strategy_from_markdown_plain_text(self):
         """Test from_markdown with plain text containing no frontmatter."""
         text = "This is a plain regional strategy with no metadata."
         strategy = RegionalStrategy.from_markdown(text)
-        self.assertEqual(strategy.body, text)
-        self.assertEqual(strategy.region, [])
-        self.assertEqual(strategy.max_pages, 2)
+        assert strategy.body == text
+        assert strategy.region == []
+        assert strategy.max_pages == 2
 
     def test_regional_strategy_from_markdown_invalid_yaml(self):
         """Test from_markdown when frontmatter YAML safe_load throws an exception."""
         text = "---\nregion: [unclosed list\n---\nBody content"
         strategy = RegionalStrategy.from_markdown(text)
-        self.assertEqual(strategy.body, "Body content")
-        self.assertEqual(strategy.region, [])
+        assert strategy.body == "Body content"
+        assert strategy.region == []
 
     def test_regional_strategy_from_markdown_string_lists(self):
         """Test from_markdown when region or focus are strings instead of lists."""
         text = "---\nregion: US\nfocus: Engineering\nmax_pages: 3\n---\nBody"
         strategy = RegionalStrategy.from_markdown(text)
-        self.assertEqual(strategy.region, ["US"])
-        self.assertEqual(strategy.focus, ["Engineering"])
-        self.assertEqual(strategy.max_pages, 3)
+        assert strategy.region == ["US"]
+        assert strategy.focus == ["Engineering"]
+        assert strategy.max_pages == 3
 
     def test_regional_strategy_from_markdown_invalid_max_pages(self):
         """Test from_markdown when max_pages is not integer-coercible."""
         text = "---\nmax_pages: invalid-pages-value\n---\nBody"
         strategy = RegionalStrategy.from_markdown(text)
-        self.assertEqual(strategy.max_pages, 2)
+        assert strategy.max_pages == 2
 
     def test_node_drafter_with_languages(self):
         """Test node_drafter when languages_entries is populated to cover the Spoken Languages branch."""
@@ -81,7 +80,7 @@ class TestGenerationAdditional(unittest.TestCase):
             mock_invoke.return_value = AIMessage(content="Drafted CV Content")
 
             result = node_drafter(state)
-            self.assertEqual(result["draft_cv"], "Drafted CV Content")
+            assert result["draft_cv"] == "Drafted CV Content"
 
     def test_node_refiner_dynamic_character_limits(self):
         """Test node_refiner limits for different page strategies (1, 3, 4+ pages)."""
@@ -116,14 +115,14 @@ class TestGenerationAdditional(unittest.TestCase):
         # 1-page strategy over budget
         res_1_page = node_refiner(base_state)
         res_1_dict = res_1_page.update if (hasattr(res_1_page, "update") and isinstance(res_1_page.update, dict)) else res_1_page
-        self.assertTrue("DENSITY ERROR" in res_1_dict["refiner_feedback"])
+        assert "DENSITY ERROR" in res_1_dict["refiner_feedback"]
 
         # 3-page strategy within budget
         state_3_page = base_state.copy()
         state_3_page["strategy_metadata"] = RegionalStrategy(max_pages=3)
         res_3_page = node_refiner(state_3_page)
         res_3_dict = res_3_page.update if (hasattr(res_3_page, "update") and isinstance(res_3_page.update, dict)) else res_3_page
-        self.assertEqual(res_3_dict["refiner_feedback"], "")
+        assert res_3_dict["refiner_feedback"] == ""
 
         # 4-page strategy within budget
         state_4_page = base_state.copy()
@@ -131,7 +130,7 @@ class TestGenerationAdditional(unittest.TestCase):
         state_4_page["strategy_metadata"] = RegionalStrategy(max_pages=4)
         res_4_page = node_refiner(state_4_page)
         res_4_dict = res_4_page.update if (hasattr(res_4_page, "update") and isinstance(res_4_page.update, dict)) else res_4_page
-        self.assertEqual(res_4_dict["refiner_feedback"], "")
+        assert res_4_dict["refiner_feedback"] == ""
 
     def test_node_auditor_scorecard_parsing_variations(self):
         """Test node_auditor parsing with code blocks and structured scorecard details."""
@@ -186,8 +185,8 @@ class TestGenerationAdditional(unittest.TestCase):
 
             res = node_auditor(state)
             res_dict = res.update if (hasattr(res, "update") and isinstance(res.update, dict)) else res
-            self.assertEqual(res_dict["audit_feedback"], "PASS")
-            self.assertEqual(res_dict["iteration_count"], 2)
+            assert res_dict["audit_feedback"] == "PASS"
+            assert res_dict["iteration_count"] == 2
 
         # Test fallback on invalid JSON format
         with patch("generation.nodes.get_model_for_step") as mock_get_model, \
@@ -199,8 +198,4 @@ class TestGenerationAdditional(unittest.TestCase):
 
             res = node_auditor(state)
             res_dict = res.update if (hasattr(res, "update") and isinstance(res.update, dict)) else res
-            self.assertEqual(res_dict["audit_feedback"], "This is not a JSON string at all.")
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert res_dict["audit_feedback"] == "This is not a JSON string at all."

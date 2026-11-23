@@ -18,7 +18,7 @@ def generate_cover_letters(
     get_wiki_root_fn: Callable[[], Any] = get_wiki_root,
 ) -> None:
     """Generate cover letter files and append them to wiki_outputs."""
-    entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
+    entity_map_lines = "\n".join(f'  "{raw}" → use "[[{slug}]]"' for raw, slug in resolved.items())
     system_prompt = load_prompt_fn("generate_cover_letter.txt")
 
     for cl in cover_letters:
@@ -37,7 +37,7 @@ TODAY'S DATE: {today_str}
 Generate a complete wiki cover letter entry using ONLY the data provided below.
 
 Required output filename: {filename}
-Required target organization in frontmatter: [[{canonical_slug}]]
+Required target organization in frontmatter: "[[{canonical_slug}]]"
 
 Cover letter data:
 {json.dumps(cl, indent=2, ensure_ascii=False)}

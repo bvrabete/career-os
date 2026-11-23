@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 from generation.formatting import BRACKET_LINK_PATTERN
 from generation.retrieval import _parse_yaml_frontmatter_from_text
+from utils import extract_wikilink_slug
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,22 @@ def _extract_start_year(fm: dict[str, Any]) -> str:
 
 
 def _is_old_role(fm: dict[str, Any]) -> bool:
-    """Check if the career entry starts before or at current_year - 10 (old role)."""
-    start_year = _extract_start_year(fm)
+    """Check if the career entry ended before or at current_year - 10 (or started <= current_year - 10 when end is absent)."""
     current_year = datetime.datetime.now().year
+    dates = fm.get("dates")
+    end_val = ""
+    if isinstance(dates, dict) and dates.get("end") is not None:
+        end_val = str(dates.get("end", "")).strip()
+    elif fm.get("end") is not None:
+        end_val = str(fm.get("end", "")).strip()
+
+    if end_val:
+        if end_val.lower() in {"present", "current", "ongoing"}:
+            return False
+        if len(end_val) >= 4 and end_val[:4].isdigit():
+            return int(end_val[:4]) <= (current_year - 10)
+
+    start_year = _extract_start_year(fm)
     return bool(start_year and start_year.isdigit() and int(start_year) <= (current_year - 10))
 
 
@@ -122,14 +136,11 @@ def _is_parallel_startup_track(fm: dict[str, Any]) -> bool:
 def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
     """Extract canonical organization name or slug from frontmatter or filename, normalized for grouping."""
     org_raw = fm.get("organization")
-    if isinstance(org_raw, list):
-        org_str = " ".join(str(x) for x in org_raw)
-    elif org_raw:
-        org_str = str(org_raw)
-    else:
-        org_str = name.replace(".md", "").split("-")[0]
+    org_slug = extract_wikilink_slug(org_raw)
+    if not org_slug:
+        org_slug = name.replace(".md", "").split("-")[0]
 
-    org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_str)
+    org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_slug)
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
     org_clean = re.sub(r'[\s\_]+', '-', org_clean)

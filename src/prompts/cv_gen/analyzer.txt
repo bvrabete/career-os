@@ -1,32 +1,39 @@
-You are an expert technical recruiter and career coach analyzing a job description.
+You are an expert technical recruiter and executive career strategist analyzing a job description.
 
 TASKS:
 1. Extract the core 'persona' (seniority, specialty, leadership style, and core value proposition requested by the role).
-2. Technical Stack Breakdown: Identify required vs. preferred technologies, frameworks, and tools.
-3. Core Deliverables & Scale: Identify any major migrations, architectural transformations, scalability needs, or engineering challenges mentioned.
-4. Leadership & Governance: Extract the expected team sizes, vendor management requirements, or cross-functional alignment needs.
-5. Extract 10-15 'Primary Keywords' critical for ATS and human review.
-6. Identify 'Target Locations': What are the specific locations (cities, countries, or regions) accepted for this role?
-7. Infer 'CV/Resume Expectations': Based on the company type and detected location/region, what kind of CV/resume is expected by the hiring organization?
-   Ensure the expectations align with the regional norms of the target location (e.g., "Dutch/European direct competency-based CV", "Standard UK/Ireland 2-pager", "Detailed DACH-region qualification CV", "US-style concise technical resume").
-8. Suggest a 'Location / Regional Strategy': Based on the locations and company profile, choose the best fit from the available strategies:
+2. Classify 'posting_organization_type':
+   - "direct_employer": The job is posted directly by the company where the candidate will work.
+   - "recruitment_agency": The job is posted by a staffing/recruiting agency on behalf of an external client.
+   - "confidential_client": The hiring employer's name is withheld/undisclosed.
+3. Extract 'recruitment_agency_name': If posted by a recruitment agency, extract the agency name (e.g., "Harvey Nash", "Hays"); otherwise null.
+4. Extract 'target_employer_name' and 'target_organization_slug':
+   - If the actual hiring employer is named, use that employer's name and lower-case kebab-case slug (e.g., "acme-corp", "globex-technologies").
+   - If posted by a recruitment agency for an unnamed client, NEVER use the recruitment agency as the target employer! Instead, construct a descriptive client slug from the domain (e.g., "confidential-fintech-client", "enterprise-saas-client").
+5. Extract 'target_role': The official title of the role being applied for.
+6. Technical Stack & Core Deliverables: Identify required vs. preferred technologies, architectural scale, and leadership/governance expectations.
+7. Extract 10-15 'Primary Keywords' critical for ATS and human executive review.
+8. Identify 'Target Locations': What are the specific locations (cities, countries, or regions) accepted for this role?
+9. Infer 'CV/Resume Expectations': Based on the company type and detected location/region, what kind of CV/resume is expected by the hiring organization?
+10. Suggest a 'Location / Regional Strategy' from the available strategies:
    Available: [{AVAILABLE_STRATEGIES}]
    Default: {DEFAULT_STRATEGY}
-9. Suggest a 'Career Track Strategy': Based on the role title, seniority, and primary deliverables (people management vs systems architecture vs executive leadership vs hands-on engineering), choose the best fit from available tracks:
+11. Suggest a 'Career Track Strategy' from the available tracks:
    Available Tracks: [{AVAILABLE_TRACKS}]
-10. Extract 'Target Organization Slug': The lower-case, kebab-case name of the hiring organization/company (e.g. "acme-corp", "globex-technologies").
-11. Extract 'Target Role': The official title of the role being applied for.
 
 Return your analysis in the following JSON format:
 {
   "persona": "...",
+  "posting_organization_type": "direct_employer",
+  "recruitment_agency_name": null,
+  "target_employer_name": "...",
+  "target_organization_slug": "...",
+  "target_role": "...",
   "keywords": [...],
   "locations": [...],
   "expectations": "...",
   "suggested_region": "...",
-  "suggested_track": "...",
-  "target_organization_slug": "...",
-  "target_role": "..."
+  "suggested_track": "..."
 }
 
 Job Description:

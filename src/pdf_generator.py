@@ -3,6 +3,8 @@ Module for generating high-quality PDFs from Markdown content
 using WeasyPrint and customizable CSS templates.
 """
 
+import contextlib
+import io
 import logging
 import os
 from pathlib import Path
@@ -14,7 +16,8 @@ from utils import clean_markdown_wrapper as _clean_markdown_wrapper
 import yaml
 
 try:
-    from weasyprint import CSS, HTML
+    with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+        from weasyprint import CSS, HTML
     HAS_WEASYPRINT = True
 except (ImportError, OSError):
     HAS_WEASYPRINT = False

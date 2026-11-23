@@ -91,9 +91,9 @@ def _extract_related_slugs(raw_related: Any) -> list[str]:
 
 
 def _find_parent_experience_file(experiences_dir: Path, fm: dict[str, Any], body: str = "") -> Path | None:
-    """Locate the target experience file matching tenure, organization, or related slugs."""
-    # 1. Exact tenure slug match
-    tenure_slug = _clean_slug(fm.get("tenure"))
+    """Locate the target experience file matching related_experience, tenure, organization, or related slugs."""
+    # 1. Exact related_experience or tenure slug match
+    tenure_slug = _clean_slug(fm.get("related_experience") or fm.get("tenure"))
     if tenure_slug:
         clean_tenure = tenure_slug.replace("experiences/", "").replace("experience/", "")
         direct_path = experiences_dir / f"{clean_tenure}.md"
@@ -201,6 +201,8 @@ def sync_case_studies(wiki_dir: Path, dry_run: bool = False) -> dict[str, int]:
 
 def main() -> None:
     """CLI Entrypoint for case study synchronization."""
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="CareerOS Case Study to Experience Synchronizer")

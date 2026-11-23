@@ -76,10 +76,10 @@ def discover_available_strategies(wiki_dir: Path) -> tuple[list[str], list[str]]
 def _find_location_strategy_file(wiki_dir: Path, name: str) -> Path | None:
     """Helper to locate a regional strategy file across locations/ and root strategies/."""
     candidates = [
-        wiki_dir / "wiki" / "strategies" / f"strategy-{name}.md",
-        wiki_dir / "wiki" / "strategies" / f"{name}.md",
         wiki_dir / "wiki" / "strategies" / "locations" / f"{name}.md",
         wiki_dir / "wiki" / "strategies" / "locations" / f"strategy-{name}.md",
+        wiki_dir / "wiki" / "strategies" / f"strategy-{name}.md",
+        wiki_dir / "wiki" / "strategies" / f"{name}.md",
     ]
     for c in candidates:
         try:

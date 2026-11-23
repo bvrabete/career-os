@@ -18,7 +18,7 @@ def generate_education(
     get_wiki_root_fn: Callable[[], Any] = get_wiki_root,
 ) -> None:
     """Generate education files and append them to wiki_outputs."""
-    entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
+    entity_map_lines = "\n".join(f'  "{raw}" → use "[[{slug}]]"' for raw, slug in resolved.items())
     edu_system_prompt = load_prompt_fn("generate_education.txt")
 
     for edu in education:
@@ -37,7 +37,7 @@ def generate_education(
 Generate a complete wiki education entry using ONLY the data provided below.
 
 Required output filename: {filename}
-Required institution slug in frontmatter: [[{canonical_slug}]]
+Required institution slug in frontmatter: "[[{canonical_slug}]]"
 Required dates in frontmatter: start: "{edu.get('start', '')}", end: "{edu.get('end', '')}"
 Required status in frontmatter: {edu.get('status', 'Completed')}
 Required major in frontmatter: "{edu.get('major', '')}"

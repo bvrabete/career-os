@@ -283,8 +283,9 @@ def _merge_single_output(output: dict[str, Any], today: str, llm: Any) -> dict[s
     logging.info(f"--- MERGE: {path.name} ---")
     existing_content = path.read_text(encoding="utf-8")
 
-    prompt_filename = f"merge_{page_type}.txt"
-    if page_type not in ("experience", "education", "project", "patent", "note", "entity", "cover-letter"):
+    normalized_type = page_type.replace("-", "_")
+    prompt_filename = f"merge_{normalized_type}.txt"
+    if normalized_type not in ("experience", "education", "project", "patent", "note", "entity", "cover_letter"):
         prompt_filename = "merge_language.txt"
 
     system_prompt = load_prompt(prompt_filename)

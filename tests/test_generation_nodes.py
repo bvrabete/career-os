@@ -1,6 +1,5 @@
 """Unit tests for the generation pipeline nodes and orchestration logic."""
 
-import unittest
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch, MagicMock
@@ -21,7 +20,7 @@ from generation.nodes import (
 from generation.state import CVPipelineState
 
 
-class TestGenerationNodes(unittest.TestCase):
+class TestGenerationNodes:
     """Deterministic offline unit tests for CV Generation Nodes."""
 
     @patch("generation.nodes.get_wiki_dir")
@@ -79,14 +78,14 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_analyzer(state)
-        self.assertEqual(result["target_persona"], "AI Leader")
-        self.assertEqual(result["primary_keywords"], ["python", "AI"])
-        self.assertEqual(result["target_region"], "eu")
-        self.assertEqual(result["target_locations"], ["London"])
-        self.assertEqual(result["cv_expectations"], "Premium")
-        self.assertEqual(result["target_organization_slug"], "intel")
-        self.assertEqual(result["target_role"], "Architect")
-        self.assertEqual(result["target_track"], "engineering-management")
+        assert result["target_persona"] == "AI Leader"
+        assert result["primary_keywords"] == ["python", "AI"]
+        assert result["target_region"] == "eu"
+        assert result["target_locations"] == ["London"]
+        assert result["cv_expectations"] == "Premium"
+        assert result["target_organization_slug"] == "intel"
+        assert result["target_role"] == "Architect"
+        assert result["target_track"] == "engineering-management"
 
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
@@ -137,11 +136,11 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_analyzer(state)
-        self.assertEqual(result["target_track"], "staff-principal")
+        assert result["target_track"] == "staff-principal"
 
         state["track_override"] = "executive"
         result_override = node_analyzer(state)
-        self.assertEqual(result_override["target_track"], "executive")
+        assert result_override["target_track"] == "executive"
 
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
@@ -190,11 +189,11 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_analyzer(state)
-        self.assertEqual(result["target_persona"], "invalid-json-text")
-        self.assertEqual(result["primary_keywords"], [])
-        self.assertEqual(result["target_region"], "emea")  # strategy_default: emea
-        self.assertEqual(result["target_locations"], [])
-        self.assertEqual(result["cv_expectations"], "Standard professional CV")
+        assert result["target_persona"] == "invalid-json-text"
+        assert result["primary_keywords"] == []
+        assert result["target_region"] == "emea"  # strategy_default: emea
+        assert result["target_locations"] == []
+        assert result["cv_expectations"] == "Standard professional CV"
 
     @patch("generation.nodes.get_wiki_dir")
     @patch("generation.nodes.get_model_for_step")
@@ -245,7 +244,7 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_analyzer(state)
-        self.assertEqual(result["target_region"], "eu")
+        assert result["target_region"] == "eu"
 
     @patch("generation.nodes.retrieve_languages")
     @patch("generation.skills_helper.get_compact_skills_list")
@@ -329,18 +328,16 @@ class TestGenerationNodes(unittest.TestCase):
             }
 
             result = node_retriever(state)
-            self.assertEqual(result["selected_entries"], ["exp1", "exp2"])
-            self.assertEqual(result["education_entries"], ["edu1"])
-            self.assertEqual(result["projects_entries"], ["proj1"])
-            self.assertEqual(result["patents_entries"], ["pat1"])
-            self.assertEqual(result["notes_entries"], ["note1"])
-            self.assertEqual(result["few_shot_examples"], ["shot1"])
-            self.assertEqual(
-                result["skill_bridging_map"], {"python": "advanced python"}
-            )
-            self.assertEqual(result["pdf_template"], "pdf-template-path")
-            self.assertIn("Name: John Doe", result["strategy_info"])
-            self.assertIn("strategy detail text", result["strategy_info"])
+            assert result["selected_entries"] == ["exp1", "exp2"]
+            assert result["education_entries"] == ["edu1"]
+            assert result["projects_entries"] == ["proj1"]
+            assert result["patents_entries"] == ["pat1"]
+            assert result["notes_entries"] == ["note1"]
+            assert result["few_shot_examples"] == ["shot1"]
+            assert result["skill_bridging_map"] == {"python": "advanced python"}
+            assert result["pdf_template"] == "pdf-template-path"
+            assert "Name: John Doe" in result["strategy_info"]
+            assert "strategy detail text" in result["strategy_info"]
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
@@ -392,7 +389,7 @@ class TestGenerationNodes(unittest.TestCase):
         }
 
         result = node_drafter(state)
-        self.assertEqual(result["draft_cv"], "DRAFTED_RESUME_CONTENT")
+        assert result["draft_cv"] == "DRAFTED_RESUME_CONTENT"
 
     def test_node_refiner_long(self):
         """Test node_refiner sets feedback when CV is too long."""
@@ -426,7 +423,7 @@ class TestGenerationNodes(unittest.TestCase):
 
         result = node_refiner(state)
         res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
-        self.assertIn("DENSITY ERROR: The CV is too long", res_dict["refiner_feedback"])
+        assert "DENSITY ERROR: The CV is too long" in res_dict["refiner_feedback"]
 
     def test_node_refiner_short(self):
         """Test node_refiner returns empty feedback when CV length is acceptable."""
@@ -460,7 +457,7 @@ class TestGenerationNodes(unittest.TestCase):
 
         result = node_refiner(state)
         res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
-        self.assertEqual(res_dict["refiner_feedback"], "")
+        assert res_dict["refiner_feedback"] == ""
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.load_prompt")
@@ -501,9 +498,5 @@ class TestGenerationNodes(unittest.TestCase):
 
         result = node_auditor(state)
         res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
-        self.assertEqual(res_dict["audit_feedback"], "AUDIT FEEDBACK TEXT")
-        self.assertEqual(res_dict["iteration_count"], 2)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert res_dict["audit_feedback"] == "AUDIT FEEDBACK TEXT"
+        assert res_dict["iteration_count"] == 2

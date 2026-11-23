@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 def extract_keywords_from_jd(jd_text: str) -> Set[str]:
     """Helper to extract a set of lowercase keywords and core technical skills from a Job Description."""
-    # Use standard list of common engineering/architectural/management keywords to look for
     common_skills = {
         "python", "kubernetes", "gitops", "ci/cd", "observability", "docker", "aws", "gcp", "azure",
         "microservices", "redis", "elasticsearch", "sql", "management", "architecture", "agile",
@@ -35,6 +34,16 @@ def extract_keywords_from_jd(jd_text: str) -> Set[str]:
     for skill in common_skills:
         if re.search(r'\b' + re.escape(skill) + r'\b', normalized_jd):
             found.add(skill)
+
+    stopwords = {
+        "the", "and", "for", "with", "you", "will", "are", "our", "this", "role", "team",
+        "work", "working", "experience", "years", "strong", "ability", "about", "company",
+        "looking", "join", "build", "building", "help", "what", "who", "have", "from",
+    }
+    for token in re.findall(r"\b[A-Z][A-Za-z0-9+#.-]{2,}\b", jd_text):
+        low = token.lower().rstrip(".")
+        if low not in stopwords and len(low) >= 3:
+            found.add(low)
 
     return found
 

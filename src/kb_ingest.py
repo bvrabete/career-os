@@ -24,7 +24,7 @@ def get_status_file() -> Path:
 
 
 def get_log_file() -> Path:
-    return get_wiki_dir() / "wiki" / "log.md"
+    return get_wiki_dir() / "log.md"
 
 
 def load_status() -> dict:

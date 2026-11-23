@@ -1,3 +1,5 @@
+"""Strongly-typed Pydantic v2 configuration loader and LLM factory for CareerOS."""
+
 import logging
 import os
 from pathlib import Path
@@ -8,47 +10,60 @@ from dotenv import load_dotenv
 import langchain_google_genai
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from pydantic import ValidationError
 import yaml
+
+from schemas.config_models import AppConfig
 
 # Suppress LangChain's pending deprecation warnings regarding cache allowed_objects
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
-load_dotenv()  # Load environment variables from .env
-
-# Enable caching to speed up iterative runs and save costs
-# set_llm_cache(SQLiteCache(database_path=".langchain.db"))
+load_dotenv()
 
 CONFIG_PATH = Path("config.yaml")
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
-DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+_wiki_dir_override: Path | None = None
 
 
-def load_config() -> dict[str, Any]:
+def _resolve_config_file() -> Path:
+    """Resolve the active config.yaml file path or raise FileNotFoundError."""
     env_config = os.getenv("CONFIG_FILE")
     if env_config:
         config_p = Path(env_config)
         if config_p.exists():
-            with open(config_p, 'r') as f:
-                return yaml.safe_load(f) or {}
+            return config_p
     if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, 'r') as f:
-            return yaml.safe_load(f) or {}
-    elif DEFAULT_CONFIG_PATH.exists():
-        with open(DEFAULT_CONFIG_PATH, 'r') as f:
-            return yaml.safe_load(f) or {}
-    else:
-        raise FileNotFoundError(
-            "Configuration file not found. Ensure 'config.yaml' exists in the workspace root "
-            "or set the 'CONFIG_FILE' environment variable."
-        )
+        return CONFIG_PATH
+    if DEFAULT_CONFIG_PATH.exists():
+        return DEFAULT_CONFIG_PATH
+    raise FileNotFoundError(
+        "Configuration file not found. Ensure 'config.yaml' exists in the workspace root "
+        "or set the 'CONFIG_FILE' environment variable."
+    )
 
 
-_wiki_dir_override: Path | None = None
+def load_config() -> dict[str, Any]:
+    """Load raw dictionary from config.yaml and validate it via the AppConfig Pydantic model."""
+    config_path = _resolve_config_file()
+    with open(config_path, "r", encoding="utf-8") as f:
+        raw_data = yaml.safe_load(f) or {}
+    if not isinstance(raw_data, dict):
+        raise ValueError(f"Configuration file {config_path} must contain a YAML mapping.")
+    AppConfig.model_validate(raw_data)
+    return raw_data
+
+
+def load_typed_config() -> AppConfig:
+    """Load and return the strongly-typed AppConfig Pydantic v2 instance."""
+    raw = load_config()
+    if isinstance(raw, AppConfig):
+        return raw
+    return AppConfig.model_validate(raw)
 
 
 def set_wiki_dir(path: Path | str | None) -> None:
-    """Sets a runtime override for the wiki directory (e.g. from CLI flags)."""
+    """Set a runtime override for the wiki directory (e.g. from CLI flags)."""
     global _wiki_dir_override
     if path:
         _wiki_dir_override = Path(str(path).strip())
@@ -57,150 +72,44 @@ def set_wiki_dir(path: Path | str | None) -> None:
 
 
 def get_wiki_dir() -> Path:
-    """Returns the Path to the llm-wiki directory from runtime override, config.yaml, or default."""
+    """Return the Path to the llm-wiki directory from runtime override or Pydantic AppConfig."""
     if _wiki_dir_override is not None:
         return _wiki_dir_override
-    config = load_config()
-    paths = config.get("PATHS", {})
-    if isinstance(paths, dict) and "WIKI_DIR" in paths:
-        return Path(str(paths["WIKI_DIR"]).strip())
-    if "WIKI_DIR" in config:
-        return Path(str(config["WIKI_DIR"]).strip())
-    return Path("llm-wiki")
+    return load_typed_config().PATHS.WIKI_DIR
 
 
 def get_output_dir() -> Path:
-    """Returns the export directory for clean drafts and compiled documents from config.yaml or default."""
-    config = load_config()
-    paths = config.get("PATHS", {})
-    if isinstance(paths, dict) and "OUTPUT_DIR" in paths:
-        return Path(str(paths["OUTPUT_DIR"]).strip())
-    if "OUTPUT_DIR" in config:
-        return Path(str(config["OUTPUT_DIR"]).strip())
-    return Path("ai-generated-cvs")
+    """Return the export directory for clean drafts and compiled documents from Pydantic AppConfig."""
+    return load_typed_config().PATHS.OUTPUT_DIR
 
 
 def get_strategy_default() -> str:
-    """Returns the default regional strategy from config.yaml or default."""
-    config = load_config()
-    defaults = config.get("DEFAULTS", {})
-    if isinstance(defaults, dict) and "STRATEGY" in defaults:
-        return str(defaults["STRATEGY"])
-    return str(config.get("STRATEGY_DEFAULT", "emea"))
+    """Return the default regional strategy from Pydantic AppConfig."""
+    return load_typed_config().DEFAULTS.STRATEGY
 
 
-def get_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
-    """
-    Returns an LLM instance optimized for a specific pipeline step.
-    Looks up the step in the 'STEPS' section of config.yaml.
-    Fails fast with explicit errors if the step or model is unconfigured.
-    """
-    config = load_config()
-    steps = config.get("STEPS", {})
-    models_map = config.get("MODELS", {})
-
-    step_config = steps.get(step_name)
-    if not step_config:
-        raise KeyError(
-            f"Pipeline step '{step_name}' is not defined in config.yaml under 'STEPS'. "
-            f"Please define it in your configuration."
-        )
-
-    model_type = step_config.get("TYPE")
-    if not model_type:
-        raise ValueError(
-            f"Pipeline step '{step_name}' in config.yaml is missing required 'TYPE' "
-            f"(e.g. 'gemini', 'openai', 'ollama')."
-        )
-
-    kwargs: dict[str, Any] = {}
-    if model_type == "openai":
-        model_name = step_config.get("MODEL_NAME") or models_map.get("openai")
-        if not model_name:
-            raise ValueError(
-                f"No OpenAI model configured for step '{step_name}'. "
-                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.openai in config.yaml."
-            )
-        if format == "json":
-            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
-        # OpenAI reasoning models (e.g., o1, o3-mini) do not support setting a temperature parameter
-        if model_name.startswith("o1") or model_name.startswith("o3"):
-            return ChatOpenAI(model=model_name, **kwargs)
-        return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
-
-    elif model_type == "ollama":
-        model_name = step_config.get("MODEL_NAME") or models_map.get("ollama")
-        if not model_name:
-            raise ValueError(
-                f"No Ollama model configured for step '{step_name}'. "
-                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.ollama in config.yaml."
-            )
-        base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
-        kwargs = {}
-        if format:
-            kwargs["format"] = format
-        return ChatOllama(
-            model=model_name,
-            base_url=base_url,
-            temperature=temperature,
-            # Optimized to 12k to guarantee 100% GPU offload under 6GB VRAM without truncating large CV context
-            num_ctx=12288,
-            **kwargs
-        )
-
-    elif model_type == "gemini":
-        model_name = step_config.get("MODEL_NAME") or models_map.get("gemini")
-        if not model_name:
-            raise ValueError(
-                f"No Gemini model configured for step '{step_name}'. "
-                f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.gemini in config.yaml."
-            )
-        # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5)
-        # to avoid 404 NOT_FOUND errors.
-        if model_name == "gemini-1.5-flash":
-            logging.info(f"Mapping deprecated model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'")
-            model_name = "gemini-2.5-flash"
-        elif model_name == "gemini-1.5-pro":
-            logging.info(f"Mapping deprecated model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'")
-            model_name = "gemini-2.5-pro"
-        return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
-
-    else:
-        raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
+def get_ollama_num_ctx() -> int:
+    """Return OLLAMA_NUM_CTX from Pydantic AppConfig (uses schema default only if omitted in config.yaml)."""
+    return load_typed_config().OLLAMA_NUM_CTX
 
 
-def _create_openai_fallback(model_name: str, step_name: str, temperature: float, format: str | None):
-    if not os.getenv("OPENAI_API_KEY"):
-        logging.warning(f"Fallback OpenAI model defined for '{step_name}', but OPENAI_API_KEY is not set.")
-        return None
+def get_ollama_base_url() -> str:
+    """Return OLLAMA_BASE_URL from Pydantic AppConfig (uses schema default only if omitted in config.yaml)."""
+    return load_typed_config().OLLAMA_BASE_URL
+
+
+def _build_openai_model(model_name: str, temperature: float, format: str | None) -> Any:
     kwargs: dict[str, Any] = {}
     if format == "json":
-        kwargs["response_format"] = {"type": "json_object"}
+        kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+    if model_name.startswith("o1") or model_name.startswith("o3"):
+        return ChatOpenAI(model=model_name, **kwargs)
     return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
 
 
-def _create_gemini_fallback(model_name: str, step_name: str, temperature: float):
-    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-        logging.warning(
-            f"Fallback Gemini model defined for '{step_name}', but no GEMINI_API_KEY or GOOGLE_API_KEY is set."
-        )
-        return None
-    # Transparently map older/deprecated Gemini model names to modern equivalents (e.g. Gemini 2.5)
-    # to avoid 404 NOT_FOUND errors.
-    if model_name == "gemini-1.5-flash":
-        logging.info(
-            f"Mapping deprecated fallback model 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '{step_name}'"
-        )
-        model_name = "gemini-2.5-flash"
-    elif model_name == "gemini-1.5-pro":
-        logging.info(
-            f"Mapping deprecated fallback model 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '{step_name}'"
-        )
-        model_name = "gemini-2.5-pro"
-    return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
-
-
-def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, format: str | None):
+def _build_ollama_model(
+    model_name: str, base_url: str, temperature: float, format: str | None, num_ctx: int
+) -> Any:
     kwargs: dict[str, Any] = {}
     if format:
         kwargs["format"] = format
@@ -208,124 +117,112 @@ def _create_ollama_fallback(model_name: str, base_url: str, temperature: float, 
         model=model_name,
         base_url=base_url,
         temperature=temperature,
-        num_ctx=8192,
-        **kwargs
+        num_ctx=num_ctx,
+        **kwargs,
     )
 
 
-def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: str | None = None):
-    """
-    Returns the fallback LLM instance configured under a specific pipeline step in config.yaml.
-    Checks for credential availability before instantiating.
-    """
-    config = load_config()
-    steps = config.get("STEPS", {})
-    step_config = steps.get(step_name)
-    if not step_config or "FALLBACK" not in step_config:
-        return None
+def _build_gemini_model(model_name: str, step_name: str, temperature: float, is_fallback: bool = False) -> Any:
+    label = "fallback model" if is_fallback else "model"
+    if model_name == "gemini-1.5-flash":
+        logging.info("Mapping deprecated %s 'gemini-1.5-flash' to 'gemini-2.5-flash' for step '%s'", label, step_name)
+        model_name = "gemini-2.5-flash"
+    elif model_name == "gemini-1.5-pro":
+        logging.info("Mapping deprecated %s 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '%s'", label, step_name)
+        model_name = "gemini-2.5-pro"
+    return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 
-    fallback_config = step_config["FALLBACK"]
-    model_type = fallback_config.get("TYPE")
-    model_name = fallback_config.get("MODEL_NAME")
 
-    if not model_type or not model_name:
-        return None
+def get_model_for_step(step_name: str, temperature: float = 0, format: str | None = None) -> Any:
+    """Return an LLM instance for a pipeline step resolved strictly from Pydantic AppConfig."""
+    cfg = load_typed_config()
+    if step_name not in cfg.STEPS:
+        raise KeyError(
+            f"Pipeline step '{step_name}' is not defined in config.yaml under 'STEPS'. "
+            f"Please define it in your configuration."
+        )
+
+    step_config = cfg.STEPS[step_name]
+    model_type = step_config.TYPE
+    if not model_type:
+        raise ValueError(
+            f"Pipeline step '{step_name}' in config.yaml is missing required 'TYPE' "
+            f"(e.g. 'gemini', 'openai', 'ollama')."
+        )
+
+    model_name = step_config.MODEL_NAME or cfg.MODELS.get(model_type)
+    if not model_name:
+        raise ValueError(
+            f"No {model_type} model configured for step '{step_name}'. "
+            f"Specify 'MODEL_NAME' under STEPS.{step_name} or MODELS.{model_type} in config.yaml."
+        )
 
     if model_type == "openai":
-        return _create_openai_fallback(model_name, step_name, temperature, format)
-
-    if model_type == "gemini":
-        return _create_gemini_fallback(model_name, step_name, temperature)
-
+        return _build_openai_model(model_name, temperature, format)
     if model_type == "ollama":
-        base_url = config.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
-        return _create_ollama_fallback(model_name, base_url, temperature, format)
+        return _build_ollama_model(model_name, cfg.OLLAMA_BASE_URL, temperature, format, num_ctx=cfg.OLLAMA_NUM_CTX)
+    if model_type == "gemini":
+        return _build_gemini_model(model_name, step_name, temperature, is_fallback=False)
 
+    raise ValueError(f"Invalid TYPE for step '{step_name}': {model_type}")
+
+
+def _create_openai_fallback(model_name: str, step_name: str, temperature: float, format: str | None) -> Any:
+    if not os.getenv("OPENAI_API_KEY"):
+        logging.warning("Fallback OpenAI model defined for '%s', but OPENAI_API_KEY is not set.", step_name)
+        return None
+    kwargs: dict[str, Any] = {}
+    if format == "json":
+        kwargs["response_format"] = {"type": "json_object"}
+    return ChatOpenAI(model=model_name, temperature=temperature, **kwargs)
+
+
+def _create_gemini_fallback(model_name: str, step_name: str, temperature: float) -> Any:
+    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+        logging.warning(
+            "Fallback Gemini model defined for '%s', but no GEMINI_API_KEY or GOOGLE_API_KEY is set.",
+            step_name,
+        )
+        return None
+    return _build_gemini_model(model_name, step_name, temperature, is_fallback=True)
+
+
+def get_fallback_model_for_step(step_name: str, temperature: float = 0, format: str | None = None) -> Any:
+    """Return the fallback LLM instance configured under a pipeline step via Pydantic AppConfig."""
+    try:
+        cfg = load_typed_config()
+    except ValidationError:
+        return None
+
+    step_config = cfg.STEPS.get(step_name)
+    if not step_config or step_config.FALLBACK is None:
+        return None
+
+    fb = step_config.FALLBACK
+    if fb.TYPE == "openai":
+        return _create_openai_fallback(fb.MODEL_NAME, step_name, temperature, format)
+    if fb.TYPE == "gemini":
+        return _create_gemini_fallback(fb.MODEL_NAME, step_name, temperature)
+    if fb.TYPE == "ollama":
+        return _build_ollama_model(fb.MODEL_NAME, cfg.OLLAMA_BASE_URL, temperature, format, num_ctx=cfg.OLLAMA_NUM_CTX)
     return None
 
 
-def get_model(temperature=0):
+def get_model(temperature: float = 0) -> Any:
     """Legacy wrapper for global model instantiation."""
     return get_model_for_step("REFINEMENT", temperature=temperature)
 
 
 def get_scoring_config() -> dict[str, Any]:
-    """Returns the scoring configuration dictionary from config.yaml with sensible fallbacks."""
-    config = load_config()
-    scoring = config.get("SCORING")
-    if isinstance(scoring, dict):
-        return scoring
-    return {
-        "FACTORS": {
-            "ATS_SCORE": 0.50,
-            "RECENCY": 0.30,
-            "DURATION": 0.20,
-        },
-        "DURATION_CAP_YEARS": 3.0,
-        "RECENCY_HORIZON_YEARS": 15.0,
-        "EMPLOYMENT_TYPE_MULTIPLIERS": {
-            "Permanent": 1.00,
-            "Startup / Co-Founder": 1.00,
-            "Contract": 0.85,
-            "Advisory": 0.75,
-        },
-        "CULTURE_MULTIPLIERS": {
-            "corporate": {
-                "Permanent": 1.00,
-                "Contract": 1.00,
-                "Startup / Co-Founder": 0.80,
-                "Advisory": 0.85,
-            },
-            "startup": {
-                "Permanent": 1.00,
-                "Contract": 1.00,
-                "Startup / Co-Founder": 1.10,
-                "Advisory": 1.00,
-            },
-        },
-        "TIERS": {
-            "TIER_1_EXPANDED": 0.70,
-            "TIER_2_BALANCED": 0.45,
-            "TIER_3_COMPRESSED": 0.30,
-        },
-    }
+    """Return the validated scoring configuration dictionary from Pydantic AppConfig."""
+    return load_typed_config().SCORING.model_dump()
 
 
 def get_coverage_selection_enabled() -> bool:
-    """Returns whether coverage-aware evidence selection is enabled in config.yaml."""
-    config = load_config()
-    gen = config.get("GENERATION")
-    if isinstance(gen, dict) and "ENABLE_COVERAGE_SELECTION" in gen:
-        return bool(gen["ENABLE_COVERAGE_SELECTION"])
-    return True
+    """Return whether coverage-aware evidence selection is enabled in Pydantic AppConfig."""
+    return load_typed_config().GENERATION.ENABLE_COVERAGE_SELECTION
 
 
 def get_coverage_selection_config() -> dict[str, Any]:
-    """Returns the coverage-aware evidence selection configuration dictionary."""
-    config = load_config()
-    gen = config.get("GENERATION")
-    if isinstance(gen, dict) and isinstance(gen.get("COVERAGE_SELECTION"), dict):
-        return gen["COVERAGE_SELECTION"]
-    return {
-        "TARGET_PAGE_BUDGET": 2,
-        "CONTENT_BUDGET_WORDS": 700,
-        "ALPHA_MARGINAL_COVERAGE": 0.50,
-        "BETA_EVIDENCE_QUALITY": 0.30,
-        "GAMMA_ROLE_CALIBRATION": 0.20,
-        "REDUNDANCY_PENALTY": 0.60,
-        "MIN_ESSENTIAL_COVERAGE": 0.85,
-    }
-
-
-if __name__ == "__main__":
-    # Test loading
-    try:
-        model = get_model_for_step("REFINEMENT")
-        m_name = getattr(model, "model_name", getattr(model, "model", "unknown"))
-        print(f"Successfully loaded REFINEMENT model: {m_name}")
-
-        ex_model = get_model_for_step("EXTRACTION")
-        ex_name = getattr(ex_model, "model_name", getattr(ex_model, "model", "unknown"))
-        print(f"Successfully loaded EXTRACTION model: {ex_name}")
-    except Exception as e:
-        print(f"Error loading models: {e}")
+    """Return the validated coverage-aware evidence selection configuration from Pydantic AppConfig."""
+    return load_typed_config().GENERATION.COVERAGE_SELECTION.model_dump()

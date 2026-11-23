@@ -19,7 +19,7 @@ def generate_experiences(
     get_wiki_root_fn: Callable[[], Any] = get_wiki_root,
 ) -> None:
     """Generate experience files and append them to wiki_outputs."""
-    entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
+    entity_map_lines = "\n".join(f'  "{raw}" → use "[[{slug}]]"' for raw, slug in resolved.items())
     system_prompt = load_prompt_fn("generate_experience.txt")
 
     for role in roles:
@@ -43,7 +43,7 @@ SCHEMA REFERENCE:
 Generate a complete wiki experience entry using ONLY the data provided below.
 
 Required output filename: {filename}
-Required organization slug in frontmatter: [[{canonical_slug}]]
+Required organization slug in frontmatter: "[[{canonical_slug}]]"
 
 Role data:
 {json.dumps(role, indent=2, ensure_ascii=False)}

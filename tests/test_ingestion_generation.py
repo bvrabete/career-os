@@ -1,5 +1,4 @@
 """Unit tests for the ingestion pipeline generation logic."""
-import unittest
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch, MagicMock
@@ -12,10 +11,10 @@ from ingestion.generators.case_studies import generate_case_studies
 from ingestion.state import IngestionState
 
 
-class TestIngestionGeneration(unittest.TestCase):
+class TestIngestionGeneration:
     """Deterministic offline tests for Ingestion Pipeline generation."""
 
-    def setUp(self):
+    def setup_method(self):
         self.mock_llm = MagicMock()
         self.mock_response = MagicMock()
         self.mock_response.content = "---\ntitle: Sample\n---\nBody content"
@@ -34,11 +33,11 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_experiences(self.mock_llm, roles, resolved, "2026-06-30", "Schema text", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/experiences/intel-corp-staff-engineer.md")
-        self.assertEqual(wiki_outputs[0]["org_slug"], "intel-corp")
-        self.assertEqual(wiki_outputs[0]["title"], "Staff Engineer")
-        self.assertIn("Body content", wiki_outputs[0]["content"])
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/experiences/intel-corp-staff-engineer.md"
+        assert wiki_outputs[0]["org_slug"] == "intel-corp"
+        assert wiki_outputs[0]["title"] == "Staff Engineer"
+        assert "Body content" in wiki_outputs[0]["content"]
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -54,10 +53,10 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_experiences(self.mock_llm, roles, resolved, "2026-06-30", "Schema text", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
-        self.assertIn("Generation failed", wiki_outputs[0]["validation_errors"][0])
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
+        assert "Generation failed" in wiki_outputs[0]["validation_errors"][0]
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -76,9 +75,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_education(self.mock_llm, education, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/education/stanford-university-bs-cs.md")
-        self.assertEqual(wiki_outputs[0]["title"], "BS CS")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/education/stanford-university-bs-cs.md"
+        assert wiki_outputs[0]["title"] == "BS CS"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -94,9 +93,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_education(self.mock_llm, education, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -110,9 +109,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_languages(self.mock_llm, languages, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/languages/lang-spanish.md")
-        self.assertEqual(wiki_outputs[0]["org_slug"], "lang-spanish")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/languages/lang-spanish.md"
+        assert wiki_outputs[0]["org_slug"] == "lang-spanish"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -127,9 +126,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_languages(self.mock_llm, languages, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -144,8 +143,8 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_projects(self.mock_llm, projects, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/projects/project-search-ai.md")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/projects/project-search-ai.md"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -161,9 +160,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_projects(self.mock_llm, projects, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -178,8 +177,8 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_patents(self.mock_llm, patents, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/patents/patent-us12345.md")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/patents/patent-us12345.md"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -194,8 +193,8 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_patents(self.mock_llm, patents, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/patents/patent-method-for-search.md")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/patents/patent-method-for-search.md"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -211,9 +210,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_patents(self.mock_llm, patents, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -231,8 +230,8 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_notes(self.mock_llm, notes, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/notes/note-review-2024.md")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/notes/note-review-2024.md"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -248,9 +247,9 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_notes(self.mock_llm, notes, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -265,8 +264,8 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_cover_letters(self.mock_llm, cover_letters, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/cover-letters/cover-letter-google-staff-swe.md")
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["path"] == "/mock/wiki/cover-letters/cover-letter-google-staff-swe.md"
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -282,15 +281,15 @@ class TestIngestionGeneration(unittest.TestCase):
 
         _generate_cover_letters(self.mock_llm, cover_letters, resolved, "2026-06-30", wiki_outputs)
 
-        self.assertEqual(len(wiki_outputs), 1)
-        self.assertEqual(wiki_outputs[0]["content"], "")
-        self.assertEqual(len(wiki_outputs[0]["validation_errors"]), 1)
+        assert len(wiki_outputs) == 1
+        assert wiki_outputs[0]["content"] == ""
+        assert len(wiki_outputs[0]["validation_errors"]) == 1
 
     def test_generate_profile_skip(self):
         """Test _generate_profile skips generation when profile has no name."""
         wiki_outputs = []
         _generate_profile({}, "source.pdf", "2026-06-30", wiki_outputs)
-        self.assertEqual(wiki_outputs, [])
+        assert wiki_outputs == []
 
     @patch("ingestion.generation.get_persona_slug")
     @patch("ingestion.generation.get_wiki_root")
@@ -305,11 +304,11 @@ class TestIngestionGeneration(unittest.TestCase):
             profile = {"name": "Alice Developer", "email": "alice@example.com"}
             _generate_profile(profile, "source.pdf", "2026-06-30", wiki_outputs)
 
-            self.assertEqual(len(wiki_outputs), 1)
-            self.assertEqual(wiki_outputs[0]["path"], "/mock/wiki/entities/alice-developer-person.md")
-            self.assertIn("created: 2026-06-30", wiki_outputs[0]["content"])
-            self.assertIn("updated: 2026-06-30", wiki_outputs[0]["content"])
-            self.assertFalse(wiki_outputs[0]["merged"])
+            assert len(wiki_outputs) == 1
+            assert wiki_outputs[0]["path"] == "/mock/wiki/entities/alice-developer-person.md"
+            assert "created: 2026-06-30" in wiki_outputs[0]["content"]
+            assert "updated: 2026-06-30" in wiki_outputs[0]["content"]
+            assert not wiki_outputs[0]["merged"]
 
         # Scenario 2: Existing profile (preserves original created date)
         with patch("pathlib.Path.exists", return_value=True), \
@@ -318,16 +317,16 @@ class TestIngestionGeneration(unittest.TestCase):
             profile = {"name": "Alice Developer", "email": "alice@example.com", "overview": "Experienced SWE"}
             _generate_profile(profile, "source.pdf", "2026-06-30", wiki_outputs)
 
-            self.assertEqual(len(wiki_outputs), 1)
-            self.assertIn("created: 2024-01-15", wiki_outputs[0]["content"])
-            self.assertIn("updated: 2026-06-30", wiki_outputs[0]["content"])
-            self.assertTrue(wiki_outputs[0]["merged"])
+            assert len(wiki_outputs) == 1
+            assert "created: 2024-01-15" in wiki_outputs[0]["content"]
+            assert "updated: 2026-06-30" in wiki_outputs[0]["content"]
+            assert wiki_outputs[0]["merged"]
 
     def test_node_generator_short_circuit(self):
         """Test node_generator short-circuits and returns empty list when state has no extracted contents."""
         state = IngestionState()
         result = node_generator(state)
-        self.assertEqual(result, {"wiki_outputs": []})
+        assert result == {"wiki_outputs": []}
 
     @patch("ingestion.generation.get_persona_slug")
     @patch("ingestion.generation.get_model_for_step")
@@ -359,7 +358,7 @@ class TestIngestionGeneration(unittest.TestCase):
             result = node_generator(state)
             outputs = result["wiki_outputs"]
             # 8 outputs (roles, edu, languages, projects, patents, notes, CL, profile)
-            self.assertEqual(len(outputs), 8)
+            assert len(outputs) == 8
 
     @patch("ingestion.generation.load_prompt")
     @patch("ingestion.generation.get_wiki_root")
@@ -373,29 +372,29 @@ class TestIngestionGeneration(unittest.TestCase):
         resolved = {"Intel Corp": "intel-corp"}
         wiki_outputs = []
         _generate_experiences(self.mock_llm, roles, resolved, "2026-06-30", "Schema text", wiki_outputs)
-        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/experiences/intel-corp-role.md")
+        assert wiki_outputs[-1]["path"] == "/mock/wiki/experiences/intel-corp-role.md"
 
         # Test education empty title slug
         education = [{"raw_inst_name": "Stanford", "title": "$$$"}]
         _generate_education(self.mock_llm, education, {"Stanford": "stanford"}, "2026-06-30", wiki_outputs)
-        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/education/stanford-degree.md")
+        assert wiki_outputs[-1]["path"] == "/mock/wiki/education/stanford-degree.md"
 
         # Test language empty slug
         languages = [{"language": "$$$"}]
         _generate_languages(self.mock_llm, languages, "2026-06-30", wiki_outputs)
-        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/languages/lang-unknown.md")
+        assert wiki_outputs[-1]["path"] == "/mock/wiki/languages/lang-unknown.md"
 
         # Test project empty title slug
         projects = [{"raw_org_name": "Google", "title": "$$$"}]
         _generate_projects(self.mock_llm, projects, {"Google": "google"}, "2026-06-30", wiki_outputs)
-        self.assertEqual(wiki_outputs[-1]["path"], "/mock/wiki/projects/project-project.md")
+        assert wiki_outputs[-1]["path"] == "/mock/wiki/projects/project-project.md"
 
         # Test profile read existing created date exception (435-436)
         with patch("pathlib.Path.exists", return_value=True), \
              patch("pathlib.Path.read_text", side_effect=Exception("Read failure")), \
              patch("ingestion.generation.get_persona_slug", return_value="alice-developer"):
             _generate_profile({"name": "Alice Developer"}, "source.pdf", "2026-06-30", wiki_outputs)
-            self.assertIn("created: 2026-06-30", wiki_outputs[-1]["content"])
+            assert "created: 2026-06-30" in wiki_outputs[-1]["content"]
 
     def test_generate_case_studies_lossless(self):
         """Test generate_case_studies preserves 100% of body markdown losslessly."""
@@ -420,13 +419,9 @@ class TestIngestionGeneration(unittest.TestCase):
                 get_wiki_root_fn=lambda: Path("/mock/wiki"),
             )
 
-        self.assertEqual(len(wiki_outputs), 1)
+        assert len(wiki_outputs) == 1
         out = wiki_outputs[0]
-        self.assertEqual(out["path"], "/mock/wiki/case-studies/virgin-media-gateway-spec.md")
-        self.assertIn("type: case_study", out["content"])
-        self.assertIn("[[virgin-media]]", out["content"])
-        self.assertIn("# Executive Summary\n\nFull architectural details and tables.", out["content"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert out["path"] == "/mock/wiki/case-studies/virgin-media-gateway-spec.md"
+        assert "type: case_study" in out["content"]
+        assert "[[virgin-media]]" in out["content"]
+        assert "# Executive Summary\n\nFull architectural details and tables." in out["content"]

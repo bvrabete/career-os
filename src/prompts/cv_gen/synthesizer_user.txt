@@ -1,0 +1,15 @@
+Synthesize the candidate's Role Evidence Bundles into a structured Master Matching Draft (`TailoredLongDraft`) aligned with the Job Description and Requirements.
+
+Target Job Description:
+{JOB_DESCRIPTION}
+
+Target Persona & Track Context:
+{TARGET_PERSONA}
+
+Structured Job Requirements:
+{REQUIREMENTS_JSON}
+
+Candidate Role Evidence Bundles (Roles + Linked Company Details, Case Studies, Projects, Patents & Notes):
+{ROLE_BUNDLES_JSON}
+
+Return a valid JSON object matching the `TailoredLongDraft` schema with `hiring_thesis`, `executive_summary_draft`, `synthesized_roles` (each with `role_slug`, `title`, `organization`, `location`, `dates_display`, `employment_type`, `is_old_role`, `scope_summary`, `technologies`, and `bullets` containing `text`, `covered_requirement_ids`, and `source_refs`), `standalone_projects`, and `standalone_patents_publications`.

@@ -1,5 +1,4 @@
 """Unit tests for the CV generation and ingestion graph architectures."""
-import unittest
 from unittest.mock import patch, MagicMock
 
 from generation.graph import build_graph
@@ -9,7 +8,7 @@ from generation.state import CVPipelineState, RegionalStrategy
 from ingestion.state import IngestionState
 
 
-class TestGraphArchitectures(unittest.TestCase):
+class TestGraphArchitectures:
     """Deterministic offline tests for StateGraph orchestrations."""
 
     def test_cv_refiner_guard_routing_overflow(self):
@@ -20,7 +19,7 @@ class TestGraphArchitectures(unittest.TestCase):
             strategy_metadata=RegionalStrategy(max_pages=1)
         )
         command = node_refiner(state)
-        self.assertEqual(command.goto, "compressor")
+        assert command.goto == "compressor"
 
     def test_cv_refiner_guard_routing_max_cycles(self):
         """Test node_refiner forces to auditor after 2 compression passes."""
@@ -30,7 +29,7 @@ class TestGraphArchitectures(unittest.TestCase):
             strategy_metadata=RegionalStrategy(max_pages=1)
         )
         command = node_refiner(state)
-        self.assertEqual(command.goto, "auditor")
+        assert command.goto == "auditor"
 
     def test_cv_refiner_guard_routing_within_budget(self):
         """Test node_refiner proceeds directly to auditor when within budget."""
@@ -40,33 +39,33 @@ class TestGraphArchitectures(unittest.TestCase):
             strategy_metadata=RegionalStrategy(max_pages=1)
         )
         command = node_refiner(state)
-        self.assertEqual(command.goto, "auditor")
+        assert command.goto == "auditor"
 
     def test_build_cv_graph(self):
         """Test compile of build_graph."""
         graph = build_graph()
-        self.assertIsNotNone(graph)
-        self.assertIn("analyzer", graph.nodes)
-        self.assertIn("compressor", graph.nodes)
-        self.assertIn("refiner", graph.nodes)
-        self.assertIn("auditor", graph.nodes)
-        self.assertIn("retriever", graph.nodes)
-        self.assertIn("drafter", graph.nodes)
-        self.assertIn("refiner", graph.nodes)
-        self.assertIn("auditor", graph.nodes)
+        assert graph is not None
+        assert "analyzer" in graph.nodes
+        assert "compressor" in graph.nodes
+        assert "refiner" in graph.nodes
+        assert "auditor" in graph.nodes
+        assert "retriever" in graph.nodes
+        assert "drafter" in graph.nodes
+        assert "refiner" in graph.nodes
+        assert "auditor" in graph.nodes
 
     def test_build_ingest_graph(self):
         """Test compile and edge structures of build_ingest_graph."""
         graph = build_ingest_graph(dry_run=True)
-        self.assertIsNotNone(graph)
-        self.assertIn("parser", graph.nodes)
-        self.assertIn("classifier", graph.nodes)
-        self.assertIn("extractor", graph.nodes)
-        self.assertIn("entity_resolver", graph.nodes)
-        self.assertIn("generator", graph.nodes)
-        self.assertIn("merger", graph.nodes)
-        self.assertIn("validator", graph.nodes)
-        self.assertIn("writer", graph.nodes)
+        assert graph is not None
+        assert "parser" in graph.nodes
+        assert "classifier" in graph.nodes
+        assert "extractor" in graph.nodes
+        assert "entity_resolver" in graph.nodes
+        assert "generator" in graph.nodes
+        assert "merger" in graph.nodes
+        assert "validator" in graph.nodes
+        assert "writer" in graph.nodes
 
     @patch("ingestion.graph.StateGraph")
     @patch("ingestion.graph.node_writer")
@@ -85,11 +84,7 @@ class TestGraphArchitectures(unittest.TestCase):
                 writer_node_func = args[1]
                 break
 
-        self.assertIsNotNone(writer_node_func)
+        assert writer_node_func is not None
         state = IngestionState(doc_type="experience")
         writer_node_func(state)
         mock_node_writer.assert_called_once_with(state, dry_run=True)
-
-
-if __name__ == "__main__":
-    unittest.main()
