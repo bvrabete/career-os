@@ -361,6 +361,7 @@ def _compress_and_wrap_single_experience(
     max_pages: int = 1,
     target_track: str = "engineering-management",
     org_culture: str = "corporate",
+    llm: Any = None,
 ) -> str:
     """Helper to smart-compress or prune a single experience entry and return wrapped string."""
     fm = _parse_yaml_frontmatter_from_text(content)
@@ -386,19 +387,19 @@ def _compress_and_wrap_single_experience(
 
     pruned_fm_str = _prune_recent_frontmatter(fm, emp_type) if fm else ""
     if name.startswith("grouped-"):
-        body_compressed = compress_grouped_experience_llm(content, keywords=keywords)
+        body_compressed = compress_grouped_experience_llm(content, keywords=keywords, llm=llm)
         content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
     elif "group" in name.lower() or "grouped" in name.lower():
         pass
     elif years_since_end >= 15 or weight < tier_3:
-        body_compressed = compress_experience_to_one_liner_llm(content, keywords=keywords)
+        body_compressed = compress_experience_to_one_liner_llm(content, keywords=keywords, llm=llm)
         content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
     elif weight >= tier_1 and years_since_end < 10:
         content = prune_recent_experience(content, keywords, emp_type, max_pages=min(max_pages, 3))
     elif weight >= tier_2 and years_since_end < 15:
         content = prune_recent_experience(content, keywords, emp_type, max_pages=min(max_pages, 2))
     else:
-        body_compressed = compress_experience_llm(content, keywords=keywords)
+        body_compressed = compress_experience_llm(content, keywords=keywords, llm=llm)
         content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
 
     start_date_str = _extract_start_date_normalized(fm)
@@ -418,6 +419,7 @@ def _compress_and_wrap_experiences(
     max_pages: int = 1,
     target_track: str = "engineering-management",
     org_culture: str = "corporate",
+    llm: Any = None,
 ) -> tuple[list[str], list[str]]:
     """Helper to perform smart-compression or pruning on deduplicated experiences."""
     selected_content: list[str] = []
@@ -437,6 +439,7 @@ def _compress_and_wrap_experiences(
             max_pages,
             target_track=target_track,
             org_culture=org_culture,
+            llm=llm,
         )
         selected_content.append(wrapped)
 
@@ -480,4 +483,5 @@ def retrieve_and_score_experiences(
         max_pages,
         target_track=target_track,
         org_culture=org_culture,
+        llm=llm,
     )

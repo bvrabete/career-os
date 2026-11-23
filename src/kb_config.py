@@ -24,6 +24,7 @@ CONFIG_PATH = Path("config.yaml")
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
 _wiki_dir_override: Path | None = None
+_gemini_model_cache: dict[tuple[str, float], Any] = {}
 
 
 def _resolve_config_file() -> Path:
@@ -130,7 +131,17 @@ def _build_gemini_model(model_name: str, step_name: str, temperature: float, is_
     elif model_name == "gemini-1.5-pro":
         logging.info("Mapping deprecated %s 'gemini-1.5-pro' to 'gemini-2.5-pro' for step '%s'", label, step_name)
         model_name = "gemini-2.5-pro"
-    return langchain_google_genai.ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+
+    cls = langchain_google_genai.ChatGoogleGenerativeAI
+    cache_key = (model_name, float(temperature))
+    # Only use cache when cls is the real class (not patched by a unit test mock)
+    if isinstance(cls, type) and cache_key in _gemini_model_cache:
+        return _gemini_model_cache[cache_key]
+
+    instance = cls(model=model_name, temperature=temperature)
+    if isinstance(cls, type):
+        _gemini_model_cache[cache_key] = instance
+    return instance
 
 
 def get_model_for_step(step_name: str, temperature: float = 0, format: str | None = None) -> Any:

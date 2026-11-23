@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import re
 import sys
+import time
 from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 import kb_config
@@ -136,51 +137,68 @@ def _extract_compressed_summary(raw_response: str) -> str:
     return strip_wikilinks(cleaned)
 
 
-def compress_experience_llm(content: str, keywords: list[str] | None = None) -> str:
+def _deterministic_one_liner_fallback(content: str, keywords: list[str] | None = None) -> str:
+    """Deterministic fallback that extracts the highest-matching single bullet when LLM socket fails."""
+    body = re.sub(r"^---\n.*?\n---\s*", "", content, flags=re.DOTALL).strip()
+    bullets = [
+        strip_wikilinks(line.strip())
+        for line in body.splitlines()
+        if line.strip().startswith(("- ", "* ", "• "))
+    ]
+    if bullets:
+        if keywords:
+            kw_low = [k.lower() for k in keywords if k]
+            bullets.sort(key=lambda b: sum(1 for k in kw_low if k in b.lower()), reverse=True)
+        return bullets[0]
+    first_para = next((p.strip() for p in body.split("\n\n") if p.strip() and not p.strip().startswith("#")), "")
+    return strip_wikilinks(first_para[:220]) if first_para else content
+
+
+def compress_experience_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """
     Compresses an old, lower-relevance experience entry into a highly concise summary
     retaining metadata, company description/size, location, technologies, and 1 key achievement.
     """
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_experience.txt")
         kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
         prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = model.invoke([HumanMessage(content=prompt)])
         return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress experience via LLM: {e}")
         return content
 
 
-def compress_experience_to_one_liner_llm(content: str, keywords: list[str] | None = None) -> str:
+def compress_experience_to_one_liner_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """
     Compresses an extremely historic experience entry into a single highly optimized,
     ATS-aligned sentence while Python retains its YAML frontmatter deterministically.
     """
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_to_one_liner.txt")
         kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
         prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = model.invoke([HumanMessage(content=prompt)])
         return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress experience to one-liner via LLM: {e}")
-        return content
+        return _deterministic_one_liner_fallback(content, keywords=keywords)
 
 
-def compress_grouped_experience_llm(content: str, keywords: list[str] | None = None) -> str:
+def compress_grouped_experience_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """Compresses a grouped set of old experience entries into a structured nested list."""
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_grouped_experience.txt")
         kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
         prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = model.invoke([HumanMessage(content=prompt)])
         return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress grouped experience via LLM: {e}")
@@ -252,43 +270,53 @@ def parse_and_sort_chronological_entries(entries: list[str]) -> str:
 
 
 def invoke_drafter_llm_with_fallback(llm: Any, system_prompt: str, prompt: str) -> Any:
-    """Invoke LLM for drafting, with custom handling and fallback for rate limits."""
-    try:
-        return llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=prompt)
-        ])
-    except Exception as e:
-        err_msg = str(e).lower()
-        is_rate_limit = any(
-            keyword in err_msg
-            for keyword in ["rate_limit", "rate limit", "limit_exceeded", "429"]
-        )
-        if not is_rate_limit:
-            raise e
-
-        fallback_llm = _get_fallback_model_for_step("DRAFTING")
-        if fallback_llm is None:
-            logger.warning(
-                f"DRAFTING LLM invocation failed due to rate limit: {e}. "
-                "No valid fallback model configured or credentials missing. Re-raising error."
-            )
-            raise e
-
-        logger.warning(
-            f"DRAFTING LLM invocation failed due to rate limit: {e}. "
-            "Attempting configured fallback model..."
-        )
+    """Invoke LLM for drafting, with retry for transient Windows socket errors and fallback for rate limits."""
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=prompt),
+    ]
+    last_err: Exception | None = None
+    for attempt in range(3):
         try:
-            return fallback_llm.invoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=prompt)
-            ])
-        except Exception:
-            logger.exception(
-                "Configured fallback model failed. Re-raising original rate limit error."
-            )
-            raise e
+            return llm.invoke(messages)
+        except Exception as e:
+            last_err = e
+            err_msg = str(e).lower()
+            is_socket_err = "10013" in err_msg or "connecterror" in err_msg or "socket" in err_msg
+            if is_socket_err and attempt < 2:
+                logger.warning("Transient socket error on drafting attempt %d/3 (%s); retrying in 1.5s...", attempt + 1, e)
+                time.sleep(1.5)
+                continue
+            break
+
+    assert last_err is not None
+    err_msg = str(last_err).lower()
+    is_rate_limit = any(
+        keyword in err_msg
+        for keyword in ["rate_limit", "rate limit", "limit_exceeded", "429"]
+    )
+    if not is_rate_limit:
+        raise last_err
+
+    fallback_llm = _get_fallback_model_for_step("DRAFTING")
+    if fallback_llm is None:
+        logger.warning(
+            f"DRAFTING LLM invocation failed due to rate limit: {last_err}. "
+            "No valid fallback model configured or credentials missing. Re-raising error."
+        )
+        raise last_err
+
+    logger.warning(
+        f"DRAFTING LLM invocation failed due to rate limit: {last_err}. "
+        "Attempting configured fallback model..."
+    )
+    try:
+        return fallback_llm.invoke(messages)
+    except Exception:
+        logger.exception(
+            "Configured fallback model failed. Re-raising original rate limit error."
+        )
+        raise last_err
 
 
 def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int, int]:
