@@ -8,6 +8,7 @@ from typing import Any, Literal
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
+from docx_generator import normalize_markdown_tables
 from generation.formatting import (
     check_typesetting_budget as check_typesetting_budget,
     handle_interactive_audit as _handle_interactive_audit,
@@ -318,7 +319,7 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     )
 
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
-    clean_draft = strip_wikilinks(llm_text(response.content))
+    clean_draft = normalize_markdown_tables(strip_wikilinks(llm_text(response.content)))
     return {"draft_cv": clean_draft}
 
 
@@ -396,6 +397,7 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
         compressed_text = re.sub(r"^```(?:markdown)?\n", "", compressed_text)
         compressed_text = re.sub(r"\n```$", "", compressed_text).strip()
 
+    compressed_text = normalize_markdown_tables(compressed_text)
     compression_count = state.get("compression_count", 0) + 1
     return {
         "draft_cv": compressed_text,

@@ -462,9 +462,13 @@ def assemble_role_evidence_bundles(wiki_dir: Path, selected_entries: list[str]) 
         note_links = extract_wikilink_list(fm.get("notes", []))
         raw_dates = fm.get("dates")
         dates: dict[str, Any] = raw_dates if isinstance(raw_dates, dict) else {}
+        body_only = re.sub(r"^--- CAREER ENTRY:.*?---\n", "", entry, flags=re.DOTALL)
+        body_only = re.sub(r"--- END CAREER ENTRY ---\s*$", "", body_only, flags=re.DOTALL)
+        body_only = re.sub(r"^\s*JUSTIFICATION:.*?\n", "", body_only)
+        body_only = re.sub(r"^\s*---\n.*?\n---", "", body_only, flags=re.DOTALL).strip()
         bullets = [
             strip_wikilinks(line.strip("- *•\t "))
-            for line in entry.splitlines()
+            for line in body_only.splitlines()
             if line.strip().startswith(("- ", "* ", "• "))
         ]
         scope_obj = ExperienceScope.model_validate({str(k): str(v) for k, v in scope_dict.items() if v is not None})

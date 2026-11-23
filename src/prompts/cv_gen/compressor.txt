@@ -12,7 +12,11 @@ COMPRESSION RULES:
 2. ELIMINATE PROSE BLOAT: Remove filler phrases, verbose introductory clauses, and redundant descriptions. Make every STAR bullet punchy and direct.
 3. PRUNE LOWEST-RELEVANCE BULLETS: If the CV is still over budget, drop secondary bullets from older or less relevant roles first.
 4. CONDENSE OLDER ROLES: Compress roles older than 10 years into single-line entries or brief grouped summaries.
-5. PRESERVE VALID MARKDOWN STRUCTURE: Maintain all headers, bullet markers, dates, and organizations intact.
+5. PRESERVE VALID MARKDOWN STRUCTURE & HEADING LEVELS:
+   - Keep `# Candidate Name` as the ONLY Level 1 (`#`) heading.
+   - Keep all top-level sections as Level 2 (`## Professional Summary`, `## Key Skills`, `## Work Experience`, `## Education`, etc.).
+   - Keep all role headers as Level 3 (`### Job Title — Company`).
+   - NEVER use Markdown tables (`| col | col |` or `| :--- |`). Format `## Key Skills` and `## Languages` strictly as categorized bullet points (`- **Category:** Skill 1, Skill 2`).
 
 Draft CV to compress:
 {draft_cv}

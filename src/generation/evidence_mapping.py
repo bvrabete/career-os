@@ -24,7 +24,8 @@ def parse_experience_entry_to_dict(entry_str: str) -> dict[str, Any]:
 
     body = re.sub(r"^--- CAREER ENTRY:.*?---\n", "", entry_str, flags=re.DOTALL)
     body = re.sub(r"--- END CAREER ENTRY ---\s*$", "", body, flags=re.DOTALL)
-    body = re.sub(r"^---\n.*?\n---", "", body, flags=re.DOTALL).strip()
+    body = re.sub(r"^\s*JUSTIFICATION:.*?\n", "", body)
+    body = re.sub(r"^\s*---\n.*?\n---", "", body, flags=re.DOTALL).strip()
 
     bullets: list[str] = []
     for line in body.splitlines():

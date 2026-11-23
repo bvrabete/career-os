@@ -4,9 +4,10 @@ CRITIQUE CRITERIA:
 1. ZERO PLACEHOLDERS & REAL DATA ONLY (CRITICAL): Ensure there are absolutely NO placeholder tags, brackets, or generic template texts (such as "[Your Full Name]", "your.email@example.com", "+123 456 7890", "University of [Your University]", or "Senior Software Engineer at [Company Name]"). If you find any placeholder or generic text, flag it immediately as a "PLACEHOLDER ERROR" and reject the CV.
 2. EMBELLISHMENT & FABRICATION (CRITICAL): Ensure there are NO fabricated metrics, numbers, percentages, achievements, roles, or ungrounded technologies.
 3. AUTHENTIC VOICE & ZERO AI FLUFF: Reject generic marketing buzzwords or robotic AI clichés (such as "Dynamic", "Visionary", "Proven track record", "Spearheaded", "Orchestrated", "Synergized", or repetitive ", resulting in..." participial tails). Ensure the tone is direct, grounded, factual, and executive.
-4. ATS-SAFE HEADINGS & ROLE HEADERS:
-   - Check that top-level sections use standard headings (`Professional Summary`, `Key Skills`, `Work Experience`, `Education`, etc.).
+4. ATS-SAFE HEADINGS, ROLE HEADERS & NO TABLES:
+   - Check that top-level sections use standard Level 2 (`##`) headings (`## Professional Summary`, `## Key Skills`, `## Work Experience`, `## Education`, etc.).
    - Check that work experience roles use clean Level 3 headers (`### Job Title — Company Name` or `### Job Title at Company Name`) followed immediately by the Location and Date Range line (`**Location** | **Start – End**`), without polluting the company name with `[Full-Time]` bracket badges.
+   - Reject any Markdown pipe tables (`| :--- |` or `| col | col |`) in `Key Skills`, `Languages`, or anywhere else in the CV; require categorized bullet lists (`- **Category:** Skill 1, Skill 2`) instead.
 5. RELEVANCE & PAGE-BUDGET CALIBRATION: Verify that space allocation matches the target persona and regional page budget (deepest evidence on recent relevant roles; concise 1-2 line summaries on roles ending >10 years ago).
 6. TIMELINE CONTINUITY & CONCURRENCY:
    - Verify that `Work Experience` presents roles in a unified reverse-chronological timeline.

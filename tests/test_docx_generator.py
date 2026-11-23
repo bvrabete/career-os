@@ -5,6 +5,7 @@ from docx.shared import RGBColor
 
 from docx_generator import (
     generate_docx,
+    normalize_markdown_tables,
     add_hyperlink,
     add_formatted_runs,
     _process_part,
@@ -141,3 +142,22 @@ Paragraph here."""
 
             expected_file = out_dir / "My_CV.docx"
             assert expected_file.exists()
+
+    def test_normalize_markdown_tables(self) -> None:
+        raw_md = (
+            "## Key Skills\n"
+            "| Cloud Strategy | DevOps |\n"
+            "| :--- | :--- |\n"
+            "| Multi-Cloud (AWS, Azure) | Kubernetes |\n"
+            "| FinOps | Terraform |\n\n"
+            "| Languages |\n"
+            "| :--- |\n"
+            "| **English:** Proficient (C2) |\n"
+            "| **Romanian:** Native |\n"
+        )
+        normalized = normalize_markdown_tables(raw_md)
+        assert "| :--- |" not in normalized
+        assert "- **Cloud Strategy:** Multi-Cloud (AWS, Azure), FinOps" in normalized
+        assert "- **DevOps:** Kubernetes, Terraform" in normalized
+        assert "- **English:** Proficient (C2)" in normalized
+        assert "- **Romanian:** Native" in normalized

@@ -25,7 +25,8 @@ CORE RULES:
    - NO ROLE OMISSION: Every provided career entry must appear in the timeline.
 4. COMMERCIAL ATS-SAFE FORMATTING & HEADERS:
    - Respond with pure Markdown only (NO surrounding ```markdown code fences).
-   - STANDARD SECTION HEADINGS: Use standard H2 headings (`## Professional Summary`, `## Key Skills`, `## Work Experience`, `## Selected Projects` or `## Patents & Publications` when applicable, `## Education`).
+   - STRICTLY NO MARKDOWN TABLES: NEVER use Markdown pipe tables (`| col | col |` or `| :--- |`) anywhere in the CV (including `Key Skills` and `Languages`). Multi-column tables break commercial ATS parsers and Word `.docx` rendering.
+   - HEADING HIERARCHY: Use Level 1 (`# Full Name`) ONLY for the candidate's name at the very top. Use Level 2 (`## Section Title`) for all top-level sections (`## Professional Summary`, `## Key Skills`, `## Work Experience`, `## Selected Projects`, `## Patents & Publications`, `## Education`, `## Languages`).
    - ATS-SAFE TWO-LINE ROLE HEADERS: For every work experience entry, use a clean Level 3 heading with ONLY the Job Title and Company Name, followed immediately on the next line by Location, Date Range (`MMM YYYY – MMM YYYY`), and optional non-permanent engagement type:
      ```markdown
      ### Senior Engineering Manager — Acme Corp
@@ -36,7 +37,7 @@ CORE RULES:
      ### Principal Cloud Consultant — Globex Ltd
      **Remote** | **Mar 2018 – Dec 2020** *(Contract)*
      ```
-     Do NOT use Level 4 (`####`) headers for primary roles, and do NOT append bracketed tags like `[Full-Time]` to the H3 heading line.
+     Do NOT use Level 2 (`##`) or Level 4 (`####`) headers for primary roles, and do NOT append bracketed tags like `[Full-Time]` to the H3 heading line.
    - TECHNOLOGIES PLACEMENT: For primary roles, place a concise `*Technologies:*` line at the **bottom** of that role's bullet list (after the achievement bullets, never between the H3 heading and the Date/Location line).
 5. AUTHENTIC HUMAN VOICE, CAUSAL IMPACT & ANTI-AI CADENCE:
    - Follow the candidate's `CANDIDATE VOICE & PHRASING GUIDE` (`my-voice.md`).
@@ -45,12 +46,12 @@ CORE RULES:
    - Distribute keywords naturally across the timeline; never repeat the same keyword more than twice in a single role.
    - Expand domain acronyms on first use where helpful for ATS matching.
 6. STRICT SKILL GROUNDING & TRANSPARENT SKILL BRIDGING:
-   - Compile a structured `## Key Skills` section grouped under descriptive domain sub-categories matching the JD's focus areas.
+   - Compile a structured `## Key Skills` section using **categorized bullet points** (`- **Domain Category:** Skill 1, Skill 2, Skill 3`), grouped into 3–5 descriptive domain sub-categories matching the JD's focus areas. NEVER format skills or languages as a Markdown table (`| :--- |`).
    - Every skill listed in `## Key Skills` or `## Professional Summary` MUST be grounded in the candidate's actual skills profile and career entries.
    - NEVER claim an unpossessed JD skill as a standalone skill. When using the `SKILL BRIDGING MAP` to bridge a required JD technology to an equivalent candidate technology, format it transparently using the candidate's actual skill first (e.g., `Azure (AWS-equivalent cloud architecture)`).
 7. PROJECTS, CASE STUDIES, PATENTS & LANGUAGES:
    - Integrate retrieved **Case Studies** and **Corporate Projects** (`enterprise_initiative`) directly into the achievement bullets of their parent employment role, preserving any cross-role IP licensing or technology-transfer continuity documented in the source entries.
    - Feature relevant **Open-Source / Side Projects** (`open_source`, `side_project`) under `## Selected Projects` when they strengthen alignment with the target role.
    - Integrate relevant **Patents & Publications** into their associated employer's bullets and/or under `## Patents & Publications` (`## Additional Information`).
-   - Include spoken languages (and standard CEFR levels such as C1/C2/B2 if provided) under `## Key Skills` or `## Education`.
+   - Format spoken languages (with CEFR levels such as C1/C2/B2 if provided) either as a `- **Languages:** English (Proficient, C2), ...` bullet inside `## Key Skills` or as clean bullet points under `## Languages` — NEVER as a Markdown table.
    - STRICTLY EXCLUDE PSYCHOMETRICS: Never include psychometric, cognitive, or personality test scores/percentiles (e.g., CCAT, GIA, EPP, ProfileXT) on the CV.

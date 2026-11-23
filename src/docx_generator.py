@@ -197,6 +197,61 @@ def _add_bullet_item(
             run.font.color.rgb = color_text
 
 
+def _is_table_separator_row(cells: list[str]) -> bool:
+    """Return True if all cells in a pipe-table row are markdown alignment separators (:---)."""
+    return all(not c or bool(re.match(r"^:?-{2,}:?$", c)) for c in cells)
+
+
+def _format_table_block_as_bullets(table_rows: list[list[str]]) -> list[str]:
+    """Convert parsed Markdown table rows into categorized bullet points."""
+    if not table_rows:
+        return []
+    headers = table_rows[0]
+    body_rows = table_rows[1:]
+    if not body_rows:
+        return ["- " + " | ".join(headers)]
+    if len(headers) == 1:
+        items = [r[0] for r in body_rows if r]
+        header_clean = headers[0].strip("* :")
+        if header_clean.lower() == "languages":
+            return [f"- {item}" for item in items]
+        return [f"- **{header_clean}:** " + ", ".join(items)]
+    if all(len(r) == len(headers) for r in body_rows):
+        bullets: list[str] = []
+        for col_idx, col_header in enumerate(headers):
+            col_items = [r[col_idx] for r in body_rows if col_idx < len(r) and r[col_idx]]
+            clean_hdr = col_header.strip("* :")
+            if col_items:
+                bullets.append(f"- **{clean_hdr}:** " + ", ".join(col_items))
+        return bullets
+    return ["- " + " | ".join(row) for row in table_rows if row]
+
+
+def normalize_markdown_tables(content: str) -> str:
+    """Convert any stray Markdown pipe tables into ATS-safe bullet lines."""
+    lines = content.splitlines()
+    out_lines: list[str] = []
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if not (stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2):
+            out_lines.append(lines[i])
+            i += 1
+            continue
+
+        table_rows: list[list[str]] = []
+        while i < len(lines):
+            row_str = lines[i].strip()
+            if not (row_str.startswith("|") and row_str.endswith("|")):
+                break
+            cells = [c.strip() for c in row_str.strip("|").split("|")]
+            if not _is_table_separator_row(cells):
+                table_rows.append([c for c in cells if c])
+            i += 1
+        out_lines.extend(_format_table_block_as_bullets(table_rows))
+    return "\n".join(out_lines)
+
+
 def _add_standard_paragraph(
     doc: Any,
     line: str,
@@ -211,13 +266,13 @@ def _add_standard_paragraph(
     p.paragraph_format.space_after = Pt(4)
     p.paragraph_format.line_spacing = 1.2
 
-    is_contact_line = (
+    is_contact_line = idx < 8 and (
         any(kw in line.lower() for kw in ["@ ", "phone", "linkedin", "address", "email", "github"])
         or "|" in line
         or "  " in line
     )
 
-    if is_contact_line and idx < 8:
+    if is_contact_line:
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(8)
 
@@ -311,7 +366,7 @@ def generate_docx(md_content: str, output_path: str, template: str | None = None
             section.left_margin = theme["margin"]
             section.right_margin = theme["margin"]
 
-        cleaned_md = _strip_yaml_frontmatter(_clean_markdown_wrapper(md_content))
+        cleaned_md = normalize_markdown_tables(_strip_yaml_frontmatter(_clean_markdown_wrapper(md_content)))
         lines = cleaned_md.splitlines()
 
         for idx, raw_line in enumerate(lines):
