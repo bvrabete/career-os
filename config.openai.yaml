@@ -1,67 +1,67 @@
 # Model Selection Definitions
 MODELS:
   ollama: "qwen2.5:7b"      # Default fast local model (100% GPU offload under 6GB VRAM)
-  openai: "o3-mini"
+  openai: "gpt-4.1"
 
 # Pipeline Step Configurations (Pure OpenAI-Assisted Setup)
 # Optimized to run exclusively using an OpenAI API Key, leveraging the absolute latest models.
-# Uses lightweight gpt-4o-mini for cost-efficient steps and o3-mini for high-reasoning tasks.
+# Uses lightweight gpt-4.1-mini for cost-efficient steps and gpt-4.1 for high-reasoning tasks.
 STEPS:
   EXTRACTION:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Blazing fast, ultra-cheap schema parsing
+    MODEL_NAME: "gpt-4.1-mini" # Blazing fast, ultra-cheap schema parsing
 
   REFINEMENT:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Cost-efficient narrative verification
+    MODEL_NAME: "gpt-4.1-mini" # Cost-efficient narrative verification
 
   MERGE:
     TYPE: "openai"
-    MODEL_NAME: "o3-mini" # Deep logical reasoning for timeline merging and deduplication
+    MODEL_NAME: "gpt-4.1" # Deep logical reasoning for timeline merging and deduplication
 
   GAP_ANALYSIS:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Quick structural mismatch analysis
+    MODEL_NAME: "gpt-4.1-mini" # Quick structural mismatch analysis
 
   # CV Generator LangGraph Steps
   ANALYSIS:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Rapid region and intent analyzer
+    MODEL_NAME: "gpt-4.1-mini" # Rapid region and intent analyzer
 
   RETRIEVAL:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Fast semantic relevance scoring per experience
+    MODEL_NAME: "gpt-4.1-mini" # Fast semantic relevance scoring per experience
 
   DRAFTING:
     TYPE: "openai"
-    MODEL_NAME: "o3-mini" # High-capacity, structured reasoning resume generator
+    MODEL_NAME: "gpt-4.1" # High-capacity, structured reasoning resume generator
     FALLBACK:
       TYPE: "openai"
-      MODEL_NAME: "gpt-4o-mini"
+      MODEL_NAME: "gpt-4.1-mini"
 
   AUDIT:
     TYPE: "openai"
-    MODEL_NAME: "o3-mini" # Brutally honest reasoning-model critic for ATS audit
+    MODEL_NAME: "gpt-4.1" # Brutally honest reasoning-model critic for ATS audit
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Fast document classification
+    MODEL_NAME: "gpt-4.1-mini" # Fast document classification
 
   INGESTION_EXTRACT:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Rapid extraction of candidate raw data
+    MODEL_NAME: "gpt-4.1-mini" # Rapid extraction of candidate raw data
 
   INGESTION_GENERATE:
     TYPE: "openai"
-    MODEL_NAME: "o3-mini" # Perfect schema compliance for frontmatter generation
+    MODEL_NAME: "gpt-4.1" # Perfect schema compliance for frontmatter generation
     FALLBACK:
       TYPE: "openai"
-      MODEL_NAME: "gpt-4o-mini"
+      MODEL_NAME: "gpt-4.1-mini"
 
   INGESTION_MERGE:
     TYPE: "openai"
-    MODEL_NAME: "o3-mini" # Flawless deduplication of new experiences using logical reasoning
+    MODEL_NAME: "gpt-4.1" # Flawless deduplication of new experiences using logical reasoning
 
 OLLAMA_BASE_URL: "http://localhost:11434"
 OLLAMA_NUM_CTX: 12288

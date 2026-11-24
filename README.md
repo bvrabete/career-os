@@ -266,7 +266,7 @@ We provide several predefined configurations tailored for different hardware set
 1. **`config.yaml` (Active Configuration)**:
    The active configuration file loaded by CareerOS.
 2. **`config.openai.yaml` (Pure OpenAI-Assisted)**:
-   Runs exclusively via OpenAI API using `gpt-4o-mini` for lightweight tasks and `o3-mini` for high-reasoning drafting, audit, and ingestion tasks.
+   Runs exclusively via OpenAI API using `gpt-4.1-mini` for lightweight tasks and `gpt-4.1` for high-reasoning drafting, audit, and ingestion tasks.
 3. **`config.gemini.yaml` (Pure Google Gemini)**:
    Runs exclusively via Gemini API using `gemini-2.5-flash` and `gemini-2.5-pro`.
 4. **`config.low-vram-local.yaml` (Low VRAM Local-First)**:

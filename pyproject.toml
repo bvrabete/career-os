@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.7.0"
+version = "1.7.9"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,7 +17,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "transformers>=4.47.0",
-    "weasyprint>=69.0",
+    "weasyprint>=70.0",
     "langchain-google-genai",
 ]
 
@@ -61,8 +61,8 @@ notebooks = [
     "jupyterlab>=4.0.0",
 ]
 ingest = [
-    "docling>=2.70.0",
-    "langchain-docling>=2.0.0",
+    "docling>=2.152.0",
+    "langchain-docling>=2.152.0",
     "pypdf>=6.14.2",
 ]
 

@@ -142,7 +142,7 @@ class TestKBConfigAdditional:
         self, mock_load: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         mock_load.return_value = {
-            "STEPS": {"TEST_STEP": {"FALLBACK": {"TYPE": "openai", "MODEL_NAME": "gpt-4o-mini"}}},
+            "STEPS": {"TEST_STEP": {"FALLBACK": {"TYPE": "openai", "MODEL_NAME": "gpt-4.1-mini"}}},
         }
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         assert get_fallback_model_for_step("TEST_STEP") is None
@@ -151,7 +151,7 @@ class TestKBConfigAdditional:
         with patch("kb_config.ChatOpenAI") as mock_openai:
             get_fallback_model_for_step("TEST_STEP", format="json")
             mock_openai.assert_called_with(
-                model="gpt-4o-mini", temperature=0, response_format={"type": "json_object"}
+                model="gpt-4.1-mini", temperature=0, response_format={"type": "json_object"}
             )
 
     @patch("kb_config.load_config")

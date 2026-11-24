@@ -4,12 +4,12 @@ MODELS:
   openai: "gpt-4o"
 
 # Pipeline Step Configurations (Hybrid OpenAI-Assisted Setup)
-# Uses high-speed, zero-VRAM OpenAI cloud APIs (gpt-4o & gpt-4o-mini) for complex parsing, reasoning, and auditing,
+# Uses high-speed, zero-VRAM OpenAI cloud APIs (gpt-4o & gpt-4.1-mini) for complex parsing, reasoning, and auditing,
 # while retaining light local models (llama3.1:8b & qwen2.5:7b) for fast local steps.
 STEPS:
   EXTRACTION:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Blazing fast schema parsing (zero local VRAM, 100% accurate)
+    MODEL_NAME: "gpt-4.1-mini" # Blazing fast schema parsing (zero local VRAM, 100% accurate)
 
   REFINEMENT:
     TYPE: "ollama"
@@ -46,7 +46,7 @@ STEPS:
 
   AUDIT:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Brutally honest cloud-based recruiter critic (fast and accurate)
+    MODEL_NAME: "gpt-4.1-mini" # Brutally honest cloud-based recruiter critic (fast and accurate)
 
   # Ingestion pipeline steps
   INGESTION_CLASSIFY:
@@ -55,7 +55,7 @@ STEPS:
 
   INGESTION_EXTRACT:
     TYPE: "openai"
-    MODEL_NAME: "gpt-4o-mini" # Flawless cloud extraction of candidate data
+    MODEL_NAME: "gpt-4.1-mini" # Flawless cloud extraction of candidate data
 
   INGESTION_GENERATE:
     TYPE: "openai"

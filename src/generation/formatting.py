@@ -8,6 +8,7 @@ import sys
 import time
 from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 import kb_config
 from schemas.cv_models import CompressedSummaryOutput
 
@@ -212,7 +213,11 @@ def invoke_structured_llm(llm: Any, schema: type[Any], messages: list[Any]) -> A
     is_mock = type(llm).__module__.startswith("unittest.mock")
     if not is_mock and hasattr(llm, "with_structured_output"):
         try:
-            structured_llm = llm.with_structured_output(schema)
+            structured_llm = (
+                llm.with_structured_output(schema, method="function_calling")
+                if isinstance(llm, ChatOpenAI)
+                else llm.with_structured_output(schema)
+            )
             res = structured_llm.invoke(messages)
             if isinstance(res, schema):
                 return res
