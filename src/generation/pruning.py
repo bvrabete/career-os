@@ -15,9 +15,8 @@ from generation.formatting import (
     compress_experience_llm,
     compress_experience_to_one_liner_llm,
     compress_grouped_experience_llm,
-    llm_text,
+    invoke_structured_llm,
     load_prompt,
-    robust_json_loads,
     strip_wikilinks,
 )
 from generation.grouping import (
@@ -30,6 +29,7 @@ from generation.grouping import (
     _is_parallel_startup_track,
 )
 from generation.retrieval import _parse_yaml_frontmatter_from_text, score_by_keywords
+from schemas.cv_models import ExperienceScoreOutput
 from utils import extract_wikilink_slug, format_wikilink, format_wikilink_list
 
 logger = logging.getLogger(__name__)
@@ -197,15 +197,14 @@ def _score_single_experience(
             .replace("{EXPERIENCE_CONTENT}", experience_content)
         )
 
-        response = llm.invoke([HumanMessage(content=score_prompt)])
-        content = llm_text(response.content)
-
         score = 0
         justification = "N/A"
         try:
-            data = robust_json_loads(content)
-            score = int(data.get("score", 0))
-            justification = data.get("justification", "N/A")
+            parsed: ExperienceScoreOutput = invoke_structured_llm(
+                llm, ExperienceScoreOutput, [HumanMessage(content=score_prompt)]
+            )
+            score = parsed.score
+            justification = parsed.justification
         except Exception as e:
             logger.warning(
                 f"Failed to parse LLM score for {entry_path.name}, defaulting to 0: {e}"

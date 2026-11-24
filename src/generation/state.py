@@ -6,6 +6,16 @@ from typing import Any, Literal, TypedDict
 from pydantic import BaseModel, Field
 import yaml
 
+from schemas.cv_models import (
+    ContactHeader,
+    CVRoleEntry,
+    EducationItem,
+    LanguageItem,
+    PatentOrPublicationItem,
+    ProjectItem,
+    SkillCategory,
+    StructuredCVDocument,
+)
 from schemas.wiki_models import (
     AnalyzerOutput,
     ATSScorecard,
@@ -251,6 +261,7 @@ class CVPipelineState(TypedDict, total=False):
     track_strategy_metadata: TrackStrategy
     pdf_template: str
     docx_template: str
+    structured_cv: dict[str, Any] | None
     draft_cv: str
     audit_feedback: str
     refiner_feedback: str
@@ -293,4 +304,12 @@ __all__ = [
     "SynthesizedBullet",
     "SynthesizedRole",
     "TailoredLongDraft",
+    "ContactHeader",
+    "CVRoleEntry",
+    "EducationItem",
+    "LanguageItem",
+    "PatentOrPublicationItem",
+    "ProjectItem",
+    "SkillCategory",
+    "StructuredCVDocument",
 ]

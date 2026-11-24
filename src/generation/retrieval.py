@@ -8,12 +8,13 @@ import sys
 from typing import Any
 import yaml
 from langchain_core.messages import HumanMessage
-from generation.formatting import BRACKET_LINK_PATTERN, llm_text, load_prompt, robust_json_loads, strip_wikilinks
+from generation.formatting import BRACKET_LINK_PATTERN, invoke_structured_llm, load_prompt, strip_wikilinks
 from generation.strategy import (
     discover_available_strategies as discover_available_strategies,
     resolve_regional_strategy as resolve_regional_strategy,
     resolve_track_strategy as resolve_track_strategy,
 )
+from schemas.cv_models import SkillBridgingOutput
 from schemas.wiki_models import ExperienceScope, RoleEvidenceBundle
 from utils import extract_wikilink_list, extract_wikilink_slug
 
@@ -96,11 +97,10 @@ def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]
             .replace("{SKILLS_SUMMARY}", skills_summary)
         )
 
-        response = llm.invoke([HumanMessage(content=prompt)])
-        content = llm_text(response.content)
-        data = robust_json_loads(content)
-        if isinstance(data, dict):
-            return {str(k): str(v) for k, v in data.items()}
+        parsed: SkillBridgingOutput = invoke_structured_llm(
+            llm, SkillBridgingOutput, [HumanMessage(content=prompt)]
+        )
+        return parsed.mappings
     except Exception as e:
         logger.warning(f"Failed to generate skill bridging map: {e}")
 

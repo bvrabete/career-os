@@ -6,10 +6,16 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from kb_config import get_model_for_step
 from ingestion.helpers import load_prompt, llm_text, strip_fences
 from ingestion.state import IngestionState
+from schemas.cv_models import (
+    CaseStudyExtractionOutput,
+    CoverLetterExtractionOutput,
+    ExperienceExtractionOutput,
+    SupplementalExtractionOutput,
+)
 
 
 def _extract_experience(llm: Any, raw_text: str) -> dict[str, Any]:
-    """Extract experience fields from raw text using the LLM and external prompt."""
+    """Extract experience fields from raw text using the LLM and validate via ExperienceExtractionOutput."""
     system_prompt = load_prompt("extraction_experience.txt")
     response = llm.invoke([
         SystemMessage(content=system_prompt),
@@ -21,7 +27,8 @@ def _extract_experience(llm: Any, raw_text: str) -> dict[str, Any]:
 
     raw = llm_text(response.content).strip()
     try:
-        return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
+        data = json.loads(strip_fences(raw))
+        return ExperienceExtractionOutput.model_validate(data).model_dump()
     except Exception as e:
         logging.warning(f"Could not parse extractor JSON for experience: {e}")
         logging.warning(f"Response was: {raw[:500]}")
@@ -29,7 +36,7 @@ def _extract_experience(llm: Any, raw_text: str) -> dict[str, Any]:
 
 
 def _extract_cover_letter(llm: Any, raw_text: str) -> dict[str, Any]:
-    """Extract cover letter fields from raw text using the LLM and external prompt."""
+    """Extract cover letter fields from raw text using the LLM and validate via CoverLetterExtractionOutput."""
     system_prompt = load_prompt("extraction_cover_letter.txt")
     response = llm.invoke([
         SystemMessage(content=system_prompt),
@@ -38,7 +45,8 @@ def _extract_cover_letter(llm: Any, raw_text: str) -> dict[str, Any]:
 
     raw = llm_text(response.content).strip()
     try:
-        return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
+        data = json.loads(strip_fences(raw))
+        return CoverLetterExtractionOutput.model_validate(data).model_dump()
     except Exception as e:
         logging.warning(f"Could not parse extractor JSON for cover_letter: {e}")
         logging.warning(f"Response was: {raw[:500]}")
@@ -46,7 +54,7 @@ def _extract_cover_letter(llm: Any, raw_text: str) -> dict[str, Any]:
 
 
 def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
-    """Extract supplemental fields from raw text using the LLM and external prompt."""
+    """Extract supplemental fields from raw text using the LLM and validate via SupplementalExtractionOutput."""
     system_prompt = load_prompt("extraction_supplemental.txt")
     response = llm.invoke([
         SystemMessage(content=system_prompt),
@@ -55,7 +63,8 @@ def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
 
     raw = llm_text(response.content).strip()
     try:
-        return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
+        data = json.loads(strip_fences(raw))
+        return SupplementalExtractionOutput.model_validate(data).model_dump()
     except Exception as e:
         logging.warning(f"Could not parse extractor JSON for supplemental: {e}")
         logging.warning(f"Response was: {raw[:500]}")
@@ -63,7 +72,7 @@ def _extract_supplemental(llm: Any, raw_text: str) -> dict[str, Any]:
 
 
 def _extract_case_study(llm: Any, raw_text: str) -> dict[str, Any]:
-    """Extract engineering case study metadata and STAR summary using the LLM and external prompt."""
+    """Extract engineering case study metadata and validate via CaseStudyExtractionOutput."""
     system_prompt = load_prompt("extraction_case_study.txt")
     response = llm.invoke([
         SystemMessage(content=system_prompt),
@@ -72,7 +81,8 @@ def _extract_case_study(llm: Any, raw_text: str) -> dict[str, Any]:
 
     raw = llm_text(response.content).strip()
     try:
-        return json.loads(strip_fences(raw))  # type: ignore[no-any-return]
+        data = json.loads(strip_fences(raw))
+        return CaseStudyExtractionOutput.model_validate(data).model_dump()
     except Exception as e:
         logging.warning(f"Could not parse extractor JSON for case_study: {e}")
         logging.warning(f"Response was: {raw[:500]}")

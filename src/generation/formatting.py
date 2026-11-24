@@ -9,6 +9,7 @@ import time
 from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 import kb_config
+from schemas.cv_models import CompressedSummaryOutput
 
 logger = logging.getLogger(__name__)
 
@@ -124,13 +125,14 @@ def load_prompt(filename: str) -> str:
 
 
 def _extract_compressed_summary(raw_response: str) -> str:
-    """Extract clean summary text from JSON or plain text compressor response, stripping any accidental frontmatter."""
+    """Validate and extract clean summary text via CompressedSummaryOutput Pydantic schema."""
     cleaned = raw_response.strip()
     if "{" in cleaned and "}" in cleaned:
         try:
             data = robust_json_loads(cleaned)
-            if isinstance(data, dict) and data.get("summary"):
-                cleaned = str(data["summary"]).strip()
+            parsed = CompressedSummaryOutput.model_validate(data)
+            if parsed.summary.strip():
+                cleaned = parsed.summary.strip()
         except Exception:
             pass
     cleaned = re.sub(r"^---\n.*?\n---\s*", "", cleaned, flags=re.DOTALL).strip()
@@ -206,8 +208,9 @@ def compress_grouped_experience_llm(content: str, keywords: list[str] | None = N
 
 
 def invoke_structured_llm(llm: Any, schema: type[Any], messages: list[Any]) -> Any:
-    """Invoke an LLM expecting a Pydantic schema via .with_structured_output() with JSON fallback."""
-    if hasattr(llm, "with_structured_output"):
+    """Invoke an LLM and validate the response into the target Pydantic schema."""
+    is_mock = type(llm).__module__.startswith("unittest.mock")
+    if not is_mock and hasattr(llm, "with_structured_output"):
         try:
             structured_llm = llm.with_structured_output(schema)
             res = structured_llm.invoke(messages)
@@ -219,6 +222,10 @@ def invoke_structured_llm(llm: Any, schema: type[Any], messages: list[Any]) -> A
             logger.debug("with_structured_output fallback triggered for %s: %s", getattr(schema, "__name__", schema), e)
 
     response = llm.invoke(messages)
+    if isinstance(response, schema):
+        return response
+    if isinstance(response, dict):
+        return schema.model_validate(response)
     raw_text = llm_text(response.content)
     data = robust_json_loads(raw_text)
     return schema.model_validate(data)

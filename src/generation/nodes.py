@@ -8,7 +8,7 @@ from typing import Any, Literal
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from docx_generator import normalize_markdown_tables
+from generation.cv_renderer import parse_and_render_structured_cv
 from generation.formatting import (
     check_typesetting_budget as check_typesetting_budget,
     handle_interactive_audit as _handle_interactive_audit,
@@ -37,7 +37,13 @@ from generation.helpers import (
     robust_json_loads,
 )
 import generation.skills_helper as skills_helper
-from generation.state import CVPipelineState, RegionalStrategy, TrackStrategy
+from generation.state import (
+    AnalyzerOutput,
+    AuditOutput,
+    CVPipelineState,
+    RegionalStrategy,
+    TrackStrategy,
+)
 from kb_config import (
     get_model_for_step,
     get_strategy_default,
@@ -104,15 +110,16 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
     content = llm_text(response.content)
 
     try:
-        data = robust_json_loads(content)
-        persona = data.get("persona", content)
-        keywords = data.get("keywords", [])
-        locations = data.get("locations", [])
-        expectations = data.get("expectations", "Standard professional CV")
-        region = str(data.get("suggested_region", default_strategy)).lower()
-        track = str(data.get("suggested_track", "engineering-management")).lower()
-        org_type, agency_name, employer_name, target_org = _resolve_target_employer_slug(data)
-        target_role = data.get("target_role", "unknown-role")
+        raw_data = robust_json_loads(content)
+        parsed = AnalyzerOutput.model_validate(raw_data)
+        persona = raw_data.get("persona", content)
+        keywords = parsed.keywords
+        locations = parsed.locations
+        expectations = parsed.expectations
+        region = str(raw_data.get("suggested_region", default_strategy)).lower()
+        track = str(raw_data.get("suggested_track", "engineering-management")).lower()
+        org_type, agency_name, employer_name, target_org = _resolve_target_employer_slug(raw_data)
+        target_role = parsed.target_role
     except Exception as e:
         logger.warning("Failed to parse JSON from Analyzer, falling back to heuristics: %s", e)
         persona = content
@@ -319,7 +326,11 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     )
 
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
-    clean_draft = normalize_markdown_tables(strip_wikilinks(llm_text(response.content)))
+    raw_content = strip_wikilinks(llm_text(response.content))
+    region = str(state.get("target_region") or "emea")
+    structured_dict, clean_draft = parse_and_render_structured_cv(raw_content, region=region)
+    if structured_dict is not None:
+        return {"structured_cv": structured_dict, "draft_cv": clean_draft}
     return {"draft_cv": clean_draft}
 
 
@@ -392,15 +403,19 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
 
     response = llm.invoke([HumanMessage(content=prompt)])
     compressed_text = strip_wikilinks(llm_text(response.content).strip())
-
-    if compressed_text.startswith("```"):
-        compressed_text = re.sub(r"^```(?:markdown)?\n", "", compressed_text)
-        compressed_text = re.sub(r"\n```$", "", compressed_text).strip()
-
-    compressed_text = normalize_markdown_tables(compressed_text)
+    region = str(state.get("target_region") or "emea")
     compression_count = state.get("compression_count", 0) + 1
+    structured_dict, rendered_md = parse_and_render_structured_cv(
+        compressed_text, region=region, max_pages=max_pages
+    )
+    if structured_dict is not None:
+        return {
+            "structured_cv": structured_dict,
+            "draft_cv": rendered_md,
+            "compression_count": compression_count,
+        }
     return {
-        "draft_cv": compressed_text,
+        "draft_cv": rendered_md,
         "compression_count": compression_count,
     }
 
@@ -444,10 +459,11 @@ def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"
 
     ats_score: dict[str, Any] = {}
     try:
-        audit_data = json.loads(json_str)
-        is_pass = audit_data.get("pass", False)
-        ats_score = audit_data.get("ats_score", {})
-        checklist = audit_data.get("rewrite_checklist", [])
+        raw_audit = robust_json_loads(json_str)
+        audit_obj = AuditOutput.model_validate(raw_audit)
+        is_pass = audit_obj.is_pass
+        ats_score = audit_obj.ats_score.model_dump()
+        checklist = audit_obj.rewrite_checklist
 
         if is_pass:
             stored_feedback = "PASS"

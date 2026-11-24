@@ -6,9 +6,11 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-from generation.helpers import _parse_yaml_frontmatter_from_text, llm_text, load_prompt, robust_json_loads, strip_wikilinks
+from generation.formatting import invoke_structured_llm
+from generation.helpers import _parse_yaml_frontmatter_from_text, load_prompt, strip_wikilinks
 from generation.state import EvidenceItem, JobRequirement, RequirementSupport
 from kb_config import get_model_for_step
+from schemas.cv_models import RequirementMapperOutput
 
 
 def parse_experience_entry_to_dict(entry_str: str) -> dict[str, Any]:
@@ -57,10 +59,10 @@ def extract_requirements_from_jd(jd: str, target_persona: str = "") -> list[JobR
         llm = get_model_for_step("REQUIREMENT_MAPPING", format="json")
         prompt_tmpl = load_prompt("requirement_mapper.txt")
         prompt = prompt_tmpl.replace("{JOB_DESCRIPTION}", jd).replace("{TARGET_PERSONA}", target_persona)
-        response = llm.invoke([HumanMessage(content=prompt)])
-        content = llm_text(response.content)
-        data = robust_json_loads(content)
-        reqs_raw = data.get("requirements", []) if isinstance(data, dict) else []
+        parsed_reqs: RequirementMapperOutput = invoke_structured_llm(
+            llm, RequirementMapperOutput, [HumanMessage(content=prompt)]
+        )
+        reqs_raw = parsed_reqs.requirements
 
         requirements: list[JobRequirement] = []
         for idx, r in enumerate(reqs_raw, start=1):

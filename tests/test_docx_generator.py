@@ -161,3 +161,55 @@ Paragraph here."""
         assert "- **DevOps:** Kubernetes, Terraform" in normalized
         assert "- **English:** Proficient (C2)" in normalized
         assert "- **Romanian:** Native" in normalized
+
+    def test_render_ats_markdown_from_structured_cv(self) -> None:
+        from generation.cv_renderer import parse_and_render_structured_cv
+
+        sample_json = """{
+          "contact": {
+            "full_name": "Brad Vrabete",
+            "location": "Netherlands",
+            "phone": "+31 63 121 7786",
+            "email": "bvrabete@gmail.com",
+            "linkedin_url": "linkedin.com/in/bvrabete"
+          },
+          "professional_summary": "Executive cloud leader.",
+          "skill_categories": [
+            {"category": "Cloud Strategy", "skills": ["AWS", "Azure", "GCP"]}
+          ],
+          "experience_roles": [
+            {
+              "title": "Senior Software Engineering Manager",
+              "organization": "Virgin Media",
+              "location": "Limerick, Ireland",
+              "dates_display": "Apr 2024 – Present",
+              "employment_type": "Permanent",
+              "scope_summary": "Directed cloud transformation.",
+              "bullets": ["Architected/deployed GitOps platform reducing latency by 80%."],
+              "technologies": ["Kubernetes", "ArgoCD"]
+            }
+          ],
+          "earlier_career_roles": [
+            {
+              "title": "Platform Architect & Technical Lead",
+              "organization": "Intel Corporation",
+              "location": "Shannon, Ireland",
+              "dates_display": "Sep 2007 – Jul 2017",
+              "employment_type": "Permanent",
+              "bullets": ["Directed systems architecture across 12 engineers."]
+            }
+          ],
+          "languages": [
+            {"language": "English", "proficiency": "Proficient", "cefr": "C2"}
+          ]
+        }"""
+        structured, md = parse_and_render_structured_cv(sample_json, region="netherlands")
+        assert structured is not None
+        assert "# Brad Vrabete" in md
+        assert "[bvrabete@gmail.com](mailto:bvrabete@gmail.com)" in md
+        assert "[linkedin.com/in/bvrabete](https://linkedin.com/in/bvrabete)" in md
+        assert "## Key Skills\n- **Cloud Strategy:** AWS, Azure, GCP" in md
+        assert "### Senior Software Engineering Manager — Virgin Media" in md
+        assert "Architected and deployed GitOps platform" in md
+        assert "### Platform Architect & Technical Lead — Intel Corporation" in md
+        assert "## Languages\n- **English:** Full Professional Proficiency (C2)" in md
