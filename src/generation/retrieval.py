@@ -8,12 +8,15 @@ import sys
 from typing import Any
 import yaml
 from langchain_core.messages import HumanMessage
-from generation.formatting import BRACKET_LINK_PATTERN, llm_text, load_prompt, robust_json_loads
+from generation.formatting import BRACKET_LINK_PATTERN, invoke_structured_llm, load_prompt, strip_wikilinks
 from generation.strategy import (
     discover_available_strategies as discover_available_strategies,
     resolve_regional_strategy as resolve_regional_strategy,
     resolve_track_strategy as resolve_track_strategy,
 )
+from schemas.cv_models import SkillBridgingOutput
+from schemas.wiki_models import ExperienceScope, RoleEvidenceBundle
+from utils import extract_wikilink_list, extract_wikilink_slug
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +45,15 @@ def score_by_keywords(text: str, keywords: list[str]) -> int:
 
 
 def _parse_yaml_frontmatter_from_text(content: str) -> dict[str, Any]:
-    """Extract and parse YAML frontmatter from markdown content."""
-    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
-    if not fm_match:
-        return {}
-    try:
-        return yaml.safe_load(fm_match.group(1)) or {}
-    except Exception:
-        return {}
+    """Extract and parse YAML frontmatter mapping from raw or wrapped markdown content."""
+    for fm_match in re.finditer(r'(?:^|\n)---\n(.*?)\n---', content, re.DOTALL):
+        try:
+            parsed = yaml.safe_load(fm_match.group(1))
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            continue
+    return {}
 
 
 def get_subject_info(wiki_dir: Path) -> str:
@@ -93,11 +97,10 @@ def generate_skill_bridging_map(llm: Any, skills: list[str], keywords: list[str]
             .replace("{SKILLS_SUMMARY}", skills_summary)
         )
 
-        response = llm.invoke([HumanMessage(content=prompt)])
-        content = llm_text(response.content)
-        data = robust_json_loads(content)
-        if isinstance(data, dict):
-            return {str(k): str(v) for k, v in data.items()}
+        parsed: SkillBridgingOutput = invoke_structured_llm(
+            llm, SkillBridgingOutput, [HumanMessage(content=prompt)]
+        )
+        return parsed.mappings
     except Exception as e:
         logger.warning(f"Failed to generate skill bridging map: {e}")
 
@@ -326,36 +329,27 @@ def retrieve_and_score_case_studies(
 
 
 def retrieve_few_shots(wiki_dir: Path, keywords: list[str]) -> list[str]:
-    """Retrieve and score past successful few-shot resume examples."""
-    synthesis_dir = wiki_dir / "wiki" / "synthesis"
+    """Retrieve and score past successful few-shot resume examples from applications/ (or legacy wiki/synthesis/)."""
+    candidate_files = [
+        f for d in (wiki_dir / "applications", wiki_dir / "wiki" / "synthesis") if d.exists() for f in d.rglob("*.md")
+    ]
     scored_examples: list[tuple[int, str, str]] = []
-    if not synthesis_dir.exists():
-        return []
-
-    for f in synthesis_dir.glob("*.md"):
+    for f in candidate_files:
         try:
             cv_content = f.read_text(encoding="utf-8")
-            status_match = re.search(
-                r'status:\s*["\']?(Offer|Technical-Interview)["\']?', cv_content, re.IGNORECASE
-            )
-            if status_match:
-                score = score_by_keywords(cv_content, keywords)
-                scored_examples.append((score, f.name, cv_content))
+            if re.search(r'status:\s*["\']?(Offer|Technical-Interview)["\']?', cv_content, re.IGNORECASE):
+                scored_examples.append((score_by_keywords(cv_content, keywords), f.name, cv_content))
         except Exception:
             pass
 
     scored_examples.sort(key=lambda x: x[0], reverse=True)
     few_shot_examples: list[str] = []
     for fs_score, fs_name, fs_content in scored_examples[:1]:
-        fs_content_pruned = fs_content
-        if len(fs_content) > 12000:
-            fs_content_pruned = (
-                fs_content[:12000]
-                + "\n\n... [TRUNCATED SUCCESSFUL PAST CV FOR BREVITY] ...\n"
-            )
-            logger.info(
-                f"Few-shot example {fs_name} truncated to 12k characters to fit within TPM limits."
-            )
+        fs_content_pruned = (
+            fs_content[:12000] + "\n\n... [TRUNCATED SUCCESSFUL PAST CV FOR BREVITY] ...\n"
+            if len(fs_content) > 12000
+            else fs_content
+        )
         few_shot_examples.append(
             f"--- SUCCESSFUL PAST CV: {fs_name} (RELEVANCE SCORE: {fs_score}) ---\n"
             f"{fs_content_pruned}\n"
@@ -388,3 +382,115 @@ def retrieve_languages(wiki_dir: Path) -> list[str]:
             logger.error("Error parsing language file %s: %s", f.name, e)
 
     return languages_content
+
+
+def retrieve_voice_guide(wiki_dir: Path) -> str:
+    """Retrieve the candidate's personal voice & style guide from wiki/voice/my-voice.md."""
+    candidates = [
+        wiki_dir / "wiki" / "voice" / "my-voice.md",
+        wiki_dir / "wiki" / "notes" / "my-voice.md",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                return path.read_text(encoding="utf-8").strip()
+            except Exception as e:
+                logger.warning("Failed to read voice guide at %s: %s", path, e)
+    return ""
+
+
+def retrieve_company_entity(wiki_dir: Path, org_slug: str) -> str:
+    """Retrieve 1-line company context from wiki/entities/{org_slug}.md if available."""
+    if not org_slug:
+        return ""
+    entity_path = wiki_dir / "wiki" / "entities" / f"{org_slug}.md"
+    if not entity_path.exists():
+        return ""
+    try:
+        content = entity_path.read_text(encoding="utf-8")
+        fm = _parse_yaml_frontmatter_from_text(content)
+        summary = str(fm.get("summary") or fm.get("description") or "").strip()
+        if summary:
+            return summary
+        body = re.sub(r"^---\n.*?\n---", "", content, flags=re.DOTALL).strip()
+        for line in body.splitlines():
+            clean = line.strip()
+            if clean and not clean.startswith("#"):
+                return strip_wikilinks(clean)[:240]
+    except Exception as e:
+        logger.debug("Failed to read company entity %s: %s", org_slug, e)
+    return ""
+
+
+def _read_linked_markdown_bodies(directory: Path, slugs: list[str]) -> list[str]:
+    """Read and strip frontmatter from linked markdown files by slug."""
+    results: list[str] = []
+    if not directory.exists():
+        return results
+    for slug in slugs:
+        clean_slug = extract_wikilink_slug(slug)
+        if not clean_slug:
+            continue
+        file_path = directory / f"{clean_slug}.md"
+        if file_path.exists():
+            try:
+                raw = file_path.read_text(encoding="utf-8")
+                body = re.sub(r"^---\n.*?\n---", "", raw, flags=re.DOTALL).strip()
+                results.append(strip_wikilinks(body or raw))
+            except Exception:
+                pass
+    return results
+
+
+def assemble_role_evidence_bundles(wiki_dir: Path, selected_entries: list[str]) -> list[dict[str, Any]]:
+    """Assemble Hub-and-Spoke RoleEvidenceBundles linking each role to its company entity and child spokes."""
+    bundles: list[dict[str, Any]] = []
+    for idx, entry in enumerate(selected_entries):
+        name_match = re.search(r"CAREER ENTRY:\s*([^\s|]+)", entry)
+        role_slug = name_match.group(1).replace(".md", "") if name_match else f"role-{idx}"
+        score_match = re.search(r"SEMANTIC RELEVANCE SCORE:\s*(\d+)", entry)
+        rel_score = int(score_match.group(1)) if score_match else 75
+        fm = _parse_yaml_frontmatter_from_text(entry)
+        org_slug = extract_wikilink_slug(fm.get("organization"))
+        raw_scope = fm.get("scope")
+        scope_dict: dict[str, Any] = raw_scope if isinstance(raw_scope, dict) else {}
+        company_ctx = str(scope_dict.get("company_context", "")).strip() or retrieve_company_entity(wiki_dir, org_slug)
+
+        cs_links = extract_wikilink_list(fm.get("case_studies", []))
+        proj_links = extract_wikilink_list(fm.get("projects", []))
+        pat_links = extract_wikilink_list(fm.get("patents", []))
+        note_links = extract_wikilink_list(fm.get("notes", []))
+        raw_dates = fm.get("dates")
+        dates: dict[str, Any] = raw_dates if isinstance(raw_dates, dict) else {}
+        body_only = re.sub(r"^--- CAREER ENTRY:.*?---\n", "", entry, flags=re.DOTALL)
+        body_only = re.sub(r"--- END CAREER ENTRY ---\s*$", "", body_only, flags=re.DOTALL)
+        body_only = re.sub(r"^\s*JUSTIFICATION:.*?\n", "", body_only)
+        body_only = re.sub(r"^\s*---\n.*?\n---", "", body_only, flags=re.DOTALL).strip()
+        bullets = [
+            strip_wikilinks(line.strip("- *•\t "))
+            for line in body_only.splitlines()
+            if line.strip().startswith(("- ", "* ", "• "))
+        ]
+        scope_obj = ExperienceScope.model_validate({str(k): str(v) for k, v in scope_dict.items() if v is not None})
+        bundle = RoleEvidenceBundle(
+            slug=role_slug,
+            title=str(fm.get("title", role_slug)),
+            organization_slug=org_slug,
+            organization_name=org_slug.replace("-", " ").title() if org_slug else "Organization",
+            organization_overview=company_ctx,
+            location=str(fm.get("location", "")),
+            start_date=str(dates.get("start", "")),
+            end_date=str(dates.get("end", "Present")),
+            employment_type=str(fm.get("employment_type", "Permanent")),
+            scope=scope_obj,
+            achievements=bullets,
+            linked_case_studies=_read_linked_markdown_bodies(wiki_dir / "wiki" / "case-studies", cs_links),
+            linked_projects=_read_linked_markdown_bodies(wiki_dir / "wiki" / "projects", proj_links),
+            linked_patents=_read_linked_markdown_bodies(wiki_dir / "wiki" / "patents", pat_links),
+            linked_notes=_read_linked_markdown_bodies(wiki_dir / "wiki" / "notes", note_links),
+            skills=[str(s) for s in fm.get("skills", []) if s] if isinstance(fm.get("skills"), list) else [],
+            relevance_score=min(100, max(0, rel_score)),
+        )
+        bundles.append(bundle.model_dump())
+
+    return bundles

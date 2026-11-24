@@ -1,5 +1,4 @@
 """Unit tests for the ingestion pipeline extraction logic."""
-import unittest
 from unittest.mock import patch, MagicMock
 from ingestion.extraction import (
     _extract_experience, _extract_cover_letter, _extract_supplemental, node_extractor
@@ -7,7 +6,7 @@ from ingestion.extraction import (
 from ingestion.state import IngestionState
 
 
-class TestIngestionExtraction(unittest.TestCase):
+class TestIngestionExtraction:
     """Deterministic offline tests for Ingestion Pipeline extraction."""
 
     @patch("ingestion.extraction.load_prompt")
@@ -20,9 +19,9 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_experience(mock_llm, "Some raw resume text")
-        self.assertEqual(result.get("profile", {}).get("name"), "Alice")
-        self.assertEqual(len(result.get("roles", [])), 1)
-        self.assertEqual(result["roles"][0]["title"], "Software Engineer")
+        assert result.get("profile", {}).get("name") == "Alice"
+        assert len(result.get("roles", [])) == 1
+        assert result["roles"][0]["title"] == "Software Engineer"
 
     @patch("ingestion.extraction.load_prompt")
     def test_extract_experience_json_error(self, mock_load_prompt):
@@ -34,7 +33,7 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_experience(mock_llm, "Some raw resume text")
-        self.assertEqual(result, {})
+        assert result == {}
 
     @patch("ingestion.extraction.load_prompt")
     def test_extract_cover_letter_success(self, mock_load_prompt):
@@ -46,8 +45,8 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_cover_letter(mock_llm, "Cover letter text")
-        self.assertEqual(len(result.get("cover_letters", [])), 1)
-        self.assertEqual(result["cover_letters"][0]["recipient"], "Google")
+        assert len(result.get("cover_letters", [])) == 1
+        assert result["cover_letters"][0]["recipient"] == "Google"
 
     @patch("ingestion.extraction.load_prompt")
     def test_extract_cover_letter_json_error(self, mock_load_prompt):
@@ -59,7 +58,7 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_cover_letter(mock_llm, "Cover letter text")
-        self.assertEqual(result, {})
+        assert result == {}
 
     @patch("ingestion.extraction.load_prompt")
     def test_extract_supplemental_success(self, mock_load_prompt):
@@ -71,8 +70,8 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_supplemental(mock_llm, "Performance review text")
-        self.assertEqual(len(result.get("notes", [])), 1)
-        self.assertEqual(result["notes"][0]["content"], "Excellent performer")
+        assert len(result.get("notes", [])) == 1
+        assert result["notes"][0]["content"] == "Excellent performer"
 
     @patch("ingestion.extraction.load_prompt")
     def test_extract_supplemental_json_error(self, mock_load_prompt):
@@ -84,14 +83,14 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_llm.invoke.return_value = mock_response
 
         result = _extract_supplemental(mock_llm, "Performance review text")
-        self.assertEqual(result, {})
+        assert result == {}
 
     def test_node_extractor_empty_text(self):
         """Test node_extractor skips extraction when raw_text is empty or blank."""
         state = IngestionState(doc_type="experience", raw_text="   ")
         outputs = node_extractor(state)
-        self.assertEqual(outputs["extracted_roles"], [])
-        self.assertEqual(outputs["extracted_profile"], {})
+        assert outputs["extracted_roles"] == []
+        assert outputs["extracted_profile"] == {}
 
     @patch("ingestion.extraction.get_model_for_step")
     @patch("ingestion.extraction._extract_experience")
@@ -108,13 +107,13 @@ class TestIngestionExtraction(unittest.TestCase):
         }
         state = IngestionState(doc_type="experience", raw_text="Experienced candidate")
         outputs = node_extractor(state)
-        self.assertEqual(outputs["extracted_profile"]["name"], "Alice")
-        self.assertEqual(len(outputs["extracted_roles"]), 1)
-        self.assertEqual(outputs["extracted_roles"][0]["title"], "Staff Engineer")
-        self.assertEqual(len(outputs["extracted_education"]), 1)
-        self.assertEqual(len(outputs["extracted_languages"]), 1)
-        self.assertEqual(len(outputs["extracted_projects"]), 1)
-        self.assertEqual(len(outputs["extracted_patents"]), 1)
+        assert outputs["extracted_profile"]["name"] == "Alice"
+        assert len(outputs["extracted_roles"]) == 1
+        assert outputs["extracted_roles"][0]["title"] == "Staff Engineer"
+        assert len(outputs["extracted_education"]) == 1
+        assert len(outputs["extracted_languages"]) == 1
+        assert len(outputs["extracted_projects"]) == 1
+        assert len(outputs["extracted_patents"]) == 1
 
     @patch("ingestion.extraction.get_model_for_step")
     @patch("ingestion.extraction._extract_cover_letter")
@@ -126,8 +125,8 @@ class TestIngestionExtraction(unittest.TestCase):
         }
         state = IngestionState(doc_type="cover_letter", raw_text="Dear Hiring Manager...")
         outputs = node_extractor(state)
-        self.assertEqual(len(outputs["extracted_cover_letters"]), 1)
-        self.assertEqual(outputs["extracted_cover_letters"][0]["recipient"], "Meta")
+        assert len(outputs["extracted_cover_letters"]) == 1
+        assert outputs["extracted_cover_letters"][0]["recipient"] == "Meta"
 
     @patch("ingestion.extraction.get_model_for_step")
     @patch("ingestion.extraction._extract_supplemental")
@@ -139,8 +138,8 @@ class TestIngestionExtraction(unittest.TestCase):
         }
         state = IngestionState(doc_type="supplemental", raw_text="Review: Outstanding leadership")
         outputs = node_extractor(state)
-        self.assertEqual(len(outputs["extracted_notes"]), 1)
-        self.assertEqual(outputs["extracted_notes"][0]["content"], "Outstanding leadership")
+        assert len(outputs["extracted_notes"]) == 1
+        assert outputs["extracted_notes"][0]["content"] == "Outstanding leadership"
 
     @patch("ingestion.extraction.get_model_for_step")
     @patch("ingestion.extraction._extract_case_study")
@@ -158,10 +157,10 @@ class TestIngestionExtraction(unittest.TestCase):
         }
         state = IngestionState(doc_type="case_study", raw_text="## Architecture Specification")
         outputs = node_extractor(state)
-        self.assertEqual(len(outputs["extracted_case_studies"]), 1)
+        assert len(outputs["extracted_case_studies"]) == 1
         cs = outputs["extracted_case_studies"][0]
-        self.assertEqual(cs["title"], "Edge Gateway Architecture")
-        self.assertEqual(cs["raw_text"], "## Architecture Specification")
+        assert cs["title"] == "Edge Gateway Architecture"
+        assert cs["raw_text"] == "## Architecture Specification"
 
     @patch("ingestion.extraction.get_model_for_step")
     def test_node_extractor_unknown_doc_type(self, mock_get_model):
@@ -169,9 +168,5 @@ class TestIngestionExtraction(unittest.TestCase):
         mock_get_model.return_value = MagicMock()
         state = IngestionState(doc_type="unknown_type", raw_text="Hello world")
         outputs = node_extractor(state)
-        self.assertEqual(outputs["extracted_roles"], [])
-        self.assertEqual(outputs["extracted_profile"], {})
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert outputs["extracted_roles"] == []
+        assert outputs["extracted_profile"] == {}

@@ -54,6 +54,7 @@ from ingestion.validators import (
     _validate_skill as _validate_skill,
 )
 from kb_config import get_model_for_step
+from schemas.cv_models import ClassifierOutput
 
 
 def _parse_via_pypdf(path: Path) -> str | None:
@@ -168,9 +169,10 @@ def node_classifier(state: IngestionState) -> dict[str, Any]:
     ])
 
     try:
-        result = json.loads(strip_fences(llm_text(response.content)))
-        doc_type = result.get("doc_type", "skip")
-        logging.info(f"Classified as: {doc_type} — {result.get('reason', '')[:80]}")
+        raw_result = json.loads(strip_fences(llm_text(response.content)))
+        parsed = ClassifierOutput.model_validate(raw_result)
+        doc_type = parsed.doc_type
+        logging.info(f"Classified as: {doc_type} — {parsed.reason[:80]}")
     except Exception as e:
         logging.warning(f"Could not parse classifier JSON: {e} — defaulting to 'skip'")
         doc_type = "skip"
@@ -283,8 +285,9 @@ def _merge_single_output(output: dict[str, Any], today: str, llm: Any) -> dict[s
     logging.info(f"--- MERGE: {path.name} ---")
     existing_content = path.read_text(encoding="utf-8")
 
-    prompt_filename = f"merge_{page_type}.txt"
-    if page_type not in ("experience", "education", "project", "patent", "note", "entity", "cover-letter"):
+    normalized_type = page_type.replace("-", "_")
+    prompt_filename = f"merge_{normalized_type}.txt"
+    if normalized_type not in ("experience", "education", "project", "patent", "note", "entity", "cover_letter"):
         prompt_filename = "merge_language.txt"
 
     system_prompt = load_prompt(prompt_filename)

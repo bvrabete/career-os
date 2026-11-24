@@ -6,6 +6,7 @@ from typing import Any
 
 import yaml
 
+from schemas.config_models import ApplicationRecord, CRMRegistry
 from utils import validate_path
 
 logger = logging.getLogger(__name__)
@@ -14,10 +15,12 @@ CRM_FILE_NAME = "applications.yaml"
 
 
 def _get_crm_path(wiki_dir: Path) -> Path:
-    """Resolve and validate the path to applications.yaml."""
+    """Resolve and validate the path to applications/applications.yaml under wiki_dir."""
     validated_dir = validate_path(wiki_dir)
-    wiki_root = validated_dir / "wiki" if (validated_dir / "wiki").is_dir() else validated_dir
-    return validate_path(wiki_root / CRM_FILE_NAME)
+    vault_root = validated_dir.parent if validated_dir.name == "wiki" else validated_dir
+    apps_dir = vault_root / "applications"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+    return validate_path(apps_dir / CRM_FILE_NAME)
 
 
 def load_applications(wiki_dir: Path) -> list[dict[str, Any]]:
@@ -88,19 +91,25 @@ def record_application(
     if "notes" in app_record and app_record["notes"]:
         normalized_record["notes"] = app_record["notes"]
 
+    validated = ApplicationRecord.model_validate(normalized_record)
+    validated_dict = validated.model_dump(exclude_none=False)
+    if "notes" not in app_record or not app_record["notes"]:
+        validated_dict.pop("notes", None)
+
     applications = load_applications(wiki_dir)
     updated = False
 
     for idx, existing in enumerate(applications):
         if _is_matching_entry(existing, company, role, today_str):
-            applications[idx] = {**existing, **normalized_record}
+            applications[idx] = {**existing, **validated_dict}
             updated = True
             logger.info(f"Overwrote existing CRM entry for {company} - {role} ({today_str})")
             break
 
     if not updated:
-        applications.append(normalized_record)
+        applications.append(validated_dict)
         logger.info(f"Appended new CRM entry for {company} - {role} ({today_str})")
 
+    CRMRegistry.model_validate({"applications": applications})
     save_applications(wiki_dir, applications)
-    return normalized_record
+    return validated_dict

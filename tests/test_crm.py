@@ -1,26 +1,25 @@
 """Unit tests for the Applications CRM registry."""
 import shutil
 import tempfile
-import unittest
 from pathlib import Path
 
 from tools.crm import load_applications, record_application
 
 
-class TestApplicationsCRM(unittest.TestCase):
+class TestApplicationsCRM:
     """Test suite for wiki/applications.yaml lifecycle."""
 
-    def setUp(self):
+    def setup_method(self):
         self.test_dir = Path(tempfile.mkdtemp())
         self.wiki_dir = self.test_dir / "wiki"
         self.wiki_dir.mkdir(parents=True, exist_ok=True)
 
-    def tearDown(self):
+    def teardown_method(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_load_empty_crm(self):
         apps = load_applications(self.test_dir)
-        self.assertEqual(apps, [])
+        assert apps == []
 
     def test_record_application_appends_new(self):
         record = {
@@ -32,12 +31,12 @@ class TestApplicationsCRM(unittest.TestCase):
             "output_markdown": "synthesis/cv.md",
         }
         res = record_application(self.test_dir, record)
-        self.assertEqual(res["company"], "Acme Corp")
+        assert res["company"] == "Acme Corp"
 
         apps = load_applications(self.test_dir)
-        self.assertEqual(len(apps), 1)
-        self.assertEqual(apps[0]["company"], "Acme Corp")
-        self.assertEqual(apps[0]["ats_score"], 92)
+        assert len(apps) == 1
+        assert apps[0]["company"] == "Acme Corp"
+        assert apps[0]["ats_score"] == 92
 
     def test_record_application_overwrites_same_day(self):
         record_v1 = {
@@ -61,10 +60,10 @@ class TestApplicationsCRM(unittest.TestCase):
         record_application(self.test_dir, record_v2)
 
         apps = load_applications(self.test_dir)
-        self.assertEqual(len(apps), 1)
-        self.assertEqual(apps[0]["ats_score"], 95)
-        self.assertEqual(apps[0]["output_markdown"], "draft_v2.md")
-        self.assertEqual(apps[0]["output_pdf"], "draft_v2.pdf")
+        assert len(apps) == 1
+        assert apps[0]["ats_score"] == 95
+        assert apps[0]["output_markdown"] == "draft_v2.md"
+        assert apps[0]["output_pdf"] == "draft_v2.pdf"
 
     def test_record_application_multiple_different_companies(self):
         record1 = {"company": "Acme Corp", "job_title": "Engineer", "date": "2026-10-03"}
@@ -73,8 +72,4 @@ class TestApplicationsCRM(unittest.TestCase):
         record_application(self.test_dir, record2)
 
         apps = load_applications(self.test_dir)
-        self.assertEqual(len(apps), 2)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert len(apps) == 2

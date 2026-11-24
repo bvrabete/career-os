@@ -1,4 +1,4 @@
-/* Professional CV Base Style - Robust Local Fonts */
+/* Professional CV Base Style - Calibrated Executive Typography & ATS-Safe Lists */
 
 /* Global Reset */
 * {
@@ -10,14 +10,14 @@
 :root {
     --primary-color: #13384B;
     --accent-color: #51BF9D;
-    --text-color: #333;
-    --light-grey: #666D89;
+    --text-color: #2D3748;
+    --light-grey: #4A5568;
     --bg-color: #fff;
 }
 
 @page {
     size: A4;
-    margin: 1.1cm 1cm;
+    margin: 1.1cm 1.1cm;
     @bottom-right {
         content: counter(page) " of " counter(pages);
         font-size: 7.5pt;
@@ -26,10 +26,9 @@
 }
 
 body {
-    /* Prioritize locally installed professional fonts: Lato, Satoshi, Carlito */
-    font-family: 'Lato', 'Satoshi', 'Carlito', -apple-system, sans-serif;
-    font-size: 9.2pt; 
-    line-height: 1.2;
+    font-family: 'Lato', 'Satoshi', 'Carlito', 'Calibri', -apple-system, sans-serif;
+    font-size: 9.8pt;
+    line-height: 1.28;
     color: var(--text-color);
     background-color: var(--bg-color);
 }
@@ -40,17 +39,16 @@ body {
 
 h1 {
     font-family: 'Lato', sans-serif;
-    font-weight: 900; /* Use Lato Black/Heavy for impact */
-    font-size: 18pt;
+    font-weight: 900;
+    font-size: 18.5pt;
     color: var(--primary-color);
     margin-bottom: 2pt;
-    text-transform: uppercase;
-    letter-spacing: 0.5pt;
+    letter-spacing: 0.4pt;
 }
 
 /* Contact Info Header */
 h1 + p {
-    font-size: 8.5pt;
+    font-size: 9pt;
     color: var(--light-grey);
     margin-bottom: 8pt;
     font-weight: 400;
@@ -59,11 +57,11 @@ h1 + p {
 h2 {
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: 10.5pt;
+    font-size: 11pt;
     color: var(--primary-color);
     border-bottom: 1.5pt solid var(--accent-color);
-    padding-bottom: 1pt;
-    margin-top: 10pt;
+    padding-bottom: 1.5pt;
+    margin-top: 11pt;
     margin-bottom: 4pt;
     text-transform: uppercase;
     page-break-after: avoid;
@@ -71,20 +69,20 @@ h2 {
 
 h3 {
     font-weight: 700;
-    font-size: 10pt;
+    font-size: 10.5pt;
     color: var(--primary-color);
-    margin-top: 6pt;
-    margin-bottom: 1pt;
+    margin-top: 9pt;
+    margin-bottom: 1.5pt;
     page-break-after: avoid;
 }
 
-/* Role Header (Dates/Location/Tech) */
+/* Role Subtitle (Location | Dates | Engagement Type) */
 h3 + p {
-    font-size: 8.5pt;
+    font-size: 9pt;
     margin-top: 0;
-    margin-bottom: 3pt;
+    margin-bottom: 3.5pt;
     color: var(--light-grey);
-    line-height: 1.1;
+    line-height: 1.2;
 }
 
 h3 + p strong {
@@ -93,34 +91,35 @@ h3 + p strong {
 }
 
 ul {
-    padding-left: 12pt;
+    padding-left: 14pt;
     margin-bottom: 4pt;
-    list-style-position: inside;
+    list-style-position: outside;
 }
 
 li {
-    margin-bottom: 1.5pt;
-    text-indent: -10pt;
-    padding-left: 10pt;
-    line-height: 1.15;
+    margin-bottom: 2.5pt;
+    padding-left: 2pt;
+    line-height: 1.28;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
 hr {
     margin: 6pt 0;
     border: 0;
-    border-top: 0.5pt solid #eee;
+    border-top: 0.5pt solid #e2e8f0;
 }
 
 a {
-    color: var(--accent-color);
+    color: var(--primary-color);
     text-decoration: none;
 }
 
 strong {
     font-weight: 700;
+    color: #1A202C;
 }
 
-/* Ensure no page breaks inside critical elements and keep headings with content */
 h1, h2, h3, h4 {
     break-after: avoid;
     page-break-after: avoid;
@@ -131,17 +130,11 @@ li, p, h3, tr {
     widows: 2;
 }
 
-li {
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-/* Table styling for skills, metrics, and comparisons */
 table {
     width: 100%;
     border-collapse: collapse;
     margin: 6pt 0;
-    font-size: 8.8pt;
+    font-size: 9.2pt;
     break-inside: avoid;
     page-break-inside: avoid;
 }
@@ -158,12 +151,9 @@ th {
     border-bottom: 1pt solid var(--primary-color);
 }
 
-/* Inline code tags for technical keywords */
 code {
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 8.5pt;
-    background-color: #f4f6f8;
-    padding: 1pt 3pt;
-    border-radius: 2pt;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
     color: var(--primary-color);
 }

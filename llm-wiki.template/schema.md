@@ -13,12 +13,12 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 | skill | `wiki/skills/` | Technical and soft skills |
 | language | `wiki/languages/` | Spoken language proficiencies and certifications |
 | source | `wiki/sources/` | Metadata about raw input files (historical CVs, certificates) |
-| synthesis | `wiki/synthesis/` | Generated CV variants, career summaries, and theme-based reports |
+| synthesis | `applications/` | Generated CV variants, parsed JDs, and application dossiers |
 | concept | `wiki/concepts/` | Methodologies (Agile, Scrum) or domain-specific frameworks |
 | note | `wiki/notes/` | Unfiltered personal reflections, "My Voice" snippets, and unsorted details |
 | patent | `wiki/patents/` | Detailed records of patents and inventions |
 | publication | `wiki/publications/` | Peer-reviewed articles, conference papers, whitepapers, and book chapters |
-| strategy | `wiki/strategies/` | Relocation profiles, contact strategy variants, and regional tailoring |
+| strategy | `wiki/strategies/locations/` | Relocation profiles, contact strategy variants, and regional tailoring |
 | strategy-track | `wiki/strategies/tracks/` | Career domain archetypes, seniority scopes, and org culture alignment |
 | query | `wiki/queries/` | Reconciliation of conflicting data points from old CVs |
 | case_study | `wiki/case-studies/` | In-depth technical architecture whitepapers, system designs, and platform migration reports |
@@ -33,21 +33,21 @@ This document defines the strict frontmatter schemas, naming conventions, and ma
 - Skills: `skill-name.md` (e.g., `python.md`)
 - Languages: `lang-language-name.md` (e.g., `lang-english.md`)
 - Notes: `note-slug.md` (e.g., `note-leadership-reflections.md`)
-- Case Studies: `company-topic-slug.md` (e.g., `virgin-media-gitops-architecture-overview.md`)
+- Case Studies: `company-topic-slug.md` (e.g., `example-corp-gitops-architecture-overview.md`)
 - Patents: `patent-id-slug.md` (e.g., `patent-us12345678-distributed-caching.md`)
 - Publications: `pub-slug.md` (e.g., `pub-distributed-edge-telemetry.md`)
-- Strategies: `strategy-region-slug.md` (e.g., `strategy-ireland.md`)
+- Strategies: `region-slug.md` (e.g., `ireland.md`)
 - Strategy Tracks: `track-slug.md` (e.g., `engineering-management.md`, `startup-founding-engineer.md`)
 - Projects: `project-name.md` (e.g., `project-cloud-migration.md`)
 - Sources: `source-name.md` (e.g., `jane-doe-resume-2026.md`)
-- Synthesis: `synthesis-variant-name.md` (e.g., `synthesis-cto-startup.md`)
+- Applications: `applications/{YYYY-MM-DD}-{company}-{role}/`
 - Queries: `query-topic-slug.md` (e.g., `query-dates-example-corp-2012.md`)
 
 ---
 
 ## Frontmatter
 
-All files in the Wiki MUST contain valid YAML frontmatter at the very top.
+All files in the Wiki MUST contain valid YAML frontmatter at the very top. All wikilinks in YAML frontmatter MUST be wrapped in double quotes (e.g., `"[[entity-slug]]"`) for strict YAML 1.2 and Obsidian Properties compatibility.
 
 ### Experience Page
 
@@ -55,17 +55,27 @@ All files in the Wiki MUST contain valid YAML frontmatter at the very top.
 ---
 type: experience
 title: "Role Title at Company"
-organization: [[entity-slug]]
+organization: "[[entity-slug]]"
 location: "City, Country"
-dates: 
-  start: YYYY-MM-DD
-  end: YYYY-MM-DD | Present
-employment_type: Permanent | Contract | Startup / Co-Founder | Advisory  # Optional, defaults to Permanent
-tracks: [Track-A, Track-B] # Functional specializations tailored to your industry (e.g. Management, Engineering, Sales, Medical, etc.)
-skills: [skill-slug-1, skill-slug-2]
-tags: [role-level, industry]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+dates:
+  start: "2021-01-01"
+  end: "Present"
+employment_type: Permanent
+tracks: ["Management", "Architecture"]
+skills: ["python", "kubernetes"]
+tags: ["senior", "cloud"]
+case_studies: ["[[example-corp-gitops-architecture-overview]]"]
+projects: ["[[project-cloud-migration]]"]
+patents: []
+notes: []
+scope:
+  team_size: "24 engineers across 3 squads"
+  budget: "$4.5M OpEx"
+  reports_to: "VP of Engineering"
+  company_context: "Enterprise cloud platform provider"
+sources: ["jane-doe-resume-2026.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -75,15 +85,16 @@ updated: YYYY-MM-DD
 ---
 type: education
 title: "Degree Name at Institution"
-institution: [[entity-slug]]
-dates: 
-  start: YYYY-MM-DD
-  end: YYYY-MM-DD
-status: [Completed, In-Progress, Abandoned]
+institution: "[[entity-slug]]"
+dates:
+  start: "2010-09-01"
+  end: "2014-06-01"
+status: "Completed"
 major: "Field of Study"
 minor: "Secondary Field"
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+sources: ["jane-doe-resume-2026.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -93,11 +104,12 @@ updated: YYYY-MM-DD
 ---
 type: note
 title: "Descriptive Title"
-related: [[[experience-slug]], [[skill-slug]]]
-perspective: [Self, Third-Party]
-tags: [reflection, leadership, engineering, recruiter-commentary, performance-review, thought-leadership, technical-strategy]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+related: ["[[experience-slug]]", "[[skill-slug]]"]
+perspective: "Third-Party"
+tags: ["reflection", "leadership", "engineering", "performance-review"]
+sources: ["performance-review-2025.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -107,16 +119,16 @@ updated: YYYY-MM-DD
 ---
 type: case_study
 title: "Technical Whitepaper, System Design, or Architecture Title"
-organization: [[entity-slug]]
-related_experience: [[experience-slug]]
+organization: "[[entity-slug]]"
+related_experience: "[[experience-slug]]"
 dates:
-  start: YYYY-MM-DD
-  end: YYYY-MM-DD
-skills: [skill-slug-1, skill-slug-2]
-tags: [architecture, distributed-systems, microservices, performance, migration]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
-sources: [source-slug-1]
+  start: "2022-01-01"
+  end: "2023-06-01"
+skills: ["kubernetes", "kafka"]
+tags: ["architecture", "distributed-systems", "microservices", "performance", "migration"]
+sources: ["architecture-whitepaper.md"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -126,15 +138,16 @@ sources: [source-slug-1]
 ---
 type: patent
 title: "Patent Title"
-id: "Patent ID (e.g., US-12345678-B2)"
+id: "US-12345678-B2"
 inventors: ["Jane Doe", "Co-Inventor"]
-organization: [[entity-slug]]
-tenure: [[experience-slug]] # Optional, link to employment tenure where the invention was conceived
-grant_date: YYYY-MM-DD
-link: "URL to patent"
-skills: [skill-slug-1, skill-slug-2]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+organization: "[[entity-slug]]"
+related_experience: "[[experience-slug]]"
+grant_date: "2021-02-01"
+link: "https://patents.google.com/patent/US12345678B2"
+skills: ["distributed-systems", "iot"]
+sources: ["patent-filing.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -144,20 +157,20 @@ updated: YYYY-MM-DD
 ---
 type: publication
 title: "Publication Title"
-doi: "10.1109/..." # or arXiv ID / ISBN
-publication_type: journal_article | conference_paper | book_chapter | whitepaper
-venue: "Journal or Conference Name"
-date: YYYY-MM-DD
+doi: "10.1109/EXAMPLE.2024.001"
+publication_type: "conference_paper"
+venue: "IEEE International Conference"
+date: "2024-05-15"
 authors: ["Jane Doe", "Co-Author"]
-is_first_author: true | false
-peer_reviewed: true | false
-organization: [[entity-slug]] # Employer or Academic Institution
-tenure: [[experience-slug]]   # Optional, link to employment tenure
-education: [[education-slug]] # Optional, link to degree/academic stint
-link: "https://doi.org/..."
-skills: [skill-slug-1, skill-slug-2]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+is_first_author: true
+peer_reviewed: true
+organization: "[[entity-slug]]"
+related_experience: "[[experience-slug]]"
+link: "https://doi.org/10.1109/EXAMPLE.2024.001"
+skills: ["distributed-systems"]
+sources: ["ieee-paper.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -167,30 +180,21 @@ updated: YYYY-MM-DD
 ---
 type: project
 title: "Project Name"
-project_nature: open_source | side_project | research_prototype | enterprise_initiative
-status: active | completed | archived
-repo_url: "https://github.com/..." # Optional
-demo_url: "https://..."           # Optional
+project_nature: "open_source"
+status: "active"
+repo_url: "https://github.com/example/project"
+demo_url: "https://example.com"
+organization: "[[entity-slug]]"
+related_experience: "[[experience-slug]]"
 dates:
-  start: YYYY-MM-DD
-  end: YYYY-MM-DD | Present
-skills: [skill-slug-1, skill-slug-2]
-domains: ["Domain A", "Domain B"]
-organization: [[entity-slug]]     # Optional, only if developed within an employer
-tenure: [[experience-slug]]       # Optional, link to employment tenure
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+  start: "2023-01-01"
+  end: "Present"
+skills: ["python", "langgraph"]
+domains: ["Developer Tools", "AI"]
+sources: ["jane-doe-resume-2026.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
-```
-
-```markdown
-# Project Name
-
-## Overview & Architecture
-[Problem solved, technical architecture, and system design]
-
-## Key Technical Achievements
-- [STAR achievement bullet with concrete metrics and technologies]
 ```
 
 ### Strategy Page
@@ -199,10 +203,12 @@ updated: YYYY-MM-DD
 ---
 type: strategy
 title: "Region Strategy"
-region: [Ireland, Netherlands, Germany, USA]
-focus: [Contact, Relocation, Tone]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+region: ["Ireland", "Netherlands", "Germany", "USA"]
+focus: ["Contact", "Relocation", "Tone"]
+pdf_template: "templates/base.css"
+max_pages: 2
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -212,12 +218,12 @@ updated: YYYY-MM-DD
 ---
 type: strategy-track
 title: "Track Title"
-seniority_levels: [Senior, Lead, Principal, Manager]
+seniority_levels: ["Senior", "Lead", "Principal", "Manager"]
 archetype: "Domain Archetype Description"
-focus: [Focus-Area-1, Focus-Area-2]
-org_culture: corporate | startup  # Optional, default: corporate (or startup for founding/startup tracks)
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+focus: ["Focus-Area-1", "Focus-Area-2"]
+org_culture: "corporate"
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -227,10 +233,11 @@ updated: YYYY-MM-DD
 ---
 type: cover-letter
 title: "Cover Letter for [Role] at [Company]"
-target_organization: [[entity-slug]]
-related_synthesis: [[synthesis-slug]]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+target_organization: "[[entity-slug]]"
+related_synthesis: "[[synthesis-slug]]"
+sources: ["cover-letter.docx"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -239,10 +246,26 @@ updated: YYYY-MM-DD
 ```yaml
 ---
 type: skill
-title: Skill Name
-category: [Language-Code, Framework, Infrastructure, Leadership, Spoken-Language]
-related_experiences: [[[experience-slug]]]
-proficiency: [Expert, Proficient, Familiar, Native, Professional-Working]
+title: "Skill Name"
+category: ["Framework"]
+related_experiences: ["[[experience-slug]]"]
+proficiency: ["Expert"]
+sources: ["skills-sync"]
+---
+```
+
+### Language Page
+
+```yaml
+---
+type: language
+title: "English"
+category: ["Spoken-Language"]
+proficiency: "Fluent"
+cefr: "C2"
+sources: ["jane-doe-resume-2026.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -252,117 +275,19 @@ proficiency: [Expert, Proficient, Familiar, Native, Professional-Working]
 ---
 type: entity
 title: "Entity Name"
-category: [organization, tool, university, technology]
-tags: [telecommunications, cloud, compiler]
-related: [[[experience-slug]]]
-sources: [source-slug-1]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Project Page
-
-```yaml
----
-type: project
-title: "Project Name"
-organization: [[entity-slug]]
-dates:
-  start: YYYY-MM-DD
-  end: YYYY-MM-DD
-skills: [skill-slug]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Case Study Page
-
-```yaml
----
-type: case_study
-title: "Technical Case Study Title"
-organization: [[entity-slug]]
-tenure: [[experience-slug]]
-skills: [skill-slug-1, skill-slug-2]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
-sources: [source-slug]
----
-# Technical Case Study Title
-
-## Context & Problem
-[Problem description and architectural constraints]
-
-## Architecture & Technical Implementation
-[Detailed technical architecture, patterns, components, and code/design decisions]
-
-## Quantified Impact & Results
-[Measurable metrics, benchmarks, SLA improvements, cost savings]
-```
-
-### Source Page
-
-```yaml
----
-type: source
-title: "Canonical Source Filename"
-file_type: [pdf, docx, md, email]
-original_date: YYYY-MM-DD
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Synthesis Page
-
-```yaml
----
-type: synthesis
-title: "CV Track Variant Name"
-track: [Management, Architecture, Engineering, Entrepreneurial]
-target_role: "Target Title"
-related: [experience-slug-1, skill-slug-1]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Concept Page
-
-```yaml
----
-type: concept
-title: "Concept Name"
-category: [methodology, framework, architecture-pattern]
-related: [experience-slug-1]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Query Page
-
-```yaml
----
-type: query
-title: "Data Reconciliation Title"
-status: [open, resolved]
-related_experiences: [experience-slug-1]
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-```
-
-### Overview Page
-
-```yaml
----
-type: overview
-title: "Wiki Overview"
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+category: "organization"
+industry: "Telecommunications & Cloud"
+company_size: "10,000+ employees"
+headquarters: "London, UK"
+tags: ["telecommunications", "cloud"]
+related: ["[[experience-slug]]"]
+experiences: ["[[experience-slug]]"]
+case_studies: ["[[example-corp-gitops-architecture-overview]]"]
+projects: []
+patents: []
+sources: ["jane-doe-resume-2026.pdf"]
+created: "2026-01-01"
+updated: "2026-01-01"
 ---
 ```
 
@@ -394,12 +319,21 @@ Every experience file must follow this structural layout. Note that STAR achieve
 
 ### [Theme 2: e.g., Technical Strategy & System Architecture]
 - **Situation**: ...
+```
 
-### [Theme 3: e.g., Cloud, DevOps & DevSecOps]
-- **Situation**: ...
+### Case Study Template (`wiki/case-studies/`)
 
-### [Theme 4: e.g., Software Engineering & Development]
-- **Situation**: ...
+```markdown
+# Technical Case Study Title
+
+## Context & Problem
+[Problem description and architectural constraints]
+
+## Architecture & Technical Implementation
+[Detailed technical architecture, patterns, components, and code/design decisions]
+
+## Quantified Impact & Results
+[Measurable metrics, benchmarks, SLA improvements, cost savings]
 ```
 
 ### Education Template (`wiki/education/`)
@@ -444,22 +378,6 @@ Every experience file must follow this structural layout. Note that STAR achieve
 [Business impact of the patent, links to [[experiences]] where it was conceived.]
 ```
 
-### Publication Template (`wiki/publications/`)
-
-```markdown
-# [Publication Title]
-
-## Abstract
-[Summary of the research problem, methodology, and primary findings.]
-
-## Key Innovations & Findings
-- [Core scientific or architectural breakthrough]
-- [Empirical performance, scaling, or benchmark results]
-
-## Related Work & Roles
-[Links to [[experiences]] or [[education]] where the research was performed.]
-```
-
 ### Project Template (`wiki/projects/`)
 
 ```markdown
@@ -475,24 +393,6 @@ Every experience file must follow this structural layout. Note that STAR achieve
 [Metric-backed achievements or STAR bullets representing your contributions.]
 ```
 
-### Strategy Template (`wiki/strategies/`)
-
-```markdown
-# [Region] Strategy
-
-## Contact Information
-- **Phone**: [Localized phone number]
-- **Address**: [Localized address]
-- **Target Areas**: [Specific cities/hubs]
-
-## Relocation Message
-"[Standardised, professional copy to inject into CV regarding relocation/availability.]"
-
-## Tone Preferences
-- **Tone**: [e.g., Direct and results-oriented (NL) vs. Formal and detailed (DE)]
-- **Directives**: [How the LLM should adapt its writing style.]
-```
-
 ### Entity Template (`wiki/entities/`)
 
 ```markdown
@@ -505,135 +405,10 @@ Every experience file must follow this structural layout. Note that STAR achieve
 [For companies, summarize the candidate's key impact. For tools, outline the candidate's proficiency and typical use cases.]
 ```
 
-### Source Template (`wiki/sources/`)
-
-```markdown
-# Source: [Source Title]
-
-## Metadata
-- **File Name:** `filename`
-- **Origin Date:** `YYYY-MM-DD`
-- **Relevance:** [e.g., Extended CV, LinkedIn profile, Performance Review]
-
-## Extracted Text / Content
-[Verbatim or structured summary of the raw text contents.]
-```
-
-### Synthesis Template (`wiki/synthesis/`)
-
-```markdown
-# Synthesis: [CV Variant Name]
-
-## Profile Statement
-[Targeted summary of qualifications for this track.]
-
-## Core Career Tracks Mapped
-- [[experience-slug-1]] (Targeting the Leadership element)
-- [[experience-slug-2]] (Targeting the Architecture element)
-
-## Skill Focus Map
-- [[skill-slug-1]]: Highly prominent
-```
-
-### Concept Template (`wiki/concepts/`)
-
-```markdown
-# [Concept Name]
-
-## Overview
-[Defining description of the architectural pattern, development methodology, or conceptual domain.]
-
-## Core Importance
-[How this concept shapes the candidate's technical philosophy and links to experience nodes.]
-```
-
-### Note Template (`wiki/notes/`)
-
-```markdown
-# Note: [Title]
-
-## Context & Thoughts
-[Unstructured, raw thoughts, technical discoveries, meeting summaries, or personal goals.]
-```
-
-### Cover Letter Template (`wiki/cover-letters/`)
-
-```markdown
-# Cover Letter: [Role] at [Company]
-
-## Salutation
-Dear [Hiring Manager / Recruiter],
-
-## Role & Organization Fit
-[Highly personalized paragraph articulating excitement for this specific company and domain.]
-
-## Career Highlights Map
-- **Core Narrative:** [Narrative paragraph showing alignment with target JD.]
-
-## Professional Closing
-Sincerely,
-Jane Doe
-```
-
-### Query Template (`wiki/queries/`)
-
-```markdown
-# Query: [Contradiction Topic]
-
-## Description of Contradiction
-[Explain the discrepancy, e.g., 'Resume-A lists Example-Corp start date as March 2012, whereas Resume-B lists it as July 2012.']
-
-## Investigative Action
-- [ ] Check raw contract / email offer
-- [ ] Resolve in canonical experiences
-
-## Resolution
-[Once resolved, document the final confirmed facts here.]
-```
-
-### Overview Template (`wiki/`)
-
-```markdown
-# Wiki Overview
-
-## Introduction
-[High-level summary of the Career Single Source of Truth project.]
-
-## Core Tracks Covered
-- **[Track-A]:** [Dynamic Summary of specialization A]
-- **[Track-B]:** [Dynamic Summary of specialization B]
-```
-
 ---
-
-## Index Format
-
-`wiki/index.md` lists all pages grouped by type. Each entry:
-
-```
-- [[page-slug]] — one-line description
-```
-
-## Log Format
-
-`wiki/log.md` records activity in reverse chronological order:
-
-```
-## YYYY-MM-DD
-
-- Action taken / finding noted
-```
 
 ## Cross-referencing Rules
 
-- Use `[[page-slug]]` syntax to link between wiki pages.
-- Every achievement should ideally link to the `[[skill-slug]]` it demonstrates.
-- Every experience must link to an `[[entity-slug]]` representing the organization.
-- Synthesis pages cite all contributing sources via `related:`.
-
-## Contradiction Handling
-
-- When sources contradict each other:
-  1. Note the contradiction in the relevant `experience` or `entity` page.
-  2. Create or update a `query` page to track the open question.
-  3. Resolve in the canonical `experience` page once reconciled.
+- Always wrap `[[page-slug]]` links in double quotes inside YAML frontmatter (`"[[page-slug]]"`).
+- Every experience must link to an `"[[entity-slug]]"` representing the organization, and list its child `case_studies`, `projects`, `patents`, and `notes`.
+- Every case study, corporate project, and patent links back to its parent experience via `related_experience: "[[experience-slug]]"`.

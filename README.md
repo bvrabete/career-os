@@ -104,7 +104,7 @@ To maintain structural integrity and high ingestion speeds, `kb-ingest` employs:
 To ensure a perfectly structured, compact, and compliant CV, the generation pipeline utilizes:
 
 * **Dynamic 10-Year Boundary Calculation**: Old roles are dynamically determined based on `current_year - 10` (e.g., 2016 or earlier when running in 2026), replacing any hardcoded year limits.
-* **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., historical Intel tenures) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
+* **Deterministic Programmatic Pre-Grouping**: Multiple historical roles at the same company (e.g., multi-role tenures at the same employer) are programmatically consolidated in Python into a single combined entry *before* any LLM compression or drafting occurs.
 * **Nested Grouped Compression**: Consolidated company groups are compressed using a specialized LLM instruction (`compress_grouped_experience.txt`) to produce a beautifully nested Markdown list layout with 1-line impact summaries for each role, guaranteeing a clean and space-efficient timeline under tight page constraints.
 * **Multi-Objective Experience Scoring & Selection**: Formulates role selection as a two-stage optimization problem to prevent short contract engagements from overshadowing multi-year institutional leadership:
   * **Stage 1 (Calibrated Value $V_i$)**: Combines multi-factor base relevance (*ATS Keyword Relevance* 50%, *Recency Decay* over 15 years 30%, and *Tenure Duration* up to 3 years 20%) with structural **Employment-Type Multipliers** (e.g., Permanent 1.00, Contract 0.85, Advisory 0.75) and **Org-Culture Alignment Multipliers** (`corporate` vs `startup`).
@@ -342,7 +342,7 @@ CareerOS includes a comprehensive test suite to ensure the stability and correct
 You can run the unit test suite locally using `uv`:
 
 ```bash
-uv run python tests/test_pipeline.py
+uv run pytest
 ```
 
 ### GitHub Actions CI Pipeline
@@ -378,7 +378,7 @@ CareerOS treats your professional history as a queryable graph. By defining the 
 ### Structured Graph Layout (under `<LLM_WIKI_DIR>/wiki/`)
 
 1. **Experiences (`wiki/experiences/`)**: Canonical, structured records of professional roles (The Source of Truth).
-2. **Projects & Patents (`wiki/projects/`, `wiki/patents/`)**: Standalone, reusable technical accomplishments, cross-linked back to experiences via frontmatter (e.g., `organization: [[intel-corporation]]`).
+2. **Projects & Patents (`wiki/projects/`, `wiki/patents/`)**: Standalone, reusable technical accomplishments, cross-linked back to experiences via frontmatter (e.g., `organization: "[[acme-corp]]"`).
 3. **Skills & Languages (`wiki/skills/`)**: Deep capabilities and languages, referencing specific experience nodes where they were demonstrated.
 4. **Strategies (`wiki/strategies/`)**: Regional tailoring profiles containing localized bio copy, relocation rules, and style guidelines (e.g., Dutch directness vs. US brevity).
 5. **Notes (`wiki/notes/`)**: Peer praise, performance reviews (`tags: ["performance-review"]`), and subjective reflections which are dynamically injected to enrich descriptions and enforce the **"My Voice" Standard**.
@@ -391,7 +391,7 @@ CareerOS adheres strictly to **Andrej Karpathy's LLM-Wiki standard** (100% plain
 * **Obsidian**: Interactive 2D/3D knowledge graph with pre-configured semantic color coding.
 * **Quartz**: Fast browser-based local web portal.
 
-For quick setup steps and color coding schemes, see [docs/visualization-guide.md](file:///C:/Users/bvrabete/source/personal/career-os/docs/visualization-guide.md).
+For quick setup steps and color coding schemes, see [docs/visualization-guide.md](docs/visualization-guide.md).
 
 ---
 

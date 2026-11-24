@@ -47,7 +47,7 @@ Output format:
   ],
   "languages": [
     {
-      "language": "<spoken language name, e.g. English, Romanian, Dutch>",
+      "language": "<spoken language name, e.g. English, Spanish, German>",
       "proficiency": "Expert" | "Proficient" | "Familiar" | "Native" | "Professional-Working"
     }
   ],

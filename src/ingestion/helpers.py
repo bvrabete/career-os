@@ -15,6 +15,7 @@ from ingestion.bootstrapping import (
 )
 import kb_config
 from utils import (
+    extract_wikilink_slug,
     safe_read_text,
     safe_write_text,
     sanitize_entity_name,
@@ -312,9 +313,12 @@ def _extract_start_date_from_file(f: Path, slug: str) -> str | None:
         if not fm_match:
             return None
         fm_text = fm_match.group(1)
-        if f"[[{slug}]]" not in fm_text:
-            return None
         fm = yaml.safe_load(fm_text) or {}
+        if not isinstance(fm, dict):
+            return None
+        org_or_inst = extract_wikilink_slug(fm.get("organization") or fm.get("institution"))
+        if org_or_inst != slug and f"[[{slug}]]" not in fm_text:
+            return None
         dates_val = fm.get("dates", {})
         if isinstance(dates_val, dict):
             return str(dates_val.get("start", ""))
@@ -323,14 +327,28 @@ def _extract_start_date_from_file(f: Path, slug: str) -> str | None:
         return None
 
 
-def _filter_by_matching_year(candidates: list[tuple[Path, str]], target_year: int) -> list[Path]:
-    """Filter candidates whose start year is within 1 year of target_year."""
+def _filter_by_matching_year(
+    candidates: list[tuple[Path, str]],
+    target_year: int,
+    generated_path: Path | None = None,
+    slug: str = "",
+) -> list[Path]:
+    """Filter candidates whose start year is within 1 year of target_year, respecting distinct role filenames."""
     matching = []
     for f, start in candidates:
         if not start:
             continue
         try:
             c_year = int(str(start)[:4])
+            has_distinct_role_slugs = (
+                bool(slug)
+                and generated_path is not None
+                and f.stem.startswith(f"{slug}-")
+                and generated_path.stem.startswith(f"{slug}-")
+                and f.stem != generated_path.stem
+            )
+            if has_distinct_role_slugs:
+                continue
             if abs(c_year - target_year) <= 1:
                 matching.append(f)
         except ValueError:
@@ -349,6 +367,9 @@ def _find_existing_wiki_file(
     if not target_dir.exists():
         return None
 
+    if generated_path.exists() and generated_path.parent == target_dir:
+        return generated_path
+
     candidates: list[tuple[Path, str]] = []
     for f in target_dir.glob("*.md"):
         start = _extract_start_date_from_file(f, slug)
@@ -361,10 +382,10 @@ def _find_existing_wiki_file(
     if start_date:
         try:
             target_year = int(start_date[:4])
-            matching = _filter_by_matching_year(candidates, target_year)
+            matching = _filter_by_matching_year(candidates, target_year, generated_path, slug=slug)
             if matching:
                 return matching[0]
-            return generated_path if generated_path.exists() else None
+            return None
         except ValueError:
             pass
 

@@ -271,15 +271,15 @@ def _triage_pipeline_exception(e: Exception) -> None:
 
 
 def _resolve_synthesis_path(company_clean: str, role_clean: str, today_str: str) -> tuple[Path, str]:
-    """Finds or constructs the appropriate synthesis file path and its creation date."""
-    synthesis_dir = get_wiki_dir() / "wiki" / "synthesis"
-    synthesis_dir.mkdir(parents=True, exist_ok=True)
+    """Finds or constructs the appropriate application archive file path under <wiki_dir>/applications/."""
+    apps_dir = get_wiki_dir() / "applications"
+    apps_dir.mkdir(parents=True, exist_ok=True)
 
     existing_path: Path | None = None
     created_date = today_str
 
     prefix = f"synthesis-cv-{company_clean}-{role_clean}"
-    for child in synthesis_dir.glob(f"{prefix}*.md"):
+    for child in apps_dir.rglob(f"{prefix}*.md"):
         meta = _parse_synthesis_metadata(child)
         if meta.get("status") == "Generated":
             existing_path = child
@@ -288,11 +288,13 @@ def _resolve_synthesis_path(company_clean: str, role_clean: str, today_str: str)
             break
 
     if existing_path:
-        logger.info("Reusing active 'Generated' synthesis file: %s", existing_path.name)
+        logger.info("Reusing active 'Generated' application file: %s", existing_path.name)
         return existing_path, created_date
 
+    dossier_dir = apps_dir / f"{today_str}-{company_clean}-{role_clean}"
+    dossier_dir.mkdir(parents=True, exist_ok=True)
     synthesis_filename = f"synthesis-cv-{company_clean}-{role_clean}-{today_str}.md"
-    return synthesis_dir / synthesis_filename, created_date
+    return dossier_dir / synthesis_filename, created_date
 
 
 def _save_and_compile_outputs(
@@ -317,7 +319,7 @@ title: "Tailored CV for {role} at {company}"
 track: {track_val}
 location_strategy: {location_val}
 target_role: "{role}"
-target_organization: [[{company}]]
+target_organization: "[[{company}]]"
 status: Generated
 created: {created_date}
 updated: {today_str}
@@ -329,6 +331,26 @@ updated: {today_str}
     out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
     logger.info("Audit iterations required: %s", final_state.get("iteration_count"))
     compile_optional_formats(args, draft, out_path, final_state)
+
+    try:
+        company_clean = "".join(c if c.isalnum() or c in "-_" else "_" for c in company).lower()
+        role_clean = "".join(c if c.isalnum() or c in "-_" else "_" for c in role).lower()
+        dossier_dir = validate_path(get_wiki_dir() / "applications" / f"{today_str}-{company_clean}-{role_clean}")
+        dossier_dir.mkdir(parents=True, exist_ok=True)
+        (dossier_dir / "Tailored_CV.md").write_text(draft, encoding="utf-8")
+        (dossier_dir / "jd.md").write_text(str(final_state.get("job_description", "")), encoding="utf-8")
+        if final_state.get("long_draft"):
+            (dossier_dir / "long-matching-draft.json").write_text(
+                json.dumps(final_state["long_draft"], indent=2, cls=EnhancedJSONEncoder),
+                encoding="utf-8",
+            )
+        if final_state.get("ats_scorecard"):
+            (dossier_dir / "audit-scorecard.json").write_text(
+                json.dumps(final_state["ats_scorecard"], indent=2, cls=EnhancedJSONEncoder),
+                encoding="utf-8",
+            )
+    except Exception as dossier_err:
+        logger.debug("Could not write application dossier: %s", dossier_err)
 
     ats_score = None
     ats_card = final_state.get("ats_scorecard")
@@ -351,7 +373,7 @@ updated: {today_str}
     }
     try:
         record_application(get_wiki_dir(), crm_record)
-        logger.info("Application logged to CRM registry: %s", get_wiki_dir() / "wiki" / "applications.yaml")
+        logger.info("Application logged to CRM registry: %s", get_wiki_dir() / "applications" / "applications.yaml")
     except Exception as ex:
         logger.warning("Failed to record application to CRM: %s", ex)
 
@@ -421,6 +443,9 @@ def main() -> None:
     args = parse_arguments()
     log_level = "DEBUG" if args.verbose else args.log_level
     _setup_logging(log_level)
+
+    if args.wiki_dir:
+        set_wiki_dir(args.wiki_dir)
 
     wiki_dir = get_wiki_dir()
     if not is_wiki_initialized(wiki_dir):

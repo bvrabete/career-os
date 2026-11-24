@@ -3,18 +3,19 @@
 import json
 import logging
 import re
-import sys
 from typing import Any, Literal
-from langgraph.types import Command
 
 from langchain_core.messages import HumanMessage
+from langgraph.types import Command
 
-from kb_config import (
-    get_model_for_step,
-    get_strategy_default,
-    get_wiki_dir,
+from generation.cv_renderer import parse_and_render_structured_cv
+from generation.formatting import (
+    check_typesetting_budget as check_typesetting_budget,
+    handle_interactive_audit as _handle_interactive_audit,
+    strip_wikilinks,
 )
 from generation.helpers import (
+    assemble_role_evidence_bundles,
     discover_available_strategies,
     generate_skill_bridging_map,
     get_subject_info,
@@ -32,19 +33,58 @@ from generation.helpers import (
     retrieve_and_score_projects,
     retrieve_few_shots,
     retrieve_languages,
+    retrieve_voice_guide,
     robust_json_loads,
 )
-from generation.skills_helper import get_compact_skills_list
-from generation.state import CVPipelineState, RegionalStrategy, TrackStrategy
+import generation.skills_helper as skills_helper
+from generation.state import (
+    AnalyzerOutput,
+    AuditOutput,
+    CVPipelineState,
+    RegionalStrategy,
+    TrackStrategy,
+)
+from kb_config import (
+    get_model_for_step,
+    get_strategy_default,
+    get_wiki_dir,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _slugify_org_name(name: str) -> str:
+    """Convert an organization name into a kebab-case slug."""
+    cleaned = re.sub(r"[^a-z0-9\s\-]", "", name.strip().lower())
+    return re.sub(r"[\s_]+", "-", cleaned).strip("-")
+
+
+def _resolve_target_employer_slug(data: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Extract posting_organization_type, agency name, employer name, and safe employer slug."""
+    org_type = str(data.get("posting_organization_type") or "direct_employer").strip().lower()
+    if org_type not in {"direct_employer", "recruitment_agency", "confidential_client"}:
+        org_type = "direct_employer"
+
+    agency_name = str(data.get("recruitment_agency_name") or "").strip()
+    employer_name = str(data.get("target_employer_name") or "").strip()
+    raw_slug = str(data.get("target_organization_slug") or "unknown-company").strip().lower()
+
+    agency_slug = _slugify_org_name(agency_name) if agency_name else ""
+    if org_type in {"recruitment_agency", "confidential_client"}:
+        if agency_slug and raw_slug == agency_slug:
+            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
+        elif not raw_slug or raw_slug == "unknown-company":
+            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
+
+    return org_type, agency_name, employer_name, raw_slug or "unknown-company"
 
 
 def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
-    """Analyze the job description, extract keywords, expected format, location, organization, and regional strategy."""
-    logging.info("--- NODE A: ANALYZER ---")
+    """Analyze the job description, extract keywords, expected format, location, employer vs. agency, and strategy."""
+    logger.info("--- NODE A: ANALYZER ---")
     llm = get_model_for_step("ANALYSIS", format="json")
     jd = str(state.get("job_description") or state.get("job_description_raw") or "")
 
-    # Discover available strategies
     wiki_dir = get_wiki_dir()
     available_locations, available_tracks = discover_available_strategies(wiki_dir)
     default_strategy = get_strategy_default()
@@ -70,42 +110,43 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
     content = llm_text(response.content)
 
     try:
-        data = robust_json_loads(content)
-        persona = data.get("persona", content)
-        keywords = data.get("keywords", [])
-        locations = data.get("locations", [])
-        expectations = data.get("expectations", "Standard professional CV")
-        region = data.get("suggested_region", default_strategy).lower()
-        track = data.get("suggested_track", "engineering-management").lower()
-        target_org = data.get("target_organization_slug", "unknown-company").lower()
-        target_role = data.get("target_role", "unknown-role")
+        raw_data = robust_json_loads(content)
+        parsed = AnalyzerOutput.model_validate(raw_data)
+        persona = raw_data.get("persona", content)
+        keywords = parsed.keywords
+        locations = parsed.locations
+        expectations = parsed.expectations
+        region = str(raw_data.get("suggested_region", default_strategy)).lower()
+        track = str(raw_data.get("suggested_track", "engineering-management")).lower()
+        org_type, agency_name, employer_name, target_org = _resolve_target_employer_slug(raw_data)
+        target_role = parsed.target_role
+        employer_archetype = parsed.employer_archetype
+        parallel_venture_policy = parsed.parallel_venture_policy
     except Exception as e:
-        logging.warning(
-            f"Failed to parse JSON from Analyzer, falling back to heuristics: {e}"
-        )
+        logger.warning("Failed to parse JSON from Analyzer, falling back to heuristics: %s", e)
         persona = content
         keywords = []
         locations = []
         expectations = "Standard professional CV"
         region = default_strategy
         track = "engineering-management"
+        org_type = "direct_employer"
+        agency_name = ""
+        employer_name = ""
         target_org = "unknown-company"
         target_role = "unknown-role"
+        employer_archetype = "enterprise_corporate"
+        parallel_venture_policy = "strict_single_timeline"
 
     strategy_override = state.get("strategy_override", "")
     if strategy_override:
-        logging.info(f"Bypassing analyzer strategy inference. Using override: {strategy_override}")
+        logger.info("Bypassing analyzer strategy inference. Using override: %s", strategy_override)
         region = strategy_override.lower()
 
     track_override = state.get("track_override", "")
     if track_override:
-        logging.info(f"Bypassing analyzer track inference. Using override: {track_override}")
+        logger.info("Bypassing analyzer track inference. Using override: %s", track_override)
         track = track_override.lower()
-
-    logging.info(f"Locations detected: {', '.join(locations)}")
-    logging.info(f"CV Expectations: {expectations}")
-    logging.info(f"Target Region suggested: {region.upper()}")
-    logging.info(f"Target Track suggested: {track.upper()}")
 
     return {
         "job_description": jd,
@@ -115,14 +156,19 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         "target_track": track,
         "target_locations": locations,
         "cv_expectations": expectations,
+        "posting_organization_type": org_type,
+        "recruitment_agency_name": agency_name,
+        "target_employer_name": employer_name,
         "target_organization_slug": target_org,
-        "target_role": target_role
+        "target_role": target_role,
+        "employer_archetype": employer_archetype,
+        "parallel_venture_policy": parallel_venture_policy,
     }
 
 
 def node_retriever(state: CVPipelineState) -> dict[str, Any]:
-    """Retrieve education, skills, projects, patents, notes, few-shots, and match semantic relevance of experiences."""
-    logging.info("--- NODE B: RETRIEVER ---")
+    """Retrieve education, skills, projects, patents, notes, voice guide, role bundles, and match experiences."""
+    logger.info("--- NODE B: RETRIEVER ---")
     llm = get_model_for_step("RETRIEVAL", format="json")
 
     jd = state.get("job_description", "")
@@ -135,13 +181,11 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
 
     wiki_dir = get_wiki_dir()
 
-    # Load strategy first to determine page budget
     strategy_text, pdf_template = resolve_regional_strategy(wiki_dir, region)
     track_strategy_text = resolve_track_strategy(wiki_dir, track)
     strategy_obj = RegionalStrategy.from_markdown(strategy_text)
     track_obj = TrackStrategy.from_markdown(track_strategy_text)
 
-    # Sub-retrievals (with budget-aware pruning)
     selected_content, retrieved_exp_slugs = retrieve_and_score_experiences(
         llm,
         keywords,
@@ -154,26 +198,30 @@ def node_retriever(state: CVPipelineState) -> dict[str, Any]:
     education_content = retrieve_and_deduplicate_education(wiki_dir)
 
     skills_dir = wiki_dir / "wiki" / "skills"
-    skills_content = get_compact_skills_list(skills_dir, retrieved_exp_slugs)
+    skills_content = skills_helper.get_compact_skills_list(skills_dir, retrieved_exp_slugs)
+    all_candidate_skills = skills_helper.get_all_candidate_skills(wiki_dir)
 
     projects_entries = retrieve_and_score_projects(wiki_dir, keywords, retrieved_exp_slugs)
     patents_entries = retrieve_and_score_patents(wiki_dir, keywords, retrieved_exp_slugs)
     notes_entries = retrieve_and_score_notes(wiki_dir, keywords, retrieved_exp_slugs)
     case_studies_entries = retrieve_and_score_case_studies(wiki_dir, keywords, retrieved_exp_slugs)
     few_shot_examples = retrieve_few_shots(wiki_dir, keywords)
-
     languages_content = retrieve_languages(wiki_dir)
+    voice_guide = retrieve_voice_guide(wiki_dir)
+    role_bundles = assemble_role_evidence_bundles(wiki_dir, selected_content)
 
     skill_bridging_map = generate_skill_bridging_map(llm, skills_content, keywords)
     subject_info = get_subject_info(wiki_dir)
 
+    voice_block = f"\n--- CANDIDATE VOICE & STYLE GUIDE ---\n{voice_guide}\n" if voice_guide else ""
     context_info = f"""
 --- SUBJECT PROFILE (The Truth Source for Contact/Bio) ---
 {subject_info}
-
+{voice_block}
 --- ROLE CONTEXT ---
 Target Locations: {', '.join(locations)}
 CV Format Expectations: {expectations}
+Target Page Budget: {strategy_obj.max_pages} Page(s)
 
 --- REGIONAL TAILORING STRATEGY ({region.upper()}) ---
 {strategy_text}
@@ -184,8 +232,10 @@ CV Format Expectations: {expectations}
 
     return {
         "selected_entries": selected_content,
+        "role_bundles": role_bundles,
         "education_entries": education_content,
         "skills_entries": skills_content,
+        "all_candidate_skills": all_candidate_skills,
         "languages_entries": languages_content,
         "projects_entries": projects_entries,
         "patents_entries": patents_entries,
@@ -193,18 +243,33 @@ CV Format Expectations: {expectations}
         "case_studies_entries": case_studies_entries,
         "few_shot_examples": few_shot_examples,
         "skill_bridging_map": skill_bridging_map,
+        "voice_guide": voice_guide,
         "strategy_info": context_info,
         "strategy_metadata": strategy_obj,
         "track_strategy_info": track_strategy_text,
         "track_strategy_metadata": track_obj,
         "target_track": track,
-        "pdf_template": pdf_template
+        "pdf_template": pdf_template,
     }
+
+
+def _resolve_max_pages(state: CVPipelineState) -> int:
+    """Resolve the target maximum page count from state metadata or strategy description."""
+    strategy_meta = state.get("strategy_metadata")
+    if strategy_meta and hasattr(strategy_meta, "max_pages"):
+        return int(strategy_meta.max_pages)
+
+    strategy_text = state.get("strategy_info", "").lower()
+    if "3 pages" in strategy_text or "3-page" in strategy_text:
+        return 3
+    if "1 page" in strategy_text or "1-page" in strategy_text:
+        return 1
+    return 2
 
 
 def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     """Draft the resume/CV using SystemMessage constraints and externalized drafter prompts."""
-    logging.info("--- NODE C: DRAFTER ---")
+    logger.info("--- NODE C: DRAFTER ---")
     llm = get_model_for_step("DRAFTING")
 
     jd = state.get("job_description", "")
@@ -215,30 +280,17 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     feedback = state.get("audit_feedback", "")
     refiner_feedback = state.get("refiner_feedback", "")
 
-    # Retrieve expanded state values
     projects = state.get("projects_entries", [])
     patents = state.get("patents_entries", [])
     notes = state.get("notes_entries", [])
     case_studies = state.get("case_studies_entries", [])
     few_shots = state.get("few_shot_examples", [])
     skill_bridge = state.get("skill_bridging_map", {})
-
     languages = state.get("languages_entries", [])
-    languages_text = "\n".join(languages)
 
-    education_text = "\n\n".join(education)
     skills_text = "\n".join(skills)
-    if languages_text:
-        skills_text += "\n\nSPOKEN LANGUAGES:\n" + languages_text
-
-    projects_text = "\n\n".join(projects)
-    patents_text = "\n\n".join(patents)
-    notes_text = "\n\n".join(notes)
-    case_studies_text = "\n\n".join(case_studies)
-    few_shots_text = "\n\n".join(few_shots)
-    skill_bridge_text = (
-        json.dumps(skill_bridge, indent=2) if skill_bridge else "None"
-    )
+    if languages:
+        skills_text += "\n\nSPOKEN LANGUAGES:\n" + "\n".join(languages)
 
     feedback_instruction = ""
     if feedback:
@@ -253,7 +305,11 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
     if manifest and isinstance(manifest, dict):
         selected_ev = manifest.get("selected_evidence", [])
         if selected_ev:
-            lines = [f"- [{item.get('role_or_project', 'Evidence')}] {item.get('text', '')}" for item in selected_ev if isinstance(item, dict)]
+            lines = [
+                f"- [{item.get('role_or_project', 'Evidence')}] {item.get('text', '')}"
+                for item in selected_ev
+                if isinstance(item, dict)
+            ]
             selection_manifest_text = "\n".join(lines)
 
     system_prompt = load_prompt("drafter_system.txt")
@@ -264,80 +320,29 @@ def node_drafter(state: CVPipelineState) -> dict[str, Any]:
         feedback_instruction=feedback_instruction,
         strategy_info=strategy,
         selection_manifest_text=selection_manifest_text,
-        skill_bridge_text=skill_bridge_text,
-        few_shots_text=few_shots_text,
+        skill_bridge_text=json.dumps(skill_bridge, indent=2) if skill_bridge else "None",
+        few_shots_text="\n\n".join(few_shots),
         chronological_entries_text=chronological_entries_text,
-        projects_text=projects_text,
-        patents_text=patents_text,
-        notes_text=notes_text,
-        case_studies_text=case_studies_text,
-        education_text=education_text,
-        skills_text=skills_text
+        projects_text="\n\n".join(projects),
+        patents_text="\n\n".join(patents),
+        notes_text="\n\n".join(notes),
+        case_studies_text="\n\n".join(case_studies),
+        education_text="\n\n".join(education),
+        skills_text=skills_text,
     )
 
     response = invoke_drafter_llm_with_fallback(llm, system_prompt, prompt)
-    return {"draft_cv": llm_text(response.content)}
-
-def _resolve_max_pages(state: CVPipelineState) -> int:
-    """Resolves the target maximum page count from state metadata or strategy description."""
-    strategy_meta = state.get("strategy_metadata")
-    if strategy_meta:
-        return strategy_meta.max_pages
-
-    strategy_text = state.get("strategy_info", "").lower()
-    if "3 pages" in strategy_text or "3-page" in strategy_text:
-        return 3
-    if "1 page" in strategy_text or "1-page" in strategy_text:
-        return 1
-    return 2
-
-
-def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int, int]:
-    """
-    Evaluates whether the drafted CV fits within the calibrated typesetting page budget.
-    Returns (is_over_budget, feedback_message, word_count, bullet_count).
-    """
-    words = len(draft.split())
-    bullet_lines = sum(
-        1 for line in draft.splitlines()
-        if line.strip().startswith(("- ", "* ", "• "))
-    )
-    char_count = len(draft)
-
-    if max_pages == 1:
-        word_limit, bullet_limit, char_limit = 500, 20, 4500
-    elif max_pages == 3:
-        word_limit, bullet_limit, char_limit = 1550, 62, 12500
-    elif max_pages >= 4:
-        word_limit = max_pages * 500
-        bullet_limit = max_pages * 20
-        char_limit = 12500 + (max_pages - 3) * 4000
-    else:  # 2 pages default
-        word_limit, bullet_limit, char_limit = 1050, 42, 8500
-
-    over_words = words > word_limit
-    over_bullets = bullet_lines > bullet_limit
-    over_chars = char_count > char_limit
-
-    if over_words or over_bullets or over_chars:
-        excess_words = max(0, words - word_limit)
-        excess_bullets = max(0, bullet_lines - bullet_limit)
-        feedback = (
-            f"DENSITY ERROR: The CV is too long. DENSITY OVERFLOW: CV exceeds the {max_pages}-page budget. "
-            f"Words: {words}/{word_limit} (+{excess_words}), "
-            f"Bullet lines: {bullet_lines}/{bullet_limit} (+{excess_bullets}), "
-            f"Characters: {char_count}/{char_limit}. "
-            "Compress wordy STAR achievement bullets, eliminate fluff, and trim secondary "
-            "accomplishments from older roles."
-        )
-        return True, feedback, words, bullet_lines
-
-    return False, "", words, bullet_lines
+    raw_content = strip_wikilinks(llm_text(response.content))
+    region = str(state.get("target_region") or "emea")
+    structured_dict, clean_draft = parse_and_render_structured_cv(raw_content, region=region)
+    if structured_dict is not None:
+        return {"structured_cv": structured_dict, "draft_cv": clean_draft}
+    return {"draft_cv": clean_draft}
 
 
 def node_refiner(state: CVPipelineState) -> Command[Literal["compressor", "auditor"]]:
     """Verify that the drafted CV does not violate calibrated typesetting limits."""
-    logging.info("--- NODE D: REFINER GUARD ---")
+    logger.info("--- NODE D: REFINER GUARD ---")
     draft = state.get("draft_cv", "")
     max_pages = _resolve_max_pages(state)
     is_over, feedback, words, bullets = check_typesetting_budget(draft, max_pages)
@@ -347,33 +352,34 @@ def node_refiner(state: CVPipelineState) -> Command[Literal["compressor", "audit
     if is_over:
         goto_node: Literal["compressor", "auditor"] = "compressor" if compression_count < 2 else "auditor"
         if goto_node == "compressor":
-            logging.warning(
-                f"Refiner guard triggered fast compressor (pass {compression_count + 1}/2) due to page budget overflow."
+            logger.warning(
+                "Refiner guard triggered fast compressor (pass %d/2) due to page budget overflow.",
+                compression_count + 1,
             )
-        logging.warning(f"Refiner guard: over budget ({words} words, {bullets} bullets, max {max_pages} pages).")
+        logger.warning("Refiner guard: over budget (%d words, %d bullets, max %d pages).", words, bullets, max_pages)
         return Command(
             update={
                 "refiner_feedback": feedback,
                 "total_words": words,
                 "total_bullet_lines": bullets,
             },
-            goto=goto_node
+            goto=goto_node,
         )
 
-    logging.info(f"Refiner guard: within budget ({words} words, {bullets} bullets, max {max_pages} pages).")
+    logger.info("Refiner guard: within budget (%d words, %d bullets, max %d pages).", words, bullets, max_pages)
     return Command(
         update={
             "refiner_feedback": "",
             "total_words": words,
             "total_bullet_lines": bullets,
         },
-        goto="auditor"
+        goto="auditor",
     )
 
 
 def node_compressor(state: CVPipelineState) -> dict[str, Any]:
     """Compress the drafted CV to strictly fit the typesetting page budget using a fast model."""
-    logging.info("--- NODE E: FAST COMPRESSOR ---")
+    logger.info("--- NODE E: FAST COMPRESSOR ---")
     try:
         llm = get_model_for_step("COMPRESSION")
     except Exception:
@@ -402,53 +408,27 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
     )
 
     response = llm.invoke([HumanMessage(content=prompt)])
-    compressed_text = llm_text(response.content).strip()
-
-    if compressed_text.startswith("```"):
-        compressed_text = re.sub(r"^```(?:markdown)?\n", "", compressed_text)
-        compressed_text = re.sub(r"\n```$", "", compressed_text).strip()
-
+    compressed_text = strip_wikilinks(llm_text(response.content).strip())
+    region = str(state.get("target_region") or "emea")
     compression_count = state.get("compression_count", 0) + 1
+    structured_dict, rendered_md = parse_and_render_structured_cv(
+        compressed_text, region=region, max_pages=max_pages
+    )
+    if structured_dict is not None:
+        return {
+            "structured_cv": structured_dict,
+            "draft_cv": rendered_md,
+            "compression_count": compression_count,
+        }
     return {
-        "draft_cv": compressed_text,
+        "draft_cv": rendered_md,
         "compression_count": compression_count,
     }
 
 
-def _handle_interactive_audit(checklist: list[str], ats_score: dict[str, Any]) -> tuple[bool, str]:
-    """Interactive CLI prompt allowing the user to review the scorecard and guide the audit."""
-    if not sys.stdin.isatty():
-        return False, ""
-
-    print("\n" + "=" * 50)
-    print("🤝 INTERACTIVE AUDITOR REVIEW")
-    print("=" * 50)
-    print("[1] Accept Draft (override audit and mark PASS)")
-    print("[2] Provide Custom Revision Guidance")
-    print("[3] Proceed with Automatic Rewrite Checklist")
-    try:
-        choice = input("Select an option [1-3] (default 3): ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return False, ""
-
-    if choice == "1":
-        return True, "PASS"
-    if choice == "2":
-        try:
-            custom_note = input("Enter your custom revision directive for the drafter: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            custom_note = ""
-        if custom_note:
-            feedback = f"USER REVISION DIRECTIVE:\n- {custom_note}\n\nORIGINAL AUDIT CHECKLIST:\n" + "\n".join(
-                [f"- [ ] {item}" for item in checklist]
-            )
-            return True, feedback
-    return False, ""
-
-
 def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"]]:
-    """Perform a brutal human-like ATS compliance audit, returning a PASS or a checklist of rewrite actions."""
-    logging.info("--- NODE D: AUDITOR ---")
+    """Perform a human-like ATS compliance audit, returning a PASS or a checklist of rewrite actions."""
+    logger.info("--- NODE D: AUDITOR ---")
     llm = get_model_for_step("AUDIT")
 
     jd = state.get("job_description", "")
@@ -457,65 +437,60 @@ def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"
     strategy = state.get("strategy_info", "")
 
     auditor_template = load_prompt("auditor.txt")
-    skills = state.get("skills_entries", [])
+    skills = list(state.get("skills_entries", []))
+    all_skills = state.get("all_candidate_skills", [])
+    if all_skills:
+        skills.append("All Verified Wiki Skills: " + ", ".join(all_skills))
     skills_text = "\n".join(skills)
+    skill_bridge = state.get("skill_bridging_map", {})
+    skill_bridge_str = json.dumps(skill_bridge, indent=2) if skill_bridge else "None"
+
     prompt = (
         auditor_template
         .replace("{job_description}", jd)
         .replace("{draft_cv}", draft)
         .replace("{candidate_skills}", skills_text)
+        .replace("{skill_bridging_map}", skill_bridge_str)
         .replace("{strategy_info}", strategy)
     )
 
     response = llm.invoke([HumanMessage(content=prompt)])
     feedback = llm_text(response.content).strip()
 
-    # Clean markdown json code blocks if present and parse the scorecard
     json_str = feedback
     if "```" in json_str:
-        blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', json_str, re.DOTALL)
+        blocks = re.findall(r"```(?:json)?\s*(.*?)\s*```", json_str, re.DOTALL)
         if blocks:
             json_str = blocks[0].strip()
 
     ats_score: dict[str, Any] = {}
     try:
-        audit_data = json.loads(json_str)
-        is_pass = audit_data.get("pass", False)
-        ats_score = audit_data.get("ats_score", {})
-        checklist = audit_data.get("rewrite_checklist", [])
-
-        total_score = ats_score.get("total_score", 0)
-        logging.info(f"--- ATS SCORECARD: {total_score}/100 ---")
-        for dimension, details in ats_score.items():
-            if isinstance(details, dict):
-                score_val = details.get("score", 0)
-                max_val = details.get("max", 100)
-                justification = details.get("justification", "")
-                logging.info(f"    * {dimension}: {score_val}/{max_val} - {justification}")
+        raw_audit = robust_json_loads(json_str)
+        audit_obj = AuditOutput.model_validate(raw_audit)
+        is_pass = audit_obj.is_pass
+        ats_score = audit_obj.ats_score.model_dump()
+        checklist = audit_obj.rewrite_checklist
 
         if is_pass:
             stored_feedback = "PASS"
-            logging.info("ATS AUDIT: PASS")
         else:
             stored_feedback = "REWRITE REQUIRED:\n" + "\n".join([f"- [ ] {item}" for item in checklist])
-            logging.info(f"ATS AUDIT: REWRITE REQUIRED - {len(checklist)} items to address.")
             if state.get("interactive", False):
                 handled, custom_feedback = _handle_interactive_audit(checklist, ats_score)
                 if handled:
                     stored_feedback = custom_feedback
     except Exception as e:
-        logging.warning(f"Failed to parse structured auditor JSON: {e}. Falling back to raw text.")
+        logger.warning("Failed to parse structured auditor JSON: %s. Falling back to raw text.", e)
         stored_feedback = feedback
 
-    # Determine next routing step based on feedback and iterations
     is_pass = "PASS" in stored_feedback or (current_iterations + 1) >= 3
     goto_target: Literal["drafter", "__end__"] = "__end__" if is_pass else "drafter"
+    update_payload: dict[str, Any] = {
+        "audit_feedback": stored_feedback,
+        "ats_scorecard": ats_score,
+        "iteration_count": current_iterations + 1,
+    }
+    if goto_target == "drafter":
+        update_payload["compression_count"] = 0
 
-    return Command(
-        update={
-            "audit_feedback": stored_feedback,
-            "ats_scorecard": ats_score,
-            "iteration_count": current_iterations + 1,
-        },
-        goto=goto_target
-    )
+    return Command(update=update_payload, goto=goto_target)

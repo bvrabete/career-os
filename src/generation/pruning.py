@@ -15,9 +15,9 @@ from generation.formatting import (
     compress_experience_llm,
     compress_experience_to_one_liner_llm,
     compress_grouped_experience_llm,
-    llm_text,
+    invoke_structured_llm,
     load_prompt,
-    robust_json_loads,
+    strip_wikilinks,
 )
 from generation.grouping import (
     _detect_employment_type,
@@ -26,9 +26,13 @@ from generation.grouping import (
     _extract_start_year,
     _get_org_slug,
     _group_old_experiences_by_company,
+    _is_anchor_tenure,
     _is_parallel_startup_track,
+    resolve_timeline_conflicts,
 )
 from generation.retrieval import _parse_yaml_frontmatter_from_text, score_by_keywords
+from schemas.cv_models import ExperienceScoreOutput
+from utils import extract_wikilink_slug, format_wikilink, format_wikilink_list
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +52,7 @@ def _resolve_prompt(filename: str) -> str:
 
 
 def _prune_recent_frontmatter(fm: dict[str, Any], employment_type: str = "Permanent") -> str:
-    """Heal dates if needed and prune to essential fields, returning YAML string."""
+    """Heal dates if needed, normalize wikilinks, and retain essential fields including scope and child links."""
     if "dates" not in fm or not isinstance(fm["dates"], dict):
         start = fm.get("start") or fm.get("dates")
         end = fm.get("end")
@@ -59,27 +63,51 @@ def _prune_recent_frontmatter(fm: dict[str, Any], employment_type: str = "Perman
             }
 
     fm["employment_type"] = employment_type
+    if "organization" in fm and fm["organization"]:
+        org_slug = extract_wikilink_slug(fm["organization"])
+        if org_slug:
+            fm["organization"] = format_wikilink(org_slug)
+
+    for link_list_key in ["case_studies", "projects", "patents"]:
+        if link_list_key in fm and fm[link_list_key]:
+            fm[link_list_key] = format_wikilink_list(fm[link_list_key])
 
     pruned_fm: dict[str, Any] = {}
-    for key in ["type", "title", "organization", "location", "dates", "skills", "employment_type"]:
-        if key in fm:
+    retained_keys = [
+        "type",
+        "title",
+        "organization",
+        "location",
+        "dates",
+        "skills",
+        "employment_type",
+        "scope",
+        "case_studies",
+        "projects",
+        "patents",
+    ]
+    for key in retained_keys:
+        if key in fm and fm[key]:
             pruned_fm[key] = fm[key]
 
     return yaml.dump(pruned_fm, sort_keys=False)
 
 
 def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
-    """Extract STAR achievements and return a cleaned body without them, avoiding complex regexes."""
+    """Extract STAR or bold-titled achievements and return a cleaned body without them."""
     achievements: list[str] = []
     clean_lines: list[str] = []
     current_ach: list[str] = []
 
     for line in body.splitlines():
-        is_new_ach = bool(re.match(r'^\s*-\s*\*\*Situation', line))
+        is_new_ach = bool(
+            re.match(r'^-\s*\*\*Situation', line)
+            or re.match(r'^-\s*\*\*(?!Task\b|Action\b|Result\b)[^*]+\*\*\s*:', line)
+        )
         is_header = line.strip().startswith("##") or line.strip().startswith("###")
 
         if (is_new_ach or is_header) and current_ach:
-            achievements.append("\n".join(current_ach))
+            achievements.append(strip_wikilinks("\n".join(current_ach)))
             current_ach = []
 
         if (is_new_ach or current_ach) and not is_header:
@@ -88,9 +116,9 @@ def _extract_and_clean_achievements(body: str) -> tuple[list[str], str]:
             clean_lines.append(line)
 
     if current_ach:
-        achievements.append("\n".join(current_ach))
+        achievements.append(strip_wikilinks("\n".join(current_ach)))
 
-    clean_body = "\n".join(clean_lines).strip()
+    clean_body = strip_wikilinks("\n".join(clean_lines).strip())
     return achievements, clean_body
 
 
@@ -129,7 +157,8 @@ def prune_recent_experience(
     if fm_match:
         try:
             fm_raw = fm_match.group(1)
-            fm = yaml.safe_load(fm_raw) or {}
+            loaded = yaml.safe_load(fm_raw)
+            fm = loaded if isinstance(loaded, dict) else {}
             pruned_fm_str = _prune_recent_frontmatter(fm, employment_type)
             body = content[fm_match.end():].strip()
 
@@ -170,15 +199,14 @@ def _score_single_experience(
             .replace("{EXPERIENCE_CONTENT}", experience_content)
         )
 
-        response = llm.invoke([HumanMessage(content=score_prompt)])
-        content = llm_text(response.content)
-
         score = 0
         justification = "N/A"
         try:
-            data = robust_json_loads(content)
-            score = int(data.get("score", 0))
-            justification = data.get("justification", "N/A")
+            parsed: ExperienceScoreOutput = invoke_structured_llm(
+                llm, ExperienceScoreOutput, [HumanMessage(content=score_prompt)]
+            )
+            score = parsed.score
+            justification = parsed.justification
         except Exception as e:
             logger.warning(
                 f"Failed to parse LLM score for {entry_path.name}, defaulting to 0: {e}"
@@ -210,14 +238,16 @@ def _score_experiences_list(
 def _get_experience_key(name: str, content: str) -> tuple[str, str]:
     """Extract a deduplication key (organization, start_year) from an experience entry."""
     fm = _parse_yaml_frontmatter_from_text(content)
-    org_raw = str(fm.get("organization", ""))
-    org_match = BRACKET_LINK_PATTERN.search(org_raw)
-    org = org_match.group(1) if org_match else org_raw.strip().lower()
-    if not org:
-        org = name.replace(".md", "").split("-")[0]
+    org_slug = extract_wikilink_slug(fm.get("organization"))
+    if not org_slug:
+        org_raw = str(fm.get("organization", ""))
+        org_match = BRACKET_LINK_PATTERN.search(org_raw)
+        org_slug = org_match.group(1) if org_match else org_raw.strip().lower()
+    if not org_slug:
+        org_slug = name.replace(".md", "").split("-")[0]
 
     start_year = _extract_start_year(fm)
-    return org, start_year
+    return org_slug, start_year
 
 
 def _deduplicate_scored_experiences(
@@ -266,14 +296,7 @@ def calculate_experience_weight(
     employment_type: str = "Permanent",
     org_culture: str = "corporate",
 ) -> float:
-    """
-    Calculate a normalized weight (0.0 to 1.0) for an experience entry based on:
-    1. ATS Score Factor (50%)
-    2. Recency Factor (30%) - decays linearly over a 15-year period
-    3. Duration Factor (20%) - scales linearly up to a 3-year cap
-    4. Employment Type Multiplier (Contract: 0.85, Advisory: 0.75, etc.)
-    5. Culture Alignment Multiplier (Corporate vs Startup targets)
-    """
+    """Calculate a normalized weight (0.0 to 1.0) for an experience entry from ATS score, recency, duration, and culture."""
     scoring_cfg = kb_config.get_scoring_config()
     factors = scoring_cfg.get("FACTORS", {})
     w_ats = float(factors.get("ATS_SCORE", 0.50))
@@ -332,6 +355,7 @@ def _compress_and_wrap_single_experience(
     max_pages: int = 1,
     target_track: str = "engineering-management",
     org_culture: str = "corporate",
+    llm: Any = None,
 ) -> str:
     """Helper to smart-compress or prune a single experience entry and return wrapped string."""
     fm = _parse_yaml_frontmatter_from_text(content)
@@ -355,18 +379,25 @@ def _compress_and_wrap_single_experience(
     tier_2 = float(tiers.get("TIER_2_BALANCED", 0.45))
     tier_3 = float(tiers.get("TIER_3_COMPRESSED", 0.30))
 
+    pruned_fm_str = _prune_recent_frontmatter(fm, emp_type) if fm else ""
+    is_anchor = _is_anchor_tenure(fm, score=score)
     if name.startswith("grouped-"):
-        content = compress_grouped_experience_llm(content)
+        body_compressed = compress_grouped_experience_llm(content, keywords=keywords, llm=llm)
+        content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
     elif "group" in name.lower() or "grouped" in name.lower():
         pass
+    elif is_anchor:
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=min(max_pages, 2))
     elif years_since_end >= 15 or weight < tier_3:
-        content = compress_experience_to_one_liner_llm(content)
+        body_compressed = compress_experience_to_one_liner_llm(content, keywords=keywords, llm=llm)
+        content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
     elif weight >= tier_1 and years_since_end < 10:
-        content = prune_recent_experience(content, keywords, emp_type, max_pages=3)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=min(max_pages, 3))
     elif weight >= tier_2 and years_since_end < 15:
-        content = prune_recent_experience(content, keywords, emp_type, max_pages=2)
+        content = prune_recent_experience(content, keywords, emp_type, max_pages=min(max_pages, 2))
     else:
-        content = compress_experience_llm(content)
+        body_compressed = compress_experience_llm(content, keywords=keywords, llm=llm)
+        content = f"---\n{pruned_fm_str}---\n\n{body_compressed}" if pruned_fm_str else body_compressed
 
     start_date_str = _extract_start_date_normalized(fm)
     return (
@@ -385,6 +416,7 @@ def _compress_and_wrap_experiences(
     max_pages: int = 1,
     target_track: str = "engineering-management",
     org_culture: str = "corporate",
+    llm: Any = None,
 ) -> tuple[list[str], list[str]]:
     """Helper to perform smart-compression or pruning on deduplicated experiences."""
     selected_content: list[str] = []
@@ -404,6 +436,7 @@ def _compress_and_wrap_experiences(
             max_pages,
             target_track=target_track,
             org_culture=org_culture,
+            llm=llm,
         )
         selected_content.append(wrapped)
 
@@ -427,8 +460,9 @@ def retrieve_and_score_experiences(
     max_pages: int = 1,
     target_track: str = "engineering-management",
     org_culture: str = "corporate",
+    parallel_venture_policy: str = "strict_single_timeline",
 ) -> tuple[list[str], list[str]]:
-    """Retrieve, score, deduplicate, and smart-compress candidate experiences."""
+    """Retrieve, score, deduplicate, resolve timeline conflicts, and smart-compress candidate experiences."""
     score_template = _resolve_prompt("retriever_score.txt")
     scored = _score_experiences_list(llm, keywords, persona, jd, score_template)
 
@@ -440,6 +474,14 @@ def retrieve_and_score_experiences(
 
     scored.sort(key=_calc_weight, reverse=True)
     deduplicated = _deduplicate_scored_experiences(scored)
+    scoring_cfg = kb_config.get_scoring_config()
+    min_contract_score = int(scoring_cfg.get("MIN_CONCURRENT_CONTRACT_SCORE", 25))
+    effective_policy = "highlight_entrepreneurial" if org_culture == "startup" else parallel_venture_policy
+    deduplicated = resolve_timeline_conflicts(
+        deduplicated,
+        parallel_venture_policy=effective_policy,
+        min_contract_score=min_contract_score,
+    )
     deduplicated.sort(key=_calc_weight, reverse=True)
     return _compress_and_wrap_experiences(
         deduplicated,
@@ -447,4 +489,5 @@ def retrieve_and_score_experiences(
         max_pages,
         target_track=target_track,
         org_culture=org_culture,
+        llm=llm,
     )

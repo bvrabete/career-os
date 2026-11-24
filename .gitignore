@@ -1,5 +1,5 @@
 # Python
-__pycache__/
+__pycache__
 *.pyc
 *.pyo
 *.pyd
@@ -41,6 +41,7 @@ config.yaml
 # Generated files
 ai-generated-cvs/*
 plans/*
+conductor/
 
 # Test sandbox wiki 
 test-sandbox-wiki/
@@ -49,3 +50,6 @@ test-sandbox-wiki/
 jd
 llm-wiki
 output
+
+# AI agent discussion folder
+conductor/*

@@ -6,9 +6,48 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-from generation.helpers import llm_text, load_prompt, robust_json_loads
+from generation.formatting import invoke_structured_llm
+from generation.helpers import _parse_yaml_frontmatter_from_text, load_prompt, strip_wikilinks
 from generation.state import EvidenceItem, JobRequirement, RequirementSupport
 from kb_config import get_model_for_step
+from schemas.cv_models import RequirementMapperOutput
+
+
+def parse_experience_entry_to_dict(entry_str: str) -> dict[str, Any]:
+    """Parse a wrapped or raw experience markdown string into a normalized dict with atomic achievement bullets."""
+    fm = _parse_yaml_frontmatter_from_text(entry_str)
+    title = str(fm.get("title") or "").strip()
+    if not title:
+        name_match = re.search(r"CAREER ENTRY:\s*([^\s|]+)", entry_str)
+        title = name_match.group(1).replace(".md", "") if name_match else "Experience"
+
+    score_match = re.search(r"SEMANTIC RELEVANCE SCORE:\s*(\d+)", entry_str)
+    score = float(score_match.group(1)) / 100.0 if score_match else 0.7
+
+    body = re.sub(r"^--- CAREER ENTRY:.*?---\n", "", entry_str, flags=re.DOTALL)
+    body = re.sub(r"--- END CAREER ENTRY ---\s*$", "", body, flags=re.DOTALL)
+    body = re.sub(r"^\s*JUSTIFICATION:.*?\n", "", body)
+    body = re.sub(r"^\s*---\n.*?\n---", "", body, flags=re.DOTALL).strip()
+
+    bullets: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("- ", "* ", "• ")):
+            cleaned = strip_wikilinks(stripped.lstrip("-*• \t").strip())
+            if len(cleaned) >= 10:
+                bullets.append(cleaned)
+
+    if not bullets and len(body) >= 10:
+        for para in body.split("\n\n"):
+            clean_p = strip_wikilinks(para.strip())
+            if len(clean_p) >= 10 and not clean_p.startswith("#") and not clean_p.startswith("JUSTIFICATION:"):
+                bullets.append(clean_p)
+
+    return {
+        "title": title,
+        "score": min(1.0, max(0.1, score)),
+        "achievements": bullets or [strip_wikilinks(entry_str.strip())],
+    }
 
 
 def extract_requirements_from_jd(jd: str, target_persona: str = "") -> list[JobRequirement]:
@@ -20,10 +59,10 @@ def extract_requirements_from_jd(jd: str, target_persona: str = "") -> list[JobR
         llm = get_model_for_step("REQUIREMENT_MAPPING", format="json")
         prompt_tmpl = load_prompt("requirement_mapper.txt")
         prompt = prompt_tmpl.replace("{JOB_DESCRIPTION}", jd).replace("{TARGET_PERSONA}", target_persona)
-        response = llm.invoke([HumanMessage(content=prompt)])
-        content = llm_text(response.content)
-        data = robust_json_loads(content)
-        reqs_raw = data.get("requirements", []) if isinstance(data, dict) else []
+        parsed_reqs: RequirementMapperOutput = invoke_structured_llm(
+            llm, RequirementMapperOutput, [HumanMessage(content=prompt)]
+        )
+        reqs_raw = parsed_reqs.requirements
 
         requirements: list[JobRequirement] = []
         for idx, r in enumerate(reqs_raw, start=1):
@@ -158,6 +197,40 @@ def extract_candidate_evidence_items(
                     existing_role_score=score,
                     impact_assessment=0.8,  # Patents have inherent technical scope impact
                     estimated_words=len(abstract.split()),
+                ))
+
+    if case_studies_raw:
+        for cs_idx, cs in enumerate(case_studies_raw):
+            title = str(cs.get("title") or "Case Study")
+            summary = str(cs.get("summary") or cs.get("description") or "").strip()
+            score = float(cs.get("score") or 0.7)
+            if len(summary) >= 10:
+                evidence_items.append(EvidenceItem(
+                    id=f"cs_{cs_idx}",
+                    source_ref=f"case_studies[{cs_idx}]",
+                    source_type="case_study",
+                    role_or_project=title,
+                    text=summary,
+                    existing_role_score=score,
+                    impact_assessment=_assess_impact_metrics(summary),
+                    estimated_words=len(summary.split()),
+                ))
+
+    if notes_raw:
+        for n_idx, note in enumerate(notes_raw):
+            title = str(note.get("title") or "Note")
+            text = str(note.get("text") or note.get("description") or "").strip()
+            score = float(note.get("score") or 0.6)
+            if len(text) >= 10:
+                evidence_items.append(EvidenceItem(
+                    id=f"note_{n_idx}",
+                    source_ref=f"notes[{n_idx}]",
+                    source_type="note",
+                    role_or_project=title,
+                    text=text,
+                    existing_role_score=score,
+                    impact_assessment=_assess_impact_metrics(text),
+                    estimated_words=len(text.split()),
                 ))
 
     return evidence_items
