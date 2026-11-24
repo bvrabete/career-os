@@ -38,10 +38,14 @@ def generate_case_studies(
                 body = parts[2].strip()
 
         # Build frontmatter dict
+        rel_exp = cs.get("related_experience") or cs.get("tenure") or (f"[[{org_slug}]]" if org_slug else "")
+        if rel_exp and not str(rel_exp).startswith("[["):
+            rel_exp = f"[[{rel_exp}]]"
         fm_data: dict[str, Any] = {
             "type": "case_study",
             "title": title,
             "organization": f"[[{org_slug}]]" if org_slug else "",
+            "related_experience": rel_exp,
             "skills": cs.get("skills", []),
             "tags": cs.get("tags", ["architecture"]),
             "created": today_str,

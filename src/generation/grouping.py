@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 from generation.formatting import BRACKET_LINK_PATTERN
 from generation.retrieval import _parse_yaml_frontmatter_from_text
+from utils import extract_wikilink_slug
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +29,47 @@ def _extract_start_year(fm: dict[str, Any]) -> str:
     return ""
 
 
-def _is_old_role(fm: dict[str, Any]) -> bool:
-    """Check if the career entry starts before or at current_year - 10 (old role)."""
-    start_year = _extract_start_year(fm)
+def _parse_date_safe(date_str: str, fallback: datetime.date) -> datetime.date:
+    """Parse YYYY-MM-DD safely with fallback."""
+    try:
+        return datetime.datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+    except Exception:
+        return fallback
+
+
+def _is_anchor_tenure(
+    fm: dict[str, Any], score: int = 0, min_years: float = 5.0, min_score: int = 75
+) -> bool:
+    """Return True if a role is a high-relevance multi-year anchor tenure that should not be 1-line compressed."""
+    if score < min_score:
+        return False
+    today = datetime.date.today()
+    start_dt = _parse_date_safe(_extract_start_date_normalized(fm), today)
+    end_dt = _parse_date_safe(_extract_end_date_normalized(fm), today)
+    duration_years = max(0.0, (end_dt - start_dt).days / 365.25)
+    years_since_end = max(0, today.year - end_dt.year)
+    return duration_years >= min_years and years_since_end <= 12
+
+
+def _is_old_role(fm: dict[str, Any], score: int = 0) -> bool:
+    """Check if the career entry ended before or at current_year - 10 (unless protected as an Anchor Tenure)."""
+    if _is_anchor_tenure(fm, score=score):
+        return False
     current_year = datetime.datetime.now().year
+    dates = fm.get("dates")
+    end_val = ""
+    if isinstance(dates, dict) and dates.get("end") is not None:
+        end_val = str(dates.get("end", "")).strip()
+    elif fm.get("end") is not None:
+        end_val = str(fm.get("end", "")).strip()
+
+    if end_val:
+        if end_val.lower() in {"present", "current", "ongoing"}:
+            return False
+        if len(end_val) >= 4 and end_val[:4].isdigit():
+            return int(end_val[:4]) <= (current_year - 10)
+
+    start_year = _extract_start_year(fm)
     return bool(start_year and start_year.isdigit() and int(start_year) <= (current_year - 10))
 
 
@@ -122,14 +160,11 @@ def _is_parallel_startup_track(fm: dict[str, Any]) -> bool:
 def _get_org_slug(name: str, fm: dict[str, Any]) -> str:
     """Extract canonical organization name or slug from frontmatter or filename, normalized for grouping."""
     org_raw = fm.get("organization")
-    if isinstance(org_raw, list):
-        org_str = " ".join(str(x) for x in org_raw)
-    elif org_raw:
-        org_str = str(org_raw)
-    else:
-        org_str = name.replace(".md", "").split("-")[0]
+    org_slug = extract_wikilink_slug(org_raw)
+    if not org_slug:
+        org_slug = name.replace(".md", "").split("-")[0]
 
-    org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_str)
+    org_str = BRACKET_LINK_PATTERN.sub(r'\1', org_slug)
     org_clean = org_str.strip().lower()
     org_clean = re.sub(r'[^a-z0-9\s\-]', '', org_clean)
     org_clean = re.sub(r'[\s\_]+', '-', org_clean)
@@ -144,9 +179,9 @@ def _split_recent_and_old_experiences(
     old_entries_by_org = defaultdict(list)
 
     for item in deduplicated:
-        _, name, content, _ = item
+        score, name, content, _ = item
         fm = _parse_yaml_frontmatter_from_text(content)
-        if _is_old_role(fm):
+        if _is_old_role(fm, score=score):
             org = _get_org_slug(name, fm)
             old_entries_by_org[org].append((item, fm))
         else:
@@ -280,3 +315,158 @@ def _group_old_experiences_by_company(
 
     grouped_entries.sort(key=get_start_date, reverse=True)
     return recent_entries + grouped_entries
+
+
+def _overlap_days(s1: datetime.date, e1: datetime.date, s2: datetime.date, e2: datetime.date) -> int:
+    """Return the number of overlapping days between two date intervals [s1, e1] and [s2, e2]."""
+    return max(0, (min(e1, e2) - max(s1, s2)).days)
+
+
+def _clamp_content_dates(content: str, start_dt: datetime.date, end_dt: datetime.date) -> str:
+    """Update start and end dates in YAML frontmatter to reflect clamped non-overlapping tenure bounds."""
+    s_str = start_dt.strftime("%Y-%m-%d")
+    e_str = end_dt.strftime("%Y-%m-%d")
+    updated = re.sub(r"(start:\s*['\"]?)\d{4}-\d{1,2}(?:-\d{1,2})?(['\"]?)", rf"\g<1>{s_str}\2", content, count=1)
+    return re.sub(
+        r"(end:\s*['\"]?)(?:\d{4}-\d{1,2}(?:-\d{1,2})?|Present|present)(['\"]?)",
+        rf"\g<1>{e_str}\2",
+        updated,
+        count=1,
+    )
+
+
+def _clamp_venture_to_corporate_gap(
+    s_v: datetime.date,
+    e_v: datetime.date,
+    corp_intervals: list[tuple[datetime.date, datetime.date, str]],
+) -> tuple[datetime.date, datetime.date] | None:
+    """Clamp a startup/venture interval against overlapping corporate roles; return None if <90 days remain."""
+    cur_s, cur_e = s_v, e_v
+    today = datetime.date.today()
+    for c_s, c_e, c_type in corp_intervals:
+        ov = _overlap_days(cur_s, cur_e, c_s, c_e)
+        if ov <= 30:
+            continue
+        v_dur = max(1, (cur_e - cur_s).days)
+        if c_type == "Permanent" and (today.year - c_e.year) <= 5 and (ov >= 180 or (ov / v_dur) >= 0.5):
+            return None
+        if c_s <= cur_s and c_e < cur_e:
+            cur_s = c_e
+        elif c_s > cur_s and c_e >= cur_e:
+            cur_e = c_s
+        elif c_s <= cur_s and c_e >= cur_e:
+            return None
+    if (cur_e - cur_s).days < 90:
+        return None
+    return cur_s, cur_e
+
+
+def _filter_and_clamp_ventures(
+    venture_roles: list[dict[str, Any]],
+    all_corp_intervals: list[tuple[datetime.date, datetime.date, str]],
+) -> list[dict[str, Any]]:
+    """Clamp ventures against corporate gaps and disambiguate mutually overlapping ventures."""
+    clamped_ventures: list[dict[str, Any]] = []
+    for v in venture_roles:
+        has_corp_overlap = any(_overlap_days(v["start"], v["end"], cs, ce) > 30 for cs, ce, _ in all_corp_intervals)
+        if not has_corp_overlap:
+            clamped_ventures.append(v)
+            continue
+        clamped_bounds = _clamp_venture_to_corporate_gap(v["start"], v["end"], all_corp_intervals)
+        if clamped_bounds is None:
+            logger.info("Timeline resolver: suppressed overlapping venture '%s' under strict_single_timeline.", v["name"])
+            continue
+        new_s, new_e = clamped_bounds
+        if (new_s, new_e) != (v["start"], v["end"]):
+            new_content = _clamp_content_dates(v["content"], new_s, new_e)
+            v = {
+                **v,
+                "start": new_s,
+                "end": new_e,
+                "days": max(1, (new_e - new_s).days),
+                "content": new_content,
+                "item": (v["score"], v["name"], new_content, v["just"]),
+            }
+        clamped_ventures.append(v)
+
+    clamped_ventures.sort(key=lambda r: (r["score"], r["days"]), reverse=True)
+    accepted: list[dict[str, Any]] = []
+    for v in clamped_ventures:
+        if any(_overlap_days(v["start"], v["end"], av["start"], av["end"]) >= 60 for av in accepted):
+            logger.info("Timeline resolver: suppressed redundant overlapping venture '%s'.", v["name"])
+            continue
+        accepted.append(v)
+    return accepted
+
+
+def _filter_subsumed_short_contracts(
+    corp_roles: list[dict[str, Any]],
+    accepted_ventures: list[dict[str, Any]],
+    min_contract_score: int,
+) -> list[dict[str, Any]]:
+    """Suppress short (<=185 day) low-relevance (<min_contract_score) contracts subsumed by another role."""
+    retained_intervals = [(r["start"], r["end"], r["name"]) for r in accepted_ventures] + [
+        (r["start"], r["end"], r["name"])
+        for r in corp_roles
+        if not (r["emp_type"] == "Contract" and r["days"] <= 185 and r["score"] < min_contract_score)
+    ]
+    final_corp: list[dict[str, Any]] = []
+    for r in corp_roles:
+        if r["emp_type"] == "Contract" and r["days"] <= 185 and r["score"] < min_contract_score:
+            is_subsumed = any(
+                other_name != r["name"] and _overlap_days(r["start"], r["end"], os, oe) >= int(r["days"] * 0.8)
+                for os, oe, other_name in retained_intervals
+            )
+            if is_subsumed:
+                logger.info(
+                    "Timeline resolver: suppressed subsumed short contract '%s' (score %d < %d).",
+                    r["name"],
+                    r["score"],
+                    min_contract_score,
+                )
+                continue
+        final_corp.append(r)
+    return final_corp
+
+
+def resolve_timeline_conflicts(
+    deduplicated: list[tuple[int, str, str, str]],
+    parallel_venture_policy: str = "strict_single_timeline",
+    min_contract_score: int = 25,
+) -> list[tuple[int, str, str, str]]:
+    """
+    Generic interval-graph resolver for parallel startup tracks and subsumed low-score short contracts.
+    Operates strictly on YAML frontmatter dates, employment_type, duration, and semantic relevance score.
+    """
+    if parallel_venture_policy != "strict_single_timeline" or len(deduplicated) <= 1:
+        return deduplicated
+
+    today = datetime.date.today()
+    parsed_roles: list[dict[str, Any]] = []
+    for item in deduplicated:
+        score, name, content, just = item
+        fm = _parse_yaml_frontmatter_from_text(content)
+        emp_type = _detect_employment_type(fm, content)
+        is_venture = _is_parallel_startup_track(fm) or emp_type in {"Startup / Co-Founder", "Self-employed"}
+        s_dt = _parse_date_safe(_extract_start_date_normalized(fm), today)
+        e_dt = _parse_date_safe(_extract_end_date_normalized(fm), today)
+        parsed_roles.append({
+            "item": item,
+            "score": score,
+            "name": name,
+            "content": content,
+            "just": just,
+            "emp_type": emp_type,
+            "is_venture": is_venture,
+            "start": s_dt,
+            "end": e_dt,
+            "days": max(1, (e_dt - s_dt).days),
+        })
+
+    corp_roles = [r for r in parsed_roles if not r["is_venture"]]
+    venture_roles = [r for r in parsed_roles if r["is_venture"]]
+    all_corp_intervals = [(r["start"], r["end"], r["emp_type"]) for r in corp_roles]
+
+    accepted_ventures = _filter_and_clamp_ventures(venture_roles, all_corp_intervals)
+    final_corp = _filter_subsumed_short_contracts(corp_roles, accepted_ventures, min_contract_score)
+    return [r["item"] for r in (final_corp + accepted_ventures)]

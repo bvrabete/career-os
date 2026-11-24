@@ -1,16 +1,15 @@
 """Unit tests for knowledge base catalog generation."""
 import shutil
 import tempfile
-import unittest
 from pathlib import Path
 
 from tools.catalog import generate_catalog, load_catalog, save_catalog
 
 
-class TestCatalogIndexing(unittest.TestCase):
+class TestCatalogIndexing:
     """Test suite for catalog.json generation and parsing."""
 
-    def setUp(self):
+    def setup_method(self):
         self.test_dir = Path(tempfile.mkdtemp())
         self.wiki_dir = self.test_dir / "wiki"
         self.wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -54,33 +53,29 @@ class TestCatalogIndexing(unittest.TestCase):
         track_dir.mkdir(parents=True, exist_ok=True)
         (track_dir / "engineering-management.md").write_text("---\ntype: strategy-track\n---\n", encoding="utf-8")
 
-    def tearDown(self):
+    def teardown_method(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_generate_catalog(self):
         cat = generate_catalog(self.test_dir)
-        self.assertEqual(cat["metadata"]["total_experiences"], 1)
-        self.assertEqual(cat["metadata"]["total_case_studies"], 1)
-        self.assertEqual(cat["metadata"]["total_projects"], 1)
-        self.assertEqual(cat["metadata"]["total_skills_categories"], 1)
-        self.assertEqual(cat["metadata"]["total_location_strategies"], 1)
-        self.assertEqual(cat["metadata"]["total_track_strategies"], 1)
-        self.assertIn("ireland", cat["location_strategies"])
-        self.assertIn("engineering-management", cat["track_strategies"])
+        assert cat["metadata"]["total_experiences"] == 1
+        assert cat["metadata"]["total_case_studies"] == 1
+        assert cat["metadata"]["total_projects"] == 1
+        assert cat["metadata"]["total_skills_categories"] == 1
+        assert cat["metadata"]["total_location_strategies"] == 1
+        assert cat["metadata"]["total_track_strategies"] == 1
+        assert "ireland" in cat["location_strategies"]
+        assert "engineering-management" in cat["track_strategies"]
 
         exp = cat["experiences"][0]
-        self.assertEqual(exp["organization"], "Google")
-        self.assertEqual(exp["achievements_count"], 2)
-        self.assertEqual(exp["case_studies_count"], 1)
+        assert exp["organization"] == "Google"
+        assert exp["achievements_count"] == 2
+        assert exp["case_studies_count"] == 1
 
     def test_save_and_load_catalog(self):
         target_path = save_catalog(self.test_dir)
-        self.assertTrue(target_path.exists())
+        assert target_path.exists()
 
         loaded = load_catalog(self.test_dir)
-        self.assertIsNotNone(loaded)
-        self.assertEqual(loaded["metadata"]["total_experiences"], 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert loaded is not None
+        assert loaded["metadata"]["total_experiences"] == 1

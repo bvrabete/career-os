@@ -3,9 +3,10 @@ General utility functions for text, markdown, and path processing.
 """
 
 import os
+from pathlib import Path
 import re
 import tempfile
-from pathlib import Path
+from typing import Any
 
 
 def clean_markdown_wrapper(md_content: str) -> str:
@@ -98,4 +99,72 @@ def safe_write_text(path: Path | str, content: str) -> None:
     clean_path = match.group(1)
     with open(clean_path, "w", encoding="utf-8") as f:
         f.write(content)
+
+
+def extract_wikilink_slug(val: Any) -> str:
+    """
+    Deterministically unwrap YAML 1.2 nested lists (e.g. [['slug']] or [[['slug']]]),
+    quoted wikilinks ("'[[slug]]'"), or plain strings into a clean canonical slug.
+    """
+    if val is None:
+        return ""
+    curr = val
+    while isinstance(curr, (list, tuple)):
+        if not curr:
+            return ""
+        curr = curr[0]
+    if not isinstance(curr, str):
+        raise ValueError(f"Invalid wikilink value type: {type(curr).__name__}")
+
+    cleaned = curr.strip().strip("'\"")
+    while cleaned.startswith("[[") and cleaned.endswith("]]"):
+        cleaned = cleaned[2:-2].strip().strip("'\"")
+    cleaned = cleaned.strip("[]'\" ")
+    if ".." in cleaned or "/" in cleaned.replace("case-studies/", "") or "\\" in cleaned:
+        raise ValueError(f"Security Warning: Path traversal in wikilink slug: {cleaned}")
+    return cleaned
+
+
+def extract_wikilink_list(val: Any) -> list[str]:
+    """
+    Deterministically unwrap a string, flat list, or YAML 1.2 nested list of wikilinks
+    into a clean list of canonical slugs.
+    """
+    if val is None or val == "":
+        return []
+    if isinstance(val, str):
+        slug = extract_wikilink_slug(val)
+        return [slug] if slug else []
+    if not isinstance(val, (list, tuple)):
+        raise ValueError(f"Expected list or string for wikilink list, got {type(val).__name__}")
+
+    # Handle case where entire field was written as [[[slug]]] -> [['slug']]
+    if len(val) == 1 and isinstance(val[0], list) and len(val[0]) == 1 and isinstance(val[0][0], str):
+        slug = extract_wikilink_slug(val[0][0])
+        return [slug] if slug else []
+
+    results: list[str] = []
+    for item in val:
+        if isinstance(item, list) and len(item) > 1 and all(isinstance(x, str) for x in item):
+            for sub in item:
+                s = extract_wikilink_slug(sub)
+                if s and s not in results:
+                    results.append(s)
+        else:
+            s = extract_wikilink_slug(item)
+            if s and s not in results:
+                results.append(s)
+    return results
+
+
+def format_wikilink(val: Any) -> str:
+    """Format a slug or raw wikilink value into a standard '[[slug]]' string."""
+    slug = extract_wikilink_slug(val)
+    return f"[[{slug}]]" if slug else ""
+
+
+def format_wikilink_list(val: Any) -> list[str]:
+    """Format a collection of slugs or raw wikilinks into a list of '[[slug]]' strings."""
+    return [f"[[{s}]]" for s in extract_wikilink_list(val)]
+
 

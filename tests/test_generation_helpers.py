@@ -1,5 +1,5 @@
 """Unit tests for the generation helper functions."""
-import unittest
+import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import datetime
@@ -30,37 +30,37 @@ from generation.helpers import (
 )
 
 
-class TestGenerationHelpers(unittest.TestCase):
+class TestGenerationHelpers:
     """Deterministic, isolated unit tests for CV Generation Helpers."""
 
     def test_llm_text_str(self):
         """Test llm_text with a simple string."""
-        self.assertEqual(llm_text("hello"), "hello")
+        assert llm_text("hello") == "hello"
 
     def test_llm_text_list(self):
         """Test llm_text with a list of parts."""
-        self.assertEqual(llm_text(["hello", 123, "world"]), "hello 123 world")
+        assert llm_text(["hello", 123, "world"]) == "hello 123 world"
 
     def test_extract_json_block_markdown(self):
         """Test _extract_json_block handles markdown code blocks."""
         raw = "Some preamble ```json\n{\"key\": \"val\"}\n``` postscript"
-        self.assertEqual(_extract_json_block(raw), "{\"key\": \"val\"}")
+        assert _extract_json_block(raw) == "{\"key\": \"val\"}"
 
     def test_extract_json_block_raw(self):
         """Test _extract_json_block handles raw json."""
-        self.assertEqual(_extract_json_block("  {\"key\": \"val\"} "), "{\"key\": \"val\"}")
+        assert _extract_json_block("  {\"key\": \"val\"} ") == "{\"key\": \"val\"}"
 
     def test_extract_json_block_array(self):
         """Test _extract_json_block handles raw array."""
-        self.assertEqual(_extract_json_block("   [1, 2, 3]  "), "[1, 2, 3]")
+        assert _extract_json_block("   [1, 2, 3]  ") == "[1, 2, 3]"
 
     def test_extract_json_block_invalid(self):
         """Test _extract_json_block raises ValueError on malformed blocks."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _extract_json_block("no braces here")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _extract_json_block("{ unclosed")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _extract_json_block("[ unclosed")
 
     def test_clean_json_comments_and_commas(self):
@@ -73,40 +73,37 @@ class TestGenerationHelpers(unittest.TestCase):
             "arr": [1, 2,],
         }"""
         expected = "{\n            \n            \n            \"key\": \"val\",\n            \"arr\": [1, 2]}"
-        self.assertEqual(
-            _clean_json_comments_and_commas(raw).strip(),
-            expected.strip()
-        )
+        assert _clean_json_comments_and_commas(raw).strip() == expected.strip()
 
     def test_escape_control_chars_in_strings(self):
         """Test escaping raw control characters in string values."""
         raw = '{"key": "value with \n newline and \t tab"}'
         expected = '{"key": "value with \\n newline and \\t tab"}'
-        self.assertEqual(_escape_control_chars_in_strings(raw), expected)
+        assert _escape_control_chars_in_strings(raw) == expected
 
     def test_robust_json_loads_empty(self):
         """Test robust_json_loads raises ValueError on empty string."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             robust_json_loads("")
 
     def test_robust_json_loads_single_quotes(self):
         """Test robust_json_loads falls back to single-to-double quote replace."""
         raw = "{'key': 'value'}"
-        self.assertEqual(robust_json_loads(raw), {"key": "value"})
+        assert robust_json_loads(raw) == {"key": "value"}
 
     def test_is_old_role_true(self):
         """Test _is_old_role detects old pre-2015 roles."""
         fm = {"dates": {"start": "2012-01-01"}}
-        self.assertTrue(_is_old_role(fm))
+        assert _is_old_role(fm)
 
     def test_is_old_role_false(self):
         """Test _is_old_role detects recent roles."""
         fm = {"dates": {"start": "2020-01-01"}}
-        self.assertFalse(_is_old_role(fm))
+        assert not _is_old_role(fm)
 
     def test_is_old_role_missing(self):
         """Test _is_old_role handles missing dates by returning False."""
-        self.assertFalse(_is_old_role({}))
+        assert not _is_old_role({})
 
     def test_get_experience_key(self):
         """Test _get_experience_key combines org and start_year."""
@@ -116,7 +113,7 @@ dates:
   start: 2020-01-01
 ---
 """
-        self.assertEqual(_get_experience_key("intel.md", content), ("intel-slug", "2020"))
+        assert _get_experience_key("intel.md", content) == ("intel-slug", "2020")
 
     def test_deduplicate_scored_experiences(self):
         """Test _deduplicate_scored_experiences keeps highest scored duplicates."""
@@ -144,35 +141,35 @@ dates:
             (20, "google.md", content_3, "justification-3"),
         ]
         dedupped = _deduplicate_scored_experiences(experiences)
-        self.assertEqual(len(dedupped), 2)
+        assert len(dedupped) == 2
         # Verify the higher scored intel Engineer is kept
-        self.assertIn((10, "intel.md", content_1, "justification-1"), dedupped)
-        self.assertNotIn((5, "intel.md", content_2, "justification-2"), dedupped)
+        assert (10, "intel.md", content_1, "justification-1") in dedupped
+        assert (5, "intel.md", content_2, "justification-2") not in dedupped
 
     def test_extract_start_date_normalized(self):
         """Test _extract_start_date_normalized handles format variations."""
-        self.assertEqual(_extract_start_date_normalized({"dates": {"start": "2020-01-01"}}), "2020-01-01")
-        self.assertEqual(_extract_start_date_normalized({"dates": {"start": "2020-01"}}), "2020-01-01")
-        self.assertEqual(_extract_start_date_normalized({}), "1970-01-01")
+        assert _extract_start_date_normalized({"dates": {"start": "2020-01-01"}}) == "2020-01-01"
+        assert _extract_start_date_normalized({"dates": {"start": "2020-01"}}) == "2020-01-01"
+        assert _extract_start_date_normalized({}) == "1970-01-01"
 
     def test_extract_end_date_normalized(self):
         """Test _extract_end_date_normalized handles formats."""
         current_date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-        self.assertEqual(_extract_end_date_normalized({"dates": {"end": "Present"}}), current_date_str)
-        self.assertEqual(_extract_end_date_normalized({"dates": {"end": "2022-05-15"}}), "2022-05-15")
-        self.assertEqual(_extract_end_date_normalized({}), current_date_str)
+        assert _extract_end_date_normalized({"dates": {"end": "Present"}}) == current_date_str
+        assert _extract_end_date_normalized({"dates": {"end": "2022-05-15"}}) == "2022-05-15"
+        assert _extract_end_date_normalized({}) == current_date_str
 
     def test_is_parallel_startup_track(self):
         """Test parallel startup tracking."""
-        self.assertTrue(_is_parallel_startup_track({"tracks": ["co-founder", "Engineering"]}))
-        self.assertFalse(_is_parallel_startup_track({"tracks": ["Engineering"]}))
-        self.assertFalse(_is_parallel_startup_track({}))
+        assert _is_parallel_startup_track({"tracks": ["co-founder", "Engineering"]})
+        assert not _is_parallel_startup_track({"tracks": ["Engineering"]})
+        assert not _is_parallel_startup_track({})
 
     def test_get_org_slug(self):
         """Test _get_org_slug matches [[slug]] and normalization rules."""
-        self.assertEqual(_get_org_slug("acme", {"organization": "[[acme-slug]]"}), "acme-slug")
-        self.assertEqual(_get_org_slug("google", {"organization": "[[google-slug]]"}), "google-slug")
-        self.assertEqual(_get_org_slug("google", {}), "google")
+        assert _get_org_slug("acme", {"organization": "[[acme-slug]]"}) == "acme-slug"
+        assert _get_org_slug("google", {"organization": "[[google-slug]]"}) == "google-slug"
+        assert _get_org_slug("google", {}) == "google"
 
     def test_split_recent_and_old_experiences(self):
         """Test splitting by age."""
@@ -193,10 +190,10 @@ dates:
             (5, "ibm.md", content2, "ibm-key"),
         ]
         recent, old = _split_recent_and_old_experiences(deduplicated)
-        self.assertEqual(len(recent), 1)
-        self.assertEqual(len(old), 1)
-        self.assertEqual(recent[0][1], "acme.md")
-        self.assertIn("ibm-slug", old)
+        assert len(recent) == 1
+        assert len(old) == 1
+        assert recent[0][1] == "acme.md"
+        assert "ibm-slug" in old
 
     def test_resolve_regional_strategy_success(self):
         """Test resolve_regional_strategy successfully resolves files with frontmatter."""
@@ -212,8 +209,8 @@ strategy content text"""
         mock_wiki_dir.__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = mock_strategy_file
 
         strategy_text, pdf_template = resolve_regional_strategy(mock_wiki_dir, "us")
-        self.assertIn("strategy content text", strategy_text)
-        self.assertEqual(pdf_template, "custom-template.css")
+        assert "strategy content text" in strategy_text
+        assert pdf_template == "custom-template.css"
 
     def test_resolve_regional_strategy_fallback(self):
         """Test resolve_regional_strategy falls back gracefully."""
@@ -225,8 +222,8 @@ strategy content text"""
         mock_wiki_dir.__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = mock_strategy_file
 
         strategy_text, pdf_template = resolve_regional_strategy(mock_wiki_dir, "non-existent")
-        self.assertEqual(strategy_text, "")
-        self.assertEqual(pdf_template, "templates/base.css")
+        assert strategy_text == ""
+        assert pdf_template == "templates/base.css"
 
     @patch("pathlib.Path.glob")
     @patch("pathlib.Path.exists")
@@ -236,13 +233,13 @@ strategy content text"""
         mock_file = MagicMock(spec=Path)
         mock_file.read_text.return_value = 'tags: ["person"]\nSubject Detail Info'
         mock_glob.return_value = [mock_file]
-        self.assertEqual(get_subject_info(Path("wiki")), 'tags: ["person"]\nSubject Detail Info')
+        assert get_subject_info(Path("wiki")) == 'tags: ["person"]\nSubject Detail Info'
 
     def test_parse_start_date(self):
         """Test parsing dates to year-month tuples."""
-        self.assertEqual(_parse_start_date("start: 2020-05-15"), (2020, 5))
-        self.assertEqual(_parse_start_date("START_DATE: 2020-05-15"), (2020, 5))
-        self.assertEqual(_parse_start_date("invalid-date"), (1970, 1))
+        assert _parse_start_date("start: 2020-05-15") == (2020, 5)
+        assert _parse_start_date("START_DATE: 2020-05-15") == (2020, 5)
+        assert _parse_start_date("invalid-date") == (1970, 1)
 
     def test_parse_and_sort_chronological_entries(self):
         """Test parse_and_sort_chronological_entries correctly sorts entries."""
@@ -252,7 +249,7 @@ strategy content text"""
         ]
         sorted_output = parse_and_sort_chronological_entries(entries)
         # Check that the entry with the later start date is listed first
-        self.assertLess(sorted_output.find("a.md"), sorted_output.find("b.md"))
+        assert sorted_output.find("a.md") < sorted_output.find("b.md")
 
     def test_calculate_experience_weight_recent_high_relevance_long_duration(self):
         """Test weight calculation for a recent, highly relevant, and long duration role."""
@@ -264,7 +261,7 @@ strategy content text"""
         }
         # Score is 95, recent, duration is ~3.5 years (assuming current year is 2026)
         weight = calculate_experience_weight(95, fm)
-        self.assertGreaterEqual(weight, 0.70)  # Should route to Tier 1
+        assert weight >= 0.70  # Should route to Tier 1
 
     def test_calculate_experience_weight_historical_long_duration(self):
         """Test weight calculation for a historical, long duration role."""
@@ -280,7 +277,7 @@ strategy content text"""
         # Recency factor: max(0.0, 1.0 - (2026 - 2015)/15) = 1.0 - 11/15 = 0.266 -> 0.266 * 0.3 = 0.08
         # Duration factor: 6/3 capped at 1.0 -> 1.0 * 0.2 = 0.2
         # Expected weight: ~0.73
-        self.assertGreaterEqual(weight, 0.65)
+        assert weight >= 0.65
 
     def test_calculate_experience_weight_old_low_relevance_short_duration(self):
         """Test weight calculation for an old, low relevance, and short duration role."""
@@ -292,7 +289,7 @@ strategy content text"""
         }
         # Score is 30, very old, duration is 2 months
         weight = calculate_experience_weight(30, fm)
-        self.assertLess(weight, 0.40)  # Should route to Tier 3
+        assert weight < 0.40  # Should route to Tier 3
 
     def test_calculate_experience_weight_discounts_contract_role(self):
         """Test calculate_experience_weight discounts contract roles vs permanent roles of equal score."""
@@ -308,8 +305,8 @@ strategy content text"""
         weight_contract = calculate_experience_weight(
             85, fm_contract, employment_type="Contract", org_culture="corporate"
         )
-        self.assertLess(weight_contract, weight_perm)
-        self.assertAlmostEqual(weight_contract, round(weight_perm * 0.85, 4), places=2)
+        assert weight_contract < weight_perm
+        assert weight_contract == pytest.approx(round(weight_perm * 0.85, 4), abs=10**(-2))
 
     def test_calculate_experience_weight_discounts_startup_for_corporate(self):
         """Test calculate_experience_weight discounts startup/co-founder roles when target is corporate."""
@@ -327,8 +324,8 @@ strategy content text"""
         weight_perm = calculate_experience_weight(
             85, fm_perm, employment_type="Permanent", org_culture="corporate"
         )
-        self.assertLess(weight_corp, weight_perm)
-        self.assertAlmostEqual(weight_corp, round(weight_perm * 0.80, 4), places=2)
+        assert weight_corp < weight_perm
+        assert weight_corp == pytest.approx(round(weight_perm * 0.80, 4), abs=10**(-2))
 
     def test_calculate_experience_weight_boosts_startup_for_startup_track(self):
         """Test calculate_experience_weight boosts startup/co-founder roles when target is startup."""
@@ -346,8 +343,8 @@ strategy content text"""
         weight_perm_track = calculate_experience_weight(
             80, fm_perm, employment_type="Permanent", org_culture="startup"
         )
-        self.assertGreater(weight_startup_track, weight_perm_track)
-        self.assertAlmostEqual(weight_startup_track, round(min(1.0, weight_perm_track * 1.10), 4), places=2)
+        assert weight_startup_track > weight_perm_track
+        assert weight_startup_track == pytest.approx(round(min(1.0, weight_perm_track * 1.10), 4), abs=10**(-2))
 
     def test_short_contract_cannot_outrank_permanent_role_across_variances(self):
         """Test short contract (high score 95) cannot outrank 2.5yr permanent role (moderate score 80)."""
@@ -372,10 +369,6 @@ strategy content text"""
         perm_weight = calculate_experience_weight(
             80, fm_perm_2_5yr, employment_type="Permanent", org_culture="corporate"
         )
-        self.assertGreater(perm_weight, contract_weight)
-        self.assertGreaterEqual(perm_weight, 0.70)
-        self.assertLess(contract_weight, 0.70)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert perm_weight > contract_weight
+        assert perm_weight >= 0.70
+        assert contract_weight < 0.70

@@ -174,7 +174,7 @@ class AffindaParserClient:
                     "experience": {"label": "Experience", "value": "Strong management background", "score": 0.88},
                     "skills": {"label": "Skills", "value": "Excellent skill overlap", "score": 0.92},
                     "languages": {"label": "Languages", "value": None, "score": None},
-                    "location": {"label": "Location", "value": "Limerick, Ireland", "score": 0.90},
+                    "location": {"label": "Location", "value": "Dublin, Ireland", "score": 0.90},
                     "education": {"label": "Education", "value": "CS Degree", "score": 0.85},
                     "managementLevel": {"label": "Management Level", "value": "Manager/Director", "score": 0.95},
                     "occupationGroup": {"label": "Occupation Group", "value": "Technology", "score": 0.90},
@@ -275,14 +275,14 @@ class AffindaParserClient:
                 "workExperience": [
                     {
                         "jobTitle": "Senior Software Engineering Manager",
-                        "organization": "Virgin Media",
+                        "organization": "Acme Telecom",
                         "startDate": "2020-01-01",
                         "endDate": None,
                         "jobDescription": "Managed AI platform engineering and cloud infrastructure automation."
                     },
                     {
                         "jobTitle": "Lead Architect",
-                        "organization": "Intel Corporation",
+                        "organization": "Example Systems Corp",
                         "startDate": "2016-05-01",
                         "endDate": "2019-12-31",
                         "jobDescription": "Designed global high-performance microservices and cloud infrastructure."

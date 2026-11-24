@@ -22,7 +22,7 @@ updated: 2026-07-05
 
 - STRICTLY 3 pages maximum.
 - Section order: Professional Summary → Work Experience → Education → Key Skills → Languages.
-- If the role is corporate, DO NOT INCLUDE A SEPARATE STARTUP TRACK, DO NOT CREATE TWO TRACKS in the CV. Make Allwayswithyou a project and add the others (if relevant for ATS) in the Additional Historical Role section.
+- Present all work experiences in a single unified reverse-chronological timeline; scale parallel startup or advisory ventures according to the target track culture.
 
 ### Experience Section
 - Use Month YYYY format.

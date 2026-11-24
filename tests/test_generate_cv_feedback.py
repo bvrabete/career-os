@@ -1,12 +1,11 @@
 """Tests for node feedback logging in generate_cv."""
 
-import unittest
 from unittest.mock import patch
 
 from generate_cv import _print_node_feedback
 
 
-class TestGenerateCVFeedback(unittest.TestCase):
+class TestGenerateCVFeedback:
     """Test suite for _print_node_feedback in generate_cv."""
 
     def test_analyzer_feedback(self) -> None:
@@ -20,8 +19,8 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("analyzer", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn("Staff Engineer", args)
-            self.assertIn("acme-corp", args)
+            assert "Staff Engineer" in args
+            assert "acme-corp" in args
 
     def test_retriever_feedback_with_selected_entries(self) -> None:
         state = {
@@ -32,8 +31,8 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("retriever", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(3, args)
-            self.assertIn(2, args)
+            assert 3 in args
+            assert 2 in args
 
     def test_retriever_feedback_with_fallback_key(self) -> None:
         state = {
@@ -44,8 +43,8 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("retriever", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(2, args)
-            self.assertIn(1, args)
+            assert 2 in args
+            assert 1 in args
 
     def test_retriever_feedback_empty_state(self) -> None:
         state: dict[str, list[str]] = {}
@@ -53,7 +52,7 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("retriever", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(0, args)
+            assert 0 in args
 
     def test_drafter_feedback(self) -> None:
         state = {"draft_cv": "Hello world CV content"}
@@ -61,7 +60,7 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("drafter", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(len("Hello world CV content"), args)
+            assert len("Hello world CV content") in args
 
     def test_refiner_feedback(self) -> None:
         state_ok = {"refiner_feedback": ""}
@@ -82,7 +81,7 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("compressor", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(2, args)
+            assert 2 in args
 
     def test_auditor_feedback_pass(self) -> None:
         state = {
@@ -94,8 +93,8 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("auditor", state)
             mock_info.assert_called_once()
             args = mock_info.call_args[0]
-            self.assertIn(92, args)
-            self.assertIn("PASS", args)
+            assert 92 in args
+            assert "PASS" in args
 
     def test_auditor_feedback_rewrite(self) -> None:
         state = {
@@ -108,7 +107,3 @@ class TestGenerateCVFeedback(unittest.TestCase):
             _print_node_feedback("auditor", state)
             mock_info.assert_called_once()
             mock_warning.assert_called_once()
-
-
-if __name__ == "__main__":
-    unittest.main()

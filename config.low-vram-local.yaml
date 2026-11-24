@@ -59,6 +59,7 @@ STEPS:
     MODEL_NAME: "qwen2.5:7b"
 
 OLLAMA_BASE_URL: "http://localhost:11434"
+OLLAMA_NUM_CTX: 12288
 
 # Workspace Paths & Directories
 PATHS:

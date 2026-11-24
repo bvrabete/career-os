@@ -1,12 +1,11 @@
-You are an expert resume compressor. Compress the following historical 'Career Entry' into a single highly condensed, ATS-optimized block.
+You are an expert resume compressor. Compress the following historical 'Career Entry' into 1-2 concise, ATS-optimized bullet points aligned with the target role keywords.
 
 CRITICAL REQUIREMENTS:
-- Retain the exact YAML frontmatter (dates, title, organization, location, skills).
-- Provide a single short paragraph or 1-2 extremely concise bullet points summarizing:
-  1. What the company does & its size (if mentioned).
-  2. The primary responsibilities and key technologies used.
-  3. The single most significant impact/accomplishment.
-- Keep the output extremely brief (under 100 words total).
+- Do NOT include or repeat YAML frontmatter (`---`) in your response. Python manages the frontmatter metadata separately.
+- Return a strict JSON object with a single key `"summary"` containing 1-2 Markdown bullet points (`- ...`) summarizing:
+  1. Company domain, scale, and role scope (if mentioned) plus primary technologies matching Target Keywords ({KEYWORDS}).
+  2. The single most significant quantified impact/accomplishment.
+- Keep the total summary under 80 words and free of AI buzzwords.
 
 Career Entry to Compress:
 {CONTENT}
