@@ -20,6 +20,14 @@ TASKS:
    Default: {DEFAULT_STRATEGY}
 11. Suggest a 'Career Track Strategy' from the available tracks:
    Available Tracks: [{AVAILABLE_TRACKS}]
+12. Classify 'employer_archetype':
+   - "enterprise_corporate": Large established corporation, multinational, bank, telco, or regulated enterprise.
+   - "intrapreneurial_bu": Product-led SaaS subsidiary, cloud platform unit, or R&D innovation business unit within a larger enterprise.
+   - "scaleup_growth": High-growth Series B–D technology company.
+   - "early_stage_startup": Seed / Series A startup or founding engineering role.
+13. Determine 'parallel_venture_policy':
+   - "strict_single_timeline": Use for "enterprise_corporate" and "intrapreneurial_bu" roles where hiring committees expect a contiguous, non-overlapping employment timeline without concurrent moonlighting ventures.
+   - "highlight_entrepreneurial": Use for "early_stage_startup" (and founder-focused scaleups) where parallel co-founding and entrepreneurial ventures are a primary asset.
 
 Return your analysis in the following JSON format:
 {
@@ -33,7 +41,9 @@ Return your analysis in the following JSON format:
   "locations": [...],
   "expectations": "...",
   "suggested_region": "...",
-  "suggested_track": "..."
+  "suggested_track": "...",
+  "employer_archetype": "enterprise_corporate",
+  "parallel_venture_policy": "strict_single_timeline"
 }
 
 Job Description:

@@ -120,6 +120,8 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         track = str(raw_data.get("suggested_track", "engineering-management")).lower()
         org_type, agency_name, employer_name, target_org = _resolve_target_employer_slug(raw_data)
         target_role = parsed.target_role
+        employer_archetype = parsed.employer_archetype
+        parallel_venture_policy = parsed.parallel_venture_policy
     except Exception as e:
         logger.warning("Failed to parse JSON from Analyzer, falling back to heuristics: %s", e)
         persona = content
@@ -133,6 +135,8 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         employer_name = ""
         target_org = "unknown-company"
         target_role = "unknown-role"
+        employer_archetype = "enterprise_corporate"
+        parallel_venture_policy = "strict_single_timeline"
 
     strategy_override = state.get("strategy_override", "")
     if strategy_override:
@@ -157,6 +161,8 @@ def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
         "target_employer_name": employer_name,
         "target_organization_slug": target_org,
         "target_role": target_role,
+        "employer_archetype": employer_archetype,
+        "parallel_venture_policy": parallel_venture_policy,
     }
 
 

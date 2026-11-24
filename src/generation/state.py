@@ -243,6 +243,8 @@ class CVPipelineState(TypedDict, total=False):
     posting_organization_type: str
     recruitment_agency_name: str | None
     target_employer_name: str
+    employer_archetype: str
+    parallel_venture_policy: str
     target_region: str
     target_track: str
     target_locations: list[str]

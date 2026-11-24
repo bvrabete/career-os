@@ -107,6 +107,9 @@ class ScoringConfig(BaseModel):
     FACTORS: ScoringFactorsConfig = Field(default_factory=ScoringFactorsConfig)
     DURATION_CAP_YEARS: float = Field(default=3.0, gt=0.0)
     RECENCY_HORIZON_YEARS: float = Field(default=15.0, gt=0.0)
+    MIN_CONCURRENT_CONTRACT_SCORE: int = Field(default=25, ge=0, le=100)
+    ANCHOR_TENURE_MIN_YEARS: float = Field(default=5.0, ge=1.0)
+    ANCHOR_TENURE_MIN_SCORE: int = Field(default=75, ge=0, le=100)
     EMPLOYMENT_TYPE_MULTIPLIERS: dict[str, float] = Field(
         default_factory=lambda: {
             "Permanent": 1.00,

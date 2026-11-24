@@ -449,9 +449,7 @@ class TailoredLongDraft(BaseModel):
 
 class AnalyzerOutput(BaseModel):
     """Structured Pydantic output from the Strategic Analyzer node."""
-
     model_config = ConfigDict(populate_by_name=True, extra="allow")
-
     persona: str = "Senior Engineering Leader"
     posting_organization_type: Literal["direct_employer", "recruitment_agency", "confidential_client"] = "direct_employer"
     recruitment_agency_name: str | None = None
@@ -463,6 +461,8 @@ class AnalyzerOutput(BaseModel):
     expectations: str = "Standard professional CV"
     suggested_region: str = "emea"
     suggested_track: str = "engineering-management"
+    employer_archetype: Literal["enterprise_corporate", "intrapreneurial_bu", "scaleup_growth", "early_stage_startup"] = "enterprise_corporate"
+    parallel_venture_policy: Literal["strict_single_timeline", "highlight_entrepreneurial"] = "strict_single_timeline"
 
 
 class DimensionScore(BaseModel):

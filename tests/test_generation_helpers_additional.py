@@ -405,3 +405,34 @@ Outro"""
         sample = "### ### Job Title at Org [Full-Time]\n## ## Section\n# # Header"
         cleaned = re.sub(r'^(#{1,6})\s*#{1,6}\s+', r'\1 ', sample, flags=re.MULTILINE)
         assert cleaned == "### Job Title at Org [Full-Time]\n## Section\n# Header"
+
+    def test_resolve_timeline_conflicts_and_anchor_tenure(self):
+        """Verify generic interval-graph timeline de-confliction and anchor tenure protection."""
+        from generation.grouping import _is_anchor_tenure, resolve_timeline_conflicts
+
+        anchor_fm = {"dates": {"start": "2007-09-01", "end": "2017-07-01"}, "employment_type": "Permanent"}
+        assert _is_anchor_tenure(anchor_fm, score=90) is True
+        assert _is_anchor_tenure(anchor_fm, score=40) is False
+
+        deduplicated = [
+            (92, "corp-recent.md", "---\ntitle: Director\ndates:\n  start: 2024-04-01\n  end: Present\nemployment_type: Permanent\n---\nBody", "just"),
+            (60, "side-venture-active.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2021-01-01\n  end: Present\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (55, "corp-mid.md", "---\ntitle: Advisor\ndates:\n  start: 2019-02-01\n  end: 2020-05-01\nemployment_type: Contract\n---\nBody", "just"),
+            (90, "spinout-winner.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2017-08-01\n  end: 2020-02-29\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (70, "venture-loser.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2016-10-01\n  end: 2019-01-30\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (5, "short-contract.md", "---\ntitle: Engineer\ndates:\n  start: 2017-12-01\n  end: 2018-05-01\nemployment_type: Contract\n---\nBody", "just"),
+            (90, "corp-anchor.md", "---\ntitle: Architect\ndates:\n  start: 2007-09-01\n  end: 2017-07-01\nemployment_type: Permanent\n---\nBody", "just"),
+        ]
+
+        resolved = resolve_timeline_conflicts(deduplicated, parallel_venture_policy="strict_single_timeline", min_contract_score=25)
+        retained_names = [r[1] for r in resolved]
+        assert "corp-recent.md" in retained_names
+        assert "corp-mid.md" in retained_names
+        assert "spinout-winner.md" in retained_names
+        assert "corp-anchor.md" in retained_names
+        assert "side-venture-active.md" not in retained_names
+        assert "venture-loser.md" not in retained_names
+        assert "short-contract.md" not in retained_names
+
+        spinout_entry = next(r for r in resolved if r[1] == "spinout-winner.md")
+        assert "end: 2019-02-01" in spinout_entry[2]
