@@ -4,6 +4,7 @@ title: "Staff & Principal Engineer Track"
 seniority_levels: [Staff, Principal, Lead Architect, Principal Engineer, Distinguished]
 archetype: "Technical Leadership & Systems Architecture"
 focus: [Distributed Systems, High Scale, Cross-Team Leverage, Technical Roadmap, Mentorship]
+org_culture: corporate
 created: 2026-09-20
 updated: 2026-09-20
 ---

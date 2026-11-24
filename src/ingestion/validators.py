@@ -1,13 +1,39 @@
 """Schema validation routines for wiki entities produced by the ingestion pipeline."""
+
 import logging
 import re
 from typing import Any
-
+from pydantic import ValidationError
 import yaml
 
 from ingestion.helpers import clean_frontmatter
+from schemas.wiki_models import (
+    CaseStudyFrontmatter,
+    CoverLetterFrontmatter,
+    EducationFrontmatter,
+    EntityFrontmatter,
+    ExperienceFrontmatter,
+    LanguageFrontmatter,
+    NoteFrontmatter,
+    PatentFrontmatter,
+    ProjectFrontmatter,
+    PublicationFrontmatter,
+    SkillFrontmatter,
+    VALID_EMPLOYMENT_TYPES,
+    VALID_SKILL_CATEGORIES,
+)
+from utils import extract_wikilink_slug
 
-DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$|^Present$")
+DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$|^Present$", re.IGNORECASE)
+
+
+def _has_wikilink_syntax(raw_val: Any) -> bool:
+    """Return True if raw YAML value was written with [[slug]] syntax (quoted or unquoted nested list)."""
+    if isinstance(raw_val, list):
+        return bool(extract_wikilink_slug(raw_val))
+    if isinstance(raw_val, str):
+        return "[[" in raw_val and "]]" in raw_val and bool(extract_wikilink_slug(raw_val))
+    return False
 
 
 def _validate_dates(dates: Any, errors: list[str]) -> None:
@@ -21,118 +47,198 @@ def _validate_dates(dates: Any, errors: list[str]) -> None:
 
 
 def _validate_experience(fm: dict[str, Any], errors: list[str]) -> None:
-    """Validate experience type frontmatter schema."""
-    EXP_REQUIRED = {"type", "title", "organization", "dates", "tracks", "skills"}
-    missing = EXP_REQUIRED - set(fm.keys())
+    """Validate experience type frontmatter schema via Pydantic and explicit error messages."""
+    exp_required = {"type", "title", "organization", "dates", "tracks", "skills"}
+    missing = exp_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    org = str(fm.get("organization", ""))
-    if "[[" not in org or "]]" not in org:
-        errors.append(f"organization field missing [[slug]] syntax: '{org}'")
+    org_raw = fm.get("organization", "")
+    if not _has_wikilink_syntax(org_raw):
+        errors.append(f"organization field missing [[slug]] syntax: '{org_raw}'")
 
     _validate_dates(fm.get("dates"), errors)
 
     emp_type = fm.get("employment_type")
-    if emp_type and str(emp_type).strip().capitalize() not in ("Permanent", "Contract"):
-        errors.append(f"employment_type must be either 'Permanent' or 'Contract', got '{emp_type}'")
+    if emp_type:
+        try:
+            ExperienceFrontmatter.model_validate(
+                {
+                    "type": "experience",
+                    "title": str(fm.get("title") or "Role"),
+                    "organization": "[[org]]",
+                    "dates": {"start": "2020-01-01", "end": "Present"},
+                    "employment_type": emp_type,
+                    "tracks": ["Engineering"],
+                    "skills": ["Python"],
+                }
+            )
+        except ValidationError:
+            errors.append(
+                f"employment_type must be either 'Permanent' or 'Contract' (or {VALID_EMPLOYMENT_TYPES}), got '{emp_type}'"
+            )
 
 
 def _validate_education(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate education type frontmatter schema."""
-    EDU_REQUIRED = {"type", "title", "institution", "dates", "status", "major", "minor"}
-    missing = EDU_REQUIRED - set(fm.keys())
+    edu_required = {"type", "title", "institution", "dates", "status", "major", "minor"}
+    missing = edu_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    inst = str(fm.get("institution", ""))
-    if "[[" not in inst or "]]" not in inst:
-        errors.append(f"institution field missing [[slug]] syntax: '{inst}'")
+    inst_raw = fm.get("institution", "")
+    if not _has_wikilink_syntax(inst_raw):
+        errors.append(f"institution field missing [[slug]] syntax: '{inst_raw}'")
 
     _validate_dates(fm.get("dates"), errors)
+    if not errors:
+        try:
+            EducationFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_skill(fm: dict[str, Any], errors: list[str]) -> None:
-    """Validate skill type frontmatter schema."""
-    SKILL_REQUIRED = {"type", "title", "category", "proficiency"}
-    missing = SKILL_REQUIRED - set(fm.keys())
+    """Validate skill type frontmatter schema (supporting both string and list categories)."""
+    skill_required = {"type", "title", "category", "proficiency"}
+    missing = skill_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    category = fm.get("category", "")
-    valid_categories = ("Language-Code", "Framework", "Infrastructure", "Leadership", "Spoken-Language")
-    if category not in valid_categories:
-        errors.append(f"Invalid skill category: '{category}'")
+    category_raw = fm.get("category", "")
+    cat_list = [category_raw] if isinstance(category_raw, str) else (category_raw if isinstance(category_raw, list) else [])
+    if not cat_list:
+        errors.append(f"Invalid skill category: '{category_raw}'")
+    else:
+        for cat in cat_list:
+            if str(cat) not in VALID_SKILL_CATEGORIES:
+                errors.append(f"Invalid skill category: '{cat}'")
+    if not errors:
+        try:
+            SkillFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_language(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate language type frontmatter schema."""
-    LANG_REQUIRED = {"type", "title", "proficiency"}
-    missing = LANG_REQUIRED - set(fm.keys())
+    lang_required = {"type", "title", "proficiency"}
+    missing = lang_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+    if not errors:
+        try:
+            LanguageFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_project(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate project type frontmatter schema."""
-    PROJ_REQUIRED = {"type", "title", "organization", "dates", "skills"}
-    missing = PROJ_REQUIRED - set(fm.keys())
+    nature = str(fm.get("project_nature", "")).lower()
+    is_independent = nature in ("open_source", "side_project", "research_prototype")
+    proj_required = {"type", "title", "dates", "skills"} if is_independent else {"type", "title", "organization", "dates", "skills"}
+    missing = proj_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    org = str(fm.get("organization", ""))
-    if "[[" not in org or "]]" not in org:
-        errors.append(f"organization field missing [[slug]] syntax: '{org}'")
+    org_raw = fm.get("organization", "")
+    if org_raw or not is_independent:
+        if not _has_wikilink_syntax(org_raw):
+            errors.append(f"organization field missing [[slug]] syntax: '{org_raw}'")
 
     _validate_dates(fm.get("dates"), errors)
+    if not errors:
+        try:
+            ProjectFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_patent(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate patent type frontmatter schema."""
-    PAT_REQUIRED = {"type", "title", "id", "inventors", "organization", "skills"}
-    missing = PAT_REQUIRED - set(fm.keys())
+    pat_required = {"type", "title", "id", "inventors", "organization", "skills"}
+    missing = pat_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    org = str(fm.get("organization", ""))
-    if "[[" not in org or "]]" not in org:
-        errors.append(f"organization field missing [[slug]] syntax: '{org}'")
+    org_raw = fm.get("organization", "")
+    if not _has_wikilink_syntax(org_raw):
+        errors.append(f"organization field missing [[slug]] syntax: '{org_raw}'")
+    if not errors:
+        try:
+            PatentFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
+
+
+def _validate_publication(fm: dict[str, Any], errors: list[str]) -> None:
+    """Validate publication type frontmatter schema."""
+    pub_required = {"type", "title"}
+    missing = pub_required - set(fm.keys())
+    if missing:
+        errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+    if not errors:
+        try:
+            PublicationFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_note(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate note type frontmatter schema."""
-    NOTE_REQUIRED = {"type", "title", "related", "perspective", "tags"}
-    missing = NOTE_REQUIRED - set(fm.keys())
+    note_required = {"type", "title", "related", "perspective", "tags"}
+    missing = note_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+    if not errors:
+        try:
+            NoteFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_cover_letter(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate cover letter type frontmatter schema."""
-    CL_REQUIRED = {"type", "title", "target_organization", "related_synthesis"}
-    missing = CL_REQUIRED - set(fm.keys())
+    cl_required = {"type", "title", "target_organization", "related_synthesis"}
+    missing = cl_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
 
-    org = str(fm.get("target_organization", ""))
-    if "[[" not in org or "]]" not in org:
-        errors.append(f"target_organization field missing [[slug]] syntax: '{org}'")
+    org_raw = fm.get("target_organization", "")
+    if not _has_wikilink_syntax(org_raw):
+        errors.append(f"target_organization field missing [[slug]] syntax: '{org_raw}'")
+    if not errors:
+        try:
+            CoverLetterFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_entity(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate entity type frontmatter schema."""
-    ENTITY_REQUIRED = {"type", "title", "tags", "sources"}
-    missing = ENTITY_REQUIRED - set(fm.keys())
+    entity_required = {"type", "title", "tags", "sources"}
+    missing = entity_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+    if not errors:
+        try:
+            EntityFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_case_study(fm: dict[str, Any], errors: list[str]) -> None:
     """Validate case study type frontmatter schema."""
-    CS_REQUIRED = {"type", "title"}
-    missing = CS_REQUIRED - set(fm.keys())
+    cs_required = {"type", "title"}
+    missing = cs_required - set(fm.keys())
     if missing:
         errors.append(f"Missing frontmatter fields: {sorted(missing)}")
+    if not errors:
+        try:
+            CaseStudyFrontmatter.model_validate(fm)
+        except ValidationError as exc:
+            errors.extend(err["msg"] for err in exc.errors())
 
 
 def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> None:
@@ -144,6 +250,7 @@ def _validate_by_type(page_type: str, fm: dict[str, Any], errors: list[str]) -> 
         "language": _validate_language,
         "project": _validate_project,
         "patent": _validate_patent,
+        "publication": _validate_publication,
         "note": _validate_note,
         "case_study": _validate_case_study,
         "cover-letter": _validate_cover_letter,
@@ -172,8 +279,11 @@ def _validate_single_output(output: dict[str, Any]) -> dict[str, Any]:
     else:
         try:
             fm = yaml.safe_load(fm_match.group(1)) or {}
-            page_type = fm.get("type", "unknown")
-            _validate_by_type(page_type, fm, errors)
+            page_type = fm.get("type", "unknown") if isinstance(fm, dict) else "unknown"
+            if isinstance(fm, dict):
+                _validate_by_type(str(page_type), fm, errors)
+            else:
+                errors.append("YAML frontmatter must be a mapping")
         except yaml.YAMLError as e:
             errors.append(f"YAML parse error: {e}")
 

@@ -1,4 +1,4 @@
-/* Compact CV Style - High-Density 1-Page Optimization */
+/* Compact CV Style - High-Density 1-Page Executive Optimization */
 
 * {
     margin: 0;
@@ -7,8 +7,8 @@
 }
 
 :root {
-    --primary-color: #1A365D; /* Deep Classic Navy */
-    --accent-color: #2B6CB0;  /* Slate Blue */
+    --primary-color: #1A365D;
+    --accent-color: #2B6CB0;
     --text-color: #2D3748;
     --light-grey: #4A5568;
     --bg-color: #ffffff;
@@ -16,7 +16,7 @@
 
 @page {
     size: A4;
-    margin: 0.8cm 0.8cm;
+    margin: 0.85cm 0.9cm;
     @bottom-right {
         content: counter(page) " of " counter(pages);
         font-size: 7pt;
@@ -26,8 +26,8 @@
 
 body {
     font-family: 'Lato', 'Arial', -apple-system, sans-serif;
-    font-size: 8.5pt;
-    line-height: 1.15;
+    font-size: 9.4pt;
+    line-height: 1.22;
     color: var(--text-color);
     background-color: var(--bg-color);
 }
@@ -39,15 +39,14 @@ body {
 h1 {
     font-family: 'Lato', sans-serif;
     font-weight: 800;
-    font-size: 16pt;
+    font-size: 16.5pt;
     color: var(--primary-color);
-    margin-bottom: 1pt;
-    text-transform: uppercase;
+    margin-bottom: 1.5pt;
     letter-spacing: 0.3pt;
 }
 
 h1 + p {
-    font-size: 8pt;
+    font-size: 8.8pt;
     color: var(--light-grey);
     margin-bottom: 5pt;
     font-weight: 400;
@@ -56,11 +55,11 @@ h1 + p {
 h2 {
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: 9.8pt;
+    font-size: 10.2pt;
     color: var(--primary-color);
     border-bottom: 1pt solid var(--accent-color);
     padding-bottom: 1pt;
-    margin-top: 6pt;
+    margin-top: 7pt;
     margin-bottom: 3pt;
     text-transform: uppercase;
     break-after: avoid;
@@ -69,30 +68,32 @@ h2 {
 
 h3 {
     font-weight: 700;
-    font-size: 9pt;
+    font-size: 9.8pt;
     color: var(--primary-color);
-    margin-top: 4pt;
+    margin-top: 6pt;
     margin-bottom: 1pt;
     break-after: avoid;
     page-break-after: avoid;
 }
 
 h3 + p {
-    font-size: 8pt;
+    font-size: 8.8pt;
     margin-top: 0;
-    margin-bottom: 2pt;
+    margin-bottom: 2.5pt;
     color: var(--light-grey);
-    line-height: 1.1;
+    line-height: 1.15;
 }
 
 ul {
-    padding-left: 11pt;
+    padding-left: 13pt;
     margin-bottom: 3pt;
+    list-style-position: outside;
 }
 
 li {
-    margin-bottom: 1pt;
-    line-height: 1.12;
+    margin-bottom: 1.8pt;
+    padding-left: 2pt;
+    line-height: 1.2;
     break-inside: avoid;
     page-break-inside: avoid;
 }
@@ -126,7 +127,7 @@ table {
     width: 100%;
     border-collapse: collapse;
     margin: 4pt 0;
-    font-size: 8pt;
+    font-size: 8.8pt;
     break-inside: avoid;
     page-break-inside: avoid;
 }

@@ -21,10 +21,13 @@ from generation.formatting import (
     _escape_control_chars_in_strings as _escape_control_chars_in_strings,
     _extract_json_block as _extract_json_block,
     _parse_start_date as _parse_start_date,
+    check_typesetting_budget,
     compress_experience_llm,
     compress_experience_to_one_liner_llm,
     compress_grouped_experience_llm,
+    handle_interactive_audit,
     invoke_drafter_llm_with_fallback,
+    invoke_structured_llm,
     llm_text,
     load_prompt,
     parse_and_sort_chronological_entries,
@@ -36,6 +39,7 @@ from generation.formatting import (
 from generation.retrieval import (
     _parse_education_candidate as _parse_education_candidate,
     _parse_yaml_frontmatter_from_text as _parse_yaml_frontmatter_from_text,
+    assemble_role_evidence_bundles,
     discover_available_strategies,
     generate_skill_bridging_map,
     get_subject_info,
@@ -46,8 +50,10 @@ from generation.retrieval import (
     retrieve_and_score_notes,
     retrieve_and_score_patents,
     retrieve_and_score_projects,
+    retrieve_company_entity,
     retrieve_few_shots,
     retrieve_languages,
+    retrieve_voice_guide,
     score_by_keywords,
 )
 
@@ -113,4 +119,10 @@ __all__ = [
     "get_fallback_model_for_step",
     "get_wiki_dir",
     "get_strategy_default",
+    "check_typesetting_budget",
+    "handle_interactive_audit",
+    "invoke_structured_llm",
+    "assemble_role_evidence_bundles",
+    "retrieve_company_entity",
+    "retrieve_voice_guide",
 ]

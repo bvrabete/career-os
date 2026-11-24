@@ -1,6 +1,6 @@
 """Unit tests for the ingestion pipeline helpers and validation logic."""
 
-import unittest
+import pytest
 import shutil
 import uuid
 from pathlib import Path
@@ -37,61 +37,61 @@ from ingestion.nodes import (
 MAPPINGS_FILE_NAME = "mappings.md"
 
 
-class TestIngestionHelpers(unittest.TestCase):
+class TestIngestionHelpers:
     """Deterministic offline tests for ingestion pure helper functions."""
 
     def test_slugify(self):
         """Test slugify function handles special characters and casing."""
-        self.assertEqual(slugify("Intel Corp"), "intel-corp")
-        self.assertEqual(slugify("Google (DeepMind)"), "google-deepmind")
-        self.assertEqual(slugify("   Leading -- trailing  "), "leading-trailing")
-        self.assertEqual(slugify("simple-slug"), "simple-slug")
+        assert slugify("Intel Corp") == "intel-corp"
+        assert slugify("Google (DeepMind)") == "google-deepmind"
+        assert slugify("   Leading -- trailing  ") == "leading-trailing"
+        assert slugify("simple-slug") == "simple-slug"
 
     def test_resolve_org_exact_match(self):
         """Test resolve_org finds exact mappings."""
         mappings = {"intel corp": "intel-corporation", "google": "google-inc"}
-        self.assertEqual(resolve_org("Intel Corp", mappings), "intel-corporation")
-        self.assertEqual(resolve_org("Unknown Org", mappings), "unknown-org")
+        assert resolve_org("Intel Corp", mappings) == "intel-corporation"
+        assert resolve_org("Unknown Org", mappings) == "unknown-org"
 
     def test_resolve_org_alias_match(self):
         """Test resolve_org resolves aliases or slugified overlaps."""
         mappings = {"example corporation": "example-corp"}
-        self.assertEqual(resolve_org("example-corporation", mappings), "example-corp")
+        assert resolve_org("example-corporation", mappings) == "example-corp"
 
     def test_clean_frontmatter_fences(self):
         """Test clean_frontmatter removes code fences, blocks and normalizes formatting."""
         wrapped = "```yaml\n---\ntype: experience\n---\n```\nBody content."
         cleaned = clean_frontmatter(wrapped)
-        self.assertIn("type: experience", cleaned)
-        self.assertNotIn("```", cleaned)
-        self.assertTrue(cleaned.endswith("Body content."))
+        assert "type: experience" in cleaned
+        assert "```" not in cleaned
+        assert cleaned.endswith("Body content.")
 
     def test_clean_frontmatter_html_comments(self):
         """Test clean_frontmatter strips HTML comments from YAML block."""
         wrapped = "---\ntype: experience <!-- comment -->\n---\nBody"
         cleaned = clean_frontmatter(wrapped)
-        self.assertIn("type: experience", cleaned)
-        self.assertNotIn("comment", cleaned)
+        assert "type: experience" in cleaned
+        assert "comment" not in cleaned
 
     def test_validate_path_valid(self):
         """Test validate_path with valid user directory path."""
         home_path = Path("~").expanduser().resolve()
         valid_file = home_path / "some_file_test.txt"
         validated = validate_path(valid_file)
-        self.assertEqual(validated, valid_file.resolve())
+        assert validated == valid_file.resolve()
 
     def test_validate_path_invalid_traversal(self):
         """Test validate_path raises ValueError on path traversal escape."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             validate_path("/etc/passwd")
 
     @patch("kb_config.get_wiki_dir")
     def test_get_wiki_paths(self, mock_get_wiki_dir):
         """Test the path getters return correct absolute paths."""
         mock_get_wiki_dir.return_value = Path("/tmp/mock-wiki")
-        self.assertEqual(get_wiki_root(), Path("/tmp/mock-wiki/wiki"))
-        self.assertEqual(get_schema_path(), Path("/tmp/mock-wiki/schema.md"))
-        self.assertEqual(get_mappings_path(), Path("/tmp/mock-wiki/mappings.md"))
+        assert get_wiki_root() == Path("/tmp/mock-wiki/wiki")
+        assert get_schema_path() == Path("/tmp/mock-wiki/schema.md")
+        assert get_mappings_path() == Path("/tmp/mock-wiki/mappings.md")
 
     def test_load_prompt_exists(self):
         """Test load_prompt reads existing file correctly."""
@@ -102,13 +102,13 @@ class TestIngestionHelpers(unittest.TestCase):
             ) as mock_read,
         ):
             text = load_prompt("test_prompt.txt")
-            self.assertEqual(text, "System Prompt Template")
+            assert text == "System Prompt Template"
             mock_read.assert_called_once()
 
     def test_load_prompt_not_found(self):
         """Test load_prompt raises FileNotFoundError if file missing."""
         with patch("pathlib.Path.exists", return_value=False):
-            with self.assertRaises(FileNotFoundError):
+            with pytest.raises(FileNotFoundError):
                 load_prompt("nonexistent.txt")
 
     def test_bootstrap_subdirs(self):
@@ -125,8 +125,8 @@ class TestIngestionHelpers(unittest.TestCase):
                 "projects",
                 "skills",
             ]:
-                self.assertTrue((temp_dir / subdir).exists())
-                self.assertTrue((temp_dir / subdir).is_dir())
+                assert (temp_dir / subdir).exists()
+                assert (temp_dir / subdir).is_dir()
         finally:
             shutil.rmtree(temp_dir)
 
@@ -139,41 +139,41 @@ class TestIngestionHelpers(unittest.TestCase):
         try:
             with patch("pathlib.Path.exists", return_value=False):
                 _bootstrap_templates_and_schema(temp_dir, wiki_root)
-            self.assertTrue((temp_dir / "schema.md").exists())
-            self.assertTrue((temp_dir / MAPPINGS_FILE_NAME).exists())
-            self.assertTrue((wiki_root / "log.md").exists())
+            assert (temp_dir / "schema.md").exists()
+            assert (temp_dir / MAPPINGS_FILE_NAME).exists()
+            assert (temp_dir / "log.md").exists()
         finally:
             shutil.rmtree(temp_dir)
 
     def test_llm_text_str_and_list(self):
         """Test llm_text conversion for standard str and LangChain list contents."""
-        self.assertEqual(llm_text("Direct string"), "Direct string")
-        self.assertEqual(llm_text(["part1", 2, "part3"]), "part1 2 part3")
+        assert llm_text("Direct string") == "Direct string"
+        assert llm_text(["part1", 2, "part3"]) == "part1 2 part3"
 
     def test_strip_fences(self):
         """Test strip_fences removes markdown syntax wrapping."""
-        self.assertEqual(strip_fences('```json\n{"key": "val"}\n```'), '{"key": "val"}')
-        self.assertEqual(strip_fences("```\nplain text\n```"), "plain text")
+        assert strip_fences('```json\n{"key": "val"}\n```') == '{"key": "val"}'
+        assert strip_fences("```\nplain text\n```") == "plain text"
 
     def test_clean_frontmatter_lines_fences(self):
         """Test internal _clean_frontmatter_lines helper."""
         lines = ["```yaml", "key: value", "  nested: <!-- comment --> secret", "```"]
         cleaned = _clean_frontmatter_lines(lines)
-        self.assertIn("key: value", cleaned)
-        self.assertIn("nested:  secret", cleaned)
-        self.assertNotIn("```yaml", cleaned)
+        assert "key: value" in cleaned
+        assert "nested:  secret" in cleaned
+        assert "```yaml" not in cleaned
 
     def test_clean_body_lines_strips(self):
         """Test internal _clean_body_lines helper removes starting/ending empty lines and fences."""
         lines = ["```", "", "Actual content line", "```", ""]
         cleaned = _clean_body_lines(lines)
-        self.assertEqual(cleaned, "Actual content line")
+        assert cleaned == "Actual content line"
 
 
-class TestWikiFileResolution(unittest.TestCase):
+class TestWikiFileResolution:
     """Tests file matching and resolution logic inside helpers."""
 
-    def setUp(self):
+    def setup_method(self):
         # Create temp dir under user home to satisfy validate_path bounds
         self.temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
@@ -182,7 +182,7 @@ class TestWikiFileResolution(unittest.TestCase):
         (self.wiki_dir / "experiences").mkdir()
         (self.wiki_dir / "education").mkdir()
 
-    def tearDown(self):
+    def teardown_method(self):
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
@@ -200,7 +200,7 @@ Some body text.
 """
         f_path.write_text(content, encoding="utf-8")
         start = _extract_start_date_from_file(f_path, "org-slug")
-        self.assertEqual(start, "2019-01-01")
+        assert start == "2019-01-01"
 
     @patch("ingestion.helpers.get_wiki_root")
     def test_find_existing_experience_by_year(self, mock_get_wiki_root):
@@ -223,11 +223,11 @@ Some body text.
 
         # Match close to 2020 (start date 2020-01-01)
         found = find_existing_experience("company-slug", gen_path, "2020-01-01")
-        self.assertEqual(found, f_path2)
+        assert found == f_path2
 
         # Match close to 2015 (start date 2014-12-31)
         found_old = find_existing_experience("company-slug", gen_path, "2014-12-31")
-        self.assertEqual(found_old, f_path1)
+        assert found_old == f_path1
 
     @patch("ingestion.helpers.get_wiki_root")
     def test_find_existing_education_one_candidate(self, mock_get_wiki_root):
@@ -240,13 +240,13 @@ Some body text.
 
         gen_path = self.wiki_dir / "education" / "generated.md"
         found = find_existing_education("uni-slug", gen_path, "")
-        self.assertEqual(found, f_path)
+        assert found == f_path
 
 
-class TestIngestionPersonaMappings(unittest.TestCase):
+class TestIngestionPersonaMappings:
     """Tests mappings.md parsing and mapping additions."""
 
-    def setUp(self):
+    def setup_method(self):
         self.temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.mappings_path = self.temp_dir / MAPPINGS_FILE_NAME
@@ -264,7 +264,7 @@ class TestIngestionPersonaMappings(unittest.TestCase):
 """
         self.mappings_path.write_text(content, encoding="utf-8")
 
-    def tearDown(self):
+    def teardown_method(self):
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
@@ -272,7 +272,7 @@ class TestIngestionPersonaMappings(unittest.TestCase):
     def test_get_persona_slug_from_mappings_success(self, mock_get_mappings_path):
         mock_get_mappings_path.return_value = self.mappings_path
         slug = get_persona_slug_from_mappings()
-        self.assertEqual(slug, "john-doe")
+        assert slug == "john-doe"
 
     @patch("ingestion.helpers.get_mappings_path")
     def test_add_persona_mapping_if_missing(self, mock_get_mappings_path):
@@ -281,17 +281,17 @@ class TestIngestionPersonaMappings(unittest.TestCase):
 
         # Verify it was added
         updated_content = self.mappings_path.read_text(encoding="utf-8")
-        self.assertIn("[[staff-person]]", updated_content)
-        self.assertIn("Staff Person", updated_content)
+        assert "[[staff-person]]" in updated_content
+        assert "Staff Person" in updated_content
 
     @patch("ingestion.helpers.get_mappings_path")
     def test_get_persona_slug_already_exists(self, mock_get_mappings_path):
         mock_get_mappings_path.return_value = self.mappings_path
         slug = get_persona_slug("John")
-        self.assertEqual(slug, "john-doe")
+        assert slug == "john-doe"
 
 
-class TestIngestionValidation(unittest.TestCase):
+class TestIngestionValidation:
     """Deterministic offline tests for ingestion frontmatter validation schemas."""
 
     def test_validate_experience_success(self):
@@ -306,15 +306,15 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_experience(fm, errors)
-        self.assertEqual(errors, [])
+        assert errors == []
 
     def test_validate_experience_missing_fields(self):
         """Test _validate_experience fails when required fields are missing."""
         fm = {"type": "experience", "title": "Staff Manager"}
         errors = []
         _validate_experience(fm, errors)
-        self.assertGreater(len(errors), 0)
-        self.assertTrue(any("Missing frontmatter fields" in err for err in errors))
+        assert len(errors) > 0
+        assert any("Missing frontmatter fields" in err for err in errors)
 
     def test_validate_experience_invalid_org_link(self):
         """Test _validate_experience fails on raw string organization names without [[slug]]."""
@@ -328,9 +328,7 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_experience(fm, errors)
-        self.assertTrue(
-            any("organization field missing [[slug]]" in err for err in errors)
-        )
+        assert any("organization field missing [[slug]]" in err for err in errors)
 
     def test_validate_experience_invalid_date(self):
         """Test _validate_experience fails on invalid date format."""
@@ -344,7 +342,7 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_experience(fm, errors)
-        self.assertTrue(any("dates.start invalid format" in err for err in errors))
+        assert any("dates.start invalid format" in err for err in errors)
 
     def test_validate_education_success(self):
         """Test _validate_education succeeds on correct schema."""
@@ -359,7 +357,7 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_education(fm, errors)
-        self.assertEqual(errors, [])
+        assert errors == []
 
     def test_validate_skill_success(self):
         """Test _validate_skill succeeds on correct schema."""
@@ -371,7 +369,7 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors = []
         _validate_skill(fm, errors)
-        self.assertEqual(errors, [])
+        assert errors == []
 
     def test_validate_case_study_success(self):
         """Test _validate_case_study succeeds on correct schema."""
@@ -384,15 +382,11 @@ class TestIngestionValidation(unittest.TestCase):
         }
         errors: list[str] = []
         _validate_case_study(fm, errors)
-        self.assertEqual(errors, [])
+        assert errors == []
 
     def test_validate_case_study_missing_fields(self):
         """Test _validate_case_study reports missing required fields."""
         fm = {"type": "case_study"}
         errors: list[str] = []
         _validate_case_study(fm, errors)
-        self.assertTrue(any("Missing frontmatter fields" in err for err in errors))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert any("Missing frontmatter fields" in err for err in errors)

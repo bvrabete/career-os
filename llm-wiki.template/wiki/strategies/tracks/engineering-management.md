@@ -4,6 +4,7 @@ title: "Engineering Management Track"
 seniority_levels: [Engineering Manager, Senior Engineering Manager, Director of Engineering]
 archetype: "People Leadership & Operational Delivery"
 focus: [Team Delivery, Hiring, Mentorship, Performance Management, Org Topology, Stakeholder Alignment]
+org_culture: corporate
 created: 2026-09-20
 updated: 2026-09-20
 ---

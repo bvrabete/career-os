@@ -2,59 +2,53 @@
 type: voice
 title: "Candidate Voice & Phrasing Guide"
 created: 2026-10-03
-updated: 2026-10-03
+updated: 2026-11-23
 ---
 
-# Candidate Voice Manifesto
+# Candidate Voice Manifesto & Executable Linguistic Style Sheet
 
-This document defines your genuine voice, active agency style, and phrasing principles. The CV generation pipeline uses this guide as a stylistic constraint to keep your voice authentic and eliminate generic AI fluff.
+This document defines the candidate's authentic voice, direct international English cadence, and anti-AI phrasing constraints. The CV generation pipeline (`cv-gen`) injects this guide into the Synthesizer, Sculptor/Drafter, and Auditor nodes to ensure the generated CV reads like a real, grounded engineering leader—never like generic ChatGPT output.
 
 > [!NOTE]
-> This guide governs **phrasing and tone only**. It is never a factual source. All claims, metrics, and technical facts must trace 100% to Tier 1 records (experiences, education, case studies, patents, publications).
+> This guide governs **phrasing, rhythm, and lexical choice only**. All claims, metrics, and technical facts must trace 100% to Tier 1 records (`experiences`, `education`, `case-studies`, `projects`, `patents`, `publications`).
 
 ---
 
-## 1. Core Phrasing Principles
+## 1. Syntactic Rhythm & Second-Language Directness Rules
 
-1. **Active Agency**:
-   - Begin bullets with strong, decisive action verbs: *Architected, Engineered, Led, Decoupled, Accelerated, Streamlined, Standardized*.
-   - Never use passive or timid phrasing: *Assisted in, Helped with, Was responsible for, Tasked with, Participated in*.
-
-2. **Architectural Causality**:
-   - Structure accomplishments with clear causal flow: **[Problem/Context] $\rightarrow$ [Technical/Leadership Decision] $\rightarrow$ [Quantified Business Outcome]**.
-   - Focus on *why* a technical choice was made, not merely the tools used.
-
-3. **Metrics & Empirical Rigor**:
-   - Favor exact engineering and business metrics: latency percentiles (p95/p99), throughput (req/s), cost reduction (%), downtime elimination (zero-downtime), and team growth.
-   - Do not embellish or round numbers beyond the facts recorded in your experiences and case studies.
-
-4. **Tone Calibration**:
-   - Maintain an executive, confident, and direct tone.
-   - Avoid self-congratulatory adjectives (*brilliant, flawless, world-class, visionary*); let the scale and metrics speak for themselves.
+1. **Direct Active Clauses Over Participial Tails (CRITICAL):**
+   - Connect actions to outcomes using direct causal prepositions (`Built X to cut Y by 40%`, `Migrated X to Y, reducing latency from A to B`, or two crisp clauses separated by a semicolon: `Led 3 squads across 2 sites; cut deployment lead time by 60%`).
+   - **NEVER** append robotic trailing participial clauses (`, resulting in...`, `, thereby ensuring...`, `, fostering a culture of...`, `, enabling seamless...`).
+2. **Natural Sentence-Length Variation (Burstiness):**
+   - Mix concise, matter-of-fact scope or mandate bullets (12–16 words) with detailed architectural mechanism bullets (20–28 words).
+   - Avoid rule-of-three adjective triads (do NOT write *"scalable, resilient, and fault-tolerant systems"*—state the exact architectural mechanism instead).
+3. **Sober, Pragmatic International English:**
+   - Favor concrete engineering and operational nouns over abstract American corporate marketing buzzwords.
+   - Let scale, system constraints, and verifiable numbers carry the authority without self-congratulatory adjectives.
 
 ---
 
-## 2. Banned Corporate Buzzwords & AI Fluff
+## 2. Preferred Grounded Verbs vs. Banned AI Cliché Lexicon
 
-The pipeline must actively purge these empty filler words:
-
-| Banned Fluff | Why It Is Purged | Preferred Alternative |
-| :--- | :--- | :--- |
-| *Spearheaded synergy* | Meaningless corporate jargon | *Unified cross-functional teams to deliver...* |
-| *Go-getter / Rockstar* | Informal, non-executive clichés | *Demonstrated proactive leadership in...* |
-| *Passionate team player* | Unverifiable personality claim | *Mentored 8 senior engineers and aligned...* |
-| *Dynamic thought-leader* | Self-congratulatory fluff | *Authored technical strategy and RFCs for...* |
-| *Results-driven / Hardworking* | Empty filler; show results via numbers | *Cut infrastructure spend by 35% through...* |
-| *Deep dive / Pivot* | Overused idioms | *Analyzed root cause / Re-architected system* |
+| Preferred Grounded Verbs (Use These) | Banned AI Clichés & Fluff (NEVER Use These) |
+| :--- | :--- |
+| *Built, Designed, Architected, Led, Managed* | *Spearheaded, Orchestrated, Championed, Catalyzed* |
+| *Migrated, Redesigned, Simplified, Automated* | *Synergized, Revolutionized, Harnessed, Leveraged* |
+| *Reduced, Cut, Accelerated, Scaled, Grew* | *Fostered, Empowered, Unleashed, Pivoted* |
+| *Introduced, Standardized, Delivered, Fixed, Took over* | *Visionary, Dynamic, Cutting-edge, Seamless, Paradigm, Testament to* |
 
 ---
 
-## 3. Phrasing Exemplars
+## 3. Contrastive Few-Shot Phrasing Exemplars ("ChatGPT Slop" $\rightarrow$ "Authentic Direct Voice")
 
-### Architecture & Engineering
-- **Poor (AI Fluff)**: "Helped spearhead synergy in the microservices migration to achieve amazing cloud performance."
-- **Good (Authentic Voice)**: "Architected the transition from legacy monolith to event-driven microservices on Kubernetes, cutting p99 response times from 450ms to 48ms under peak load."
+### Exemplar 1: Platform Architecture & Migration
+- **Banned AI Style**: *"Spearheaded a paradigm-shifting cloud-native transformation to Kubernetes, fostering cross-functional DevOps synergy and resulting in a 90% reduction in p99 latency."*
+- **Authentic Direct Voice**: *"Architected the migration from a legacy monolith to event-driven microservices on Kubernetes, cutting p99 response times from 450ms to 48ms under peak load."*
 
-### Engineering Leadership & Management
-- **Poor (AI Fluff)**: "Was a passionate people manager responsible for team happiness and sprint velocity."
-- **Good (Authentic Voice)**: "Scaled the platform engineering organization from 6 to 24 distributed engineers across 3 time zones; introduced RFC-driven design reviews and cut pull request cycle time by 40%."
+### Exemplar 2: Engineering Leadership & Org Scaling
+- **Banned AI Style**: *"Dynamically orchestrated and empowered a world-class, high-performing distributed engineering organization, resulting in unprecedented sprint velocity."*
+- **Authentic Direct Voice**: *"Scaled the platform engineering organization from 6 to 24 engineers across 3 time zones; introduced RFC design reviews and reduced pull-request cycle time by 40%."*
+
+### Exemplar 3: Cost & Operational Efficiency
+- **Banned AI Style**: *"Championed holistic FinOps governance initiatives across cloud environments, thereby ensuring optimal resource utilization and saving $420K."*
+- **Authentic Direct Voice**: *"Introduced automated Kubernetes cluster rightsizing and spot-instance scheduling, reducing annual cloud infrastructure spend by $420K (32%) with zero SLA impact."*

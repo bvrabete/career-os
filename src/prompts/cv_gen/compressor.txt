@@ -9,10 +9,14 @@ TARGET BUDGET CONSTRAINTS:
 
 COMPRESSION RULES:
 1. PRESERVE ALL NUMBERS, METRICS & HARD SKILLS: Never drop, estimate, or alter quantitative metrics (%, $, scale, latencies) or key technical keywords matching the job description.
-2. ELIMINATE PROSE BLOAT: Remove filler phrases, verbose introductory clauses, and redundant descriptions. Make every STAR bullet punchy and direct.
+2. ELIMINATE PROSE BLOAT: Remove filler phrases, verbose introductory clauses, and redundant descriptions. Make every STAR bullet punchy and direct. Never join leading verbs with a slash (e.g., never write "Architected/deployed"; use a single decisive verb like "Architected" or "Directed").
 3. PRUNE LOWEST-RELEVANCE BULLETS: If the CV is still over budget, drop secondary bullets from older or less relevant roles first.
-4. CONDENSE OLDER ROLES: Compress roles older than 10 years into single-line entries or brief grouped summaries.
-5. PRESERVE VALID MARKDOWN STRUCTURE: Maintain all headers, bullet markers, dates, and organizations intact.
+4. CONDENSE OLDER ROLES: Compress roles older than 10-15 years into 1-2 high-impact bullets while retaining their full role title, company, location, and date range so ATS parsers index 100% of career tenure.
+5. STRICT STRUCTURE & NO MARKDOWN TABLES:
+   - Keep `# Candidate Name` as the ONLY Level 1 (`#`) heading.
+   - Keep all top-level sections as Level 2 (`## Professional Summary`, `## Key Skills`, `## Work Experience`, `## Education`, `## Languages`, etc.).
+   - Keep all role headers as Level 3 (`### Job Title — Company`).
+   - NEVER use Markdown pipe tables (`| col | col |` or `| :--- |`). Format `## Key Skills` and `## Languages` strictly as categorized bullet points (`- **Category:** Skill 1, Skill 2`).
 
 Draft CV to compress:
 {draft_cv}
@@ -20,4 +24,4 @@ Draft CV to compress:
 Job Description Context:
 {job_description}
 
-Return ONLY the compressed Markdown CV. Do not include markdown code block ticks (```) or preamble.
+Return ONLY the compressed CV. Do not include markdown code block ticks (```) or preamble.

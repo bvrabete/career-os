@@ -18,7 +18,7 @@ def generate_projects(
     get_wiki_root_fn: Callable[[], Any] = get_wiki_root,
 ) -> None:
     """Generate standalone project files and append them to wiki_outputs."""
-    entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
+    entity_map_lines = "\n".join(f'  "{raw}" → use "[[{slug}]]"' for raw, slug in resolved.items())
     system_prompt = load_prompt_fn("generate_project.txt")
 
     for proj in projects:
@@ -39,7 +39,7 @@ TODAY'S DATE: {today_str}
 Generate a complete wiki project entry using ONLY the data provided below.
 
 Required output filename: {filename}
-Required organization slug in frontmatter: [[{canonical_slug}]]
+Required organization slug in frontmatter: "[[{canonical_slug}]]"
 
 Project data:
 {json.dumps(proj, indent=2, ensure_ascii=False)}
@@ -78,7 +78,7 @@ def generate_patents(
     get_wiki_root_fn: Callable[[], Any] = get_wiki_root,
 ) -> None:
     """Generate standalone patent files and append them to wiki_outputs."""
-    entity_map_lines = "\n".join(f'  "{raw}" → use [[{slug}]]' for raw, slug in resolved.items())
+    entity_map_lines = "\n".join(f'  "{raw}" → use "[[{slug}]]"' for raw, slug in resolved.items())
     system_prompt = load_prompt_fn("generate_patent.txt")
 
     for pat in patents:
@@ -98,7 +98,7 @@ TODAY'S DATE: {today_str}
 Generate a complete wiki patent entry using ONLY the data provided below.
 
 Required output filename: {filename}
-Required organization slug in frontmatter: [[{canonical_slug}]]
+Required organization slug in frontmatter: "[[{canonical_slug}]]"
 
 Patent data:
 {json.dumps(pat, indent=2, ensure_ascii=False)}

@@ -1,4 +1,3 @@
-import unittest
 from pathlib import Path
 from unittest.mock import patch
 import tempfile
@@ -14,63 +13,63 @@ from generation.skills_helper import (
 )
 
 
-class TestSkillsHelper(unittest.TestCase):
-    def setUp(self) -> None:
+class TestSkillsHelper:
+    def setup_method(self) -> None:
         self.temp_dir = tempfile.mkdtemp()
         self.wiki_dir = Path(self.temp_dir)
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         shutil.rmtree(self.temp_dir)
 
     def test_get_skill_slug_basic(self) -> None:
         """Test simple slug generation and cleanups."""
-        self.assertEqual(get_skill_slug("Python"), "python")
-        self.assertEqual(get_skill_slug("Python.md"), "python")
-        self.assertEqual(get_skill_slug("  Docker  "), "docker")
+        assert get_skill_slug("Python") == "python"
+        assert get_skill_slug("Python.md") == "python"
+        assert get_skill_slug("  Docker  ") == "docker"
 
     def test_get_skill_slug_common_overrides(self) -> None:
         """Test COMMON_SLUGS mapping overrides."""
-        self.assertEqual(get_skill_slug("C#"), "c-sharp")
-        self.assertEqual(get_skill_slug("C++"), "c-plus-plus")
-        self.assertEqual(get_skill_slug(".NET"), "dotnet")
-        self.assertEqual(get_skill_slug(".NET Core"), "dotnet-core")
-        self.assertEqual(get_skill_slug("F#"), "f-sharp")
+        assert get_skill_slug("C#") == "c-sharp"
+        assert get_skill_slug("C++") == "c-plus-plus"
+        assert get_skill_slug(".NET") == "dotnet"
+        assert get_skill_slug(".NET Core") == "dotnet-core"
+        assert get_skill_slug("F#") == "f-sharp"
 
     def test_get_skill_slug_complex(self) -> None:
         """Test special character removal and normalization."""
-        self.assertEqual(get_skill_slug("React Native!"), "react-native")
-        self.assertEqual(get_skill_slug("CI/CD Pipeline"), "cicd-pipeline")
+        assert get_skill_slug("React Native!") == "react-native"
+        assert get_skill_slug("CI/CD Pipeline") == "cicd-pipeline"
 
     def test_extract_skills_from_file_missing_and_invalid(self) -> None:
         """Test parsing with missing, malformed, or empty frontmatter files."""
         # Missing file
-        self.assertEqual(extract_skills_from_file(self.wiki_dir / "does_not_exist.md"), [])
+        assert extract_skills_from_file(self.wiki_dir / "does_not_exist.md") == []
 
         # No frontmatter
         file_no_fm = self.wiki_dir / "no_fm.md"
         file_no_fm.write_text("Just some text", encoding="utf-8")
-        self.assertEqual(extract_skills_from_file(file_no_fm), [])
+        assert extract_skills_from_file(file_no_fm) == []
 
         # Invalid frontmatter YAML
         file_bad_fm = self.wiki_dir / "bad_fm.md"
         file_bad_fm.write_text("---\nskills:\n  - [unclosed bracket\n---", encoding="utf-8")
-        self.assertEqual(extract_skills_from_file(file_bad_fm), [])
+        assert extract_skills_from_file(file_bad_fm) == []
 
         # Non-list skills
         file_not_list = self.wiki_dir / "not_list.md"
         file_not_list.write_text("---\nskills: python\n---", encoding="utf-8")
-        self.assertEqual(extract_skills_from_file(file_not_list), [])
+        assert extract_skills_from_file(file_not_list) == []
 
     def test_extract_skills_from_file_success(self) -> None:
         """Test successfully parsing valid skill entries."""
         file_ok = self.wiki_dir / "ok.md"
         file_ok.write_text("---\ntitle: Role\nskills:\n  - Python\n  - Kubernetes\n  - \n---", encoding="utf-8")
-        self.assertEqual(extract_skills_from_file(file_ok), ["Python", "Kubernetes"])
+        assert extract_skills_from_file(file_ok) == ["Python", "Kubernetes"]
 
     def test_gather_skills_from_directory(self) -> None:
         """Test scanning files in a directory to gather unique skills."""
         # Missing directory
-        self.assertEqual(gather_skills_from_directory(self.wiki_dir / "missing_folder"), set())
+        assert gather_skills_from_directory(self.wiki_dir / "missing_folder") == set()
 
         # Setup directory with valid and invalid files
         target_dir = self.wiki_dir / "exp"
@@ -86,7 +85,7 @@ class TestSkillsHelper(unittest.TestCase):
         file_txt.write_text("---\nskills:\n  - Python\n---", encoding="utf-8") # should be skipped because not .md
 
         skills = gather_skills_from_directory(target_dir)
-        self.assertEqual(skills, {"Python", "Git", "Docker"})
+        assert skills == {"Python", "Git", "Docker"}
 
     def test_get_all_candidate_skills(self) -> None:
         """Test aggregating skills from experiences and projects directories."""
@@ -102,7 +101,7 @@ class TestSkillsHelper(unittest.TestCase):
         f2.write_text("---\nskills:\n  - Python\n---", encoding="utf-8")
 
         skills = get_all_candidate_skills(self.wiki_dir)
-        self.assertEqual(skills, ["Python", "React"]) # returns sorted list
+        assert skills == ["Python", "React"] # returns sorted list
 
     def test_run_skills_sync_dry_run_and_active(self) -> None:
         """Test the sync execution under dry-run and write operations."""
@@ -116,26 +115,26 @@ class TestSkillsHelper(unittest.TestCase):
 
         # 1. Dry run sync (should not write files or create skills folder)
         run_skills_sync(self.wiki_dir, dry_run=True)
-        self.assertFalse(skills_dir.exists())
+        assert not skills_dir.exists()
 
         # 2. Active run sync (should write the files)
         run_skills_sync(self.wiki_dir, dry_run=False)
-        self.assertTrue(skills_dir.exists())
+        assert skills_dir.exists()
 
         python_skill_file = skills_dir / "python.md"
-        self.assertTrue(python_skill_file.exists())
+        assert python_skill_file.exists()
 
         content = python_skill_file.read_text(encoding="utf-8")
-        self.assertIn("title: Python", content)
-        self.assertIn("related_experiences:", content)
-        self.assertIn("- [[intel]]", content)
+        assert "title: Python" in content
+        assert "related_experiences:" in content
+        assert "- [[intel]]" in content
 
     def test_get_compact_skills_list_various(self) -> None:
         """Test generating token-efficient list with and without experience filtering."""
         skills_dir = self.wiki_dir / "wiki" / "skills"
 
         # Missing skills directory
-        self.assertEqual(get_compact_skills_list(skills_dir), [])
+        assert get_compact_skills_list(skills_dir) == []
 
         skills_dir.mkdir(parents=True)
 
@@ -153,18 +152,18 @@ class TestSkillsHelper(unittest.TestCase):
 
         # Get all compact skills
         all_skills = get_compact_skills_list(skills_dir)
-        self.assertIn("- **Python** (Applied in: intel, google)", all_skills)
-        self.assertIn("- **Docker** (Applied in: google)", all_skills)
-        self.assertIn("- **General**", all_skills)
+        assert "- **Python** (Applied in: intel, google)" in all_skills
+        assert "- **Docker** (Applied in: google)" in all_skills
+        assert "- **General**" in all_skills
 
         # Filter by allowed experience: only intel
         filtered = get_compact_skills_list(skills_dir, allowed_experience_slugs=["intel"])
-        self.assertEqual(len(filtered), 1)
-        self.assertIn("- **Python** (Applied in: intel)", filtered[0])
+        assert len(filtered) == 1
+        assert "- **Python** (Applied in: intel)" in filtered[0]
 
         # Test reading error exception path
         with patch("pathlib.Path.read_text", side_effect=Exception("Read failure")):
-            self.assertEqual(get_compact_skills_list(skills_dir), [])
+            assert get_compact_skills_list(skills_dir) == []
 
     def test_run_skills_sync_heuristic_and_merging(self) -> None:
         """Test capitalization heuristic, empty skill skipping, and existing file merging/updating."""
@@ -189,15 +188,11 @@ class TestSkillsHelper(unittest.TestCase):
 
         run_skills_sync(self.wiki_dir, dry_run=False)
 
-        self.assertTrue(py_file.exists())
+        assert py_file.exists()
         content = py_file.read_text(encoding="utf-8")
 
         # Verify both google and intel are in related experiences list
-        self.assertIn("- '[[google]]'", content)
-        self.assertIn("- '[[intel]]'", content)
-        self.assertIn("Existing body text here.", content)
-        self.assertIn("category: Language", content)  # Retains custom pre-seeded properties
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert "- '[[google]]'" in content
+        assert "- '[[intel]]'" in content
+        assert "Existing body text here." in content
+        assert "category: Language" in content  # Retains custom pre-seeded properties

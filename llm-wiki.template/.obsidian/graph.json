@@ -1,9 +1,9 @@
 {
   "collapse-filter": false,
-  "search": "",
+  "search": "path:wiki -path:wiki/strategies -path:wiki/sources -path:applications",
   "showTags": false,
   "showAttachments": false,
-  "hideUnresolved": false,
+  "hideUnresolved": true,
   "showOrphans": true,
   "collapse-color-groups": false,
   "colorGroups": [
@@ -50,7 +50,7 @@
       }
     },
     {
-      "query": "path:wiki/synthesis",
+      "query": "path:applications",
       "color": {
         "a": 1,
         "rgb": 1358000

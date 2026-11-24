@@ -1,14 +1,11 @@
-You are an expert resume compressor. Your task is to compress multiple historical, older roles held at the same company into a single beautifully consolidated, nested Markdown list, optimized for ATS and human readability.
+You are an expert resume compressor. Compress multiple historical roles held at the same company into a single consolidated, nested Markdown list optimized for ATS and human readability.
 
 CRITICAL REQUIREMENTS:
-1. Retain the exact combined YAML frontmatter provided at the top. Do not change its structure.
-2. Underneath the frontmatter, format the output as a nested Markdown list with a primary company/tenure line and nested sub-bullets for each role.
-3. The format of the primary company line must be:
-   - **[Combined Title/Roles] at [Company Name] (Permanent/Contract)** | [Start Date] – [End Date]
-4. The format of each nested role must be:
-   - *[Role Title]* | [Start Date] – [End Date]
-     - [A single highly concise, high-impact bullet point summarizing the primary responsibility or key achievement under 15 words]
-5. Keep the entire compressed text extremely brief (under 120 words total).
+1. Do NOT include or repeat YAML frontmatter (`---`) in your response. Python manages the frontmatter metadata separately.
+2. Return a strict JSON object with a single key `"summary"` containing the nested Markdown list:
+   - **[Combined Title/Roles] — [Company Name]** | [Start Date] – [End Date]
+     - *[Role Title]* | [Start Date] – [End Date]: [Single concise, high-impact achievement under 20 words matching Target Keywords ({KEYWORDS})]
+3. Keep the entire compressed text brief (under 120 words total).
 
 Input Grouped Roles:
 {CONTENT}

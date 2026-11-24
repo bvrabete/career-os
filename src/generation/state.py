@@ -1,13 +1,36 @@
-"""State definition for the CV generation pipeline."""
+"""State definition and Pydantic schemas for the CV generation pipeline."""
+
 from dataclasses import dataclass, field
 import re
-from typing import TypedDict, Any
+from typing import Any, Literal, TypedDict
+from pydantic import BaseModel, Field
 import yaml
+
+from schemas.cv_models import (
+    ContactHeader,
+    CVRoleEntry,
+    EducationItem,
+    LanguageItem,
+    PatentOrPublicationItem,
+    ProjectItem,
+    SkillCategory,
+    StructuredCVDocument,
+)
+from schemas.wiki_models import (
+    AnalyzerOutput,
+    ATSScorecard,
+    AuditOutput,
+    RoleEvidenceBundle,
+    SynthesizedBullet,
+    SynthesizedRole,
+    TailoredLongDraft,
+)
 
 
 @dataclass
 class RegionalStrategy:
     """Strongly-typed representation of a regional CV tailoring strategy."""
+
     type: str = "strategy"
     title: str = ""
     region: list[str] = field(default_factory=list)
@@ -33,11 +56,20 @@ class RegionalStrategy:
         except Exception:
             fm = {}
 
-        region_raw = fm.get("region", [])
-        region_list = [str(r) for r in region_raw] if isinstance(region_raw, list) else [str(region_raw)]
+        if not isinstance(fm, dict):
+            fm = {}
+
+        # Support both 'region' and 'regions' keys across strategy files
+        region_raw = fm.get("region") if "region" in fm else fm.get("regions", [])
+        if isinstance(region_raw, list):
+            region_list = [str(r) for r in region_raw if r is not None]
+        elif region_raw:
+            region_list = [str(region_raw)]
+        else:
+            region_list = []
 
         focus_raw = fm.get("focus", [])
-        focus_list = [str(f) for f in focus_raw] if isinstance(focus_raw, list) else [str(focus_raw)]
+        focus_list = [str(f) for f in focus_raw] if isinstance(focus_raw, list) else ([str(focus_raw)] if focus_raw else [])
 
         try:
             max_pages = int(fm.get("max_pages", 2))
@@ -53,18 +85,20 @@ class RegionalStrategy:
             max_pages=max_pages,
             created=str(fm.get("created", "")),
             updated=str(fm.get("updated", "")),
-            body=body_text
+            body=body_text,
         )
 
 
 @dataclass
 class TrackStrategy:
     """Strongly-typed representation of a career track CV tailoring strategy."""
+
     type: str = "strategy-track"
     title: str = ""
     seniority_levels: list[str] = field(default_factory=list)
     archetype: str = ""
     focus: list[str] = field(default_factory=list)
+    org_culture: str = "corporate"
     created: str = ""
     updated: str = ""
     body: str = ""
@@ -84,19 +118,31 @@ class TrackStrategy:
         except Exception:
             fm = {}
 
+        if not isinstance(fm, dict):
+            fm = {}
+
         seniority_raw = fm.get("seniority_levels", [])
         seniority_list = (
             [str(s) for s in seniority_raw]
             if isinstance(seniority_raw, list)
-            else [str(seniority_raw)]
+            else ([str(seniority_raw)] if seniority_raw else [])
         )
 
         focus_raw = fm.get("focus", [])
         focus_list = (
             [str(f) for f in focus_raw]
             if isinstance(focus_raw, list)
-            else [str(focus_raw)]
+            else ([str(focus_raw)] if focus_raw else [])
         )
+
+        org_culture_raw = str(fm.get("org_culture", "")).strip().lower()
+        if not org_culture_raw:
+            title_lower = str(fm.get("title", "")).lower()
+            archetype_lower = str(fm.get("archetype", "")).lower()
+            if any(k in title_lower or k in archetype_lower for k in ["startup", "founding", "founder"]):
+                org_culture_raw = "startup"
+            else:
+                org_culture_raw = "corporate"
 
         return cls(
             type=str(fm.get("type", "strategy-track")),
@@ -104,33 +150,125 @@ class TrackStrategy:
             seniority_levels=seniority_list,
             archetype=str(fm.get("archetype", "")),
             focus=focus_list,
+            org_culture=org_culture_raw,
             created=str(fm.get("created", "")),
             updated=str(fm.get("updated", "")),
             body=body_text,
         )
 
 
+class RequirementSupport(BaseModel):
+    """Semantic or keyword support relationship between an evidence item and a requirement."""
+
+    requirement_id: str
+    relevance_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    support_strength: Literal["primary", "secondary", "supporting"] = "supporting"
+    rationale: str = ""
+
+
+class JobRequirement(BaseModel):
+    """Explicit, typed, weighted requirement extracted from a target job description."""
+
+    id: str
+    text: str
+    category: Literal[
+        "core_technical",
+        "system_architecture",
+        "leadership_management",
+        "domain_specialization",
+        "delivery_methodology",
+        "business_impact",
+        "cultural_soft_skill",
+    ] = "core_technical"
+    priority: Literal["essential", "important", "supporting"] = "important"
+    weight: float = Field(default=1.0, ge=0.1, le=2.0)
+    keywords: list[str] = Field(default_factory=list)
+    source_text: str = ""
+    notes: str = ""
+
+
+class EvidenceItem(BaseModel):
+    """Normalized atomic unit of evidence (achievement bullet, project, patent, case_study, note) for selection."""
+
+    id: str
+    source_ref: str
+    source_type: Literal["experience", "project", "patent", "case_study", "note"]
+    role_or_project: str
+    text: str
+    existing_role_score: float = 0.0
+    keyword_relevance: float = 0.0
+    impact_assessment: float = 0.5
+    evidence_confidence: float = 1.0
+    estimated_words: int = 0
+    supports: list[RequirementSupport] = Field(default_factory=list)
+    redundancy_group: str = ""
+    selection_status: Literal["selected", "marginal_pass", "excluded"] = "excluded"
+    selection_reason: str = ""
+    exclusion_reason: str = ""
+
+
+class SelectionConfig(BaseModel):
+    """Knapsack optimization configuration parameters."""
+
+    target_page_budget: int = 2
+    content_budget_words: int = 700
+    alpha_marginal_coverage: float = 0.50
+    beta_evidence_quality: float = 0.30
+    gamma_role_calibration: float = 0.20
+    redundancy_penalty_multiplier: float = 0.60
+    min_essential_coverage_ratio: float = 0.85
+
+
+class SelectionManifest(BaseModel):
+    """Machine-readable evidence selection record informing Drafter and Auditor."""
+
+    schema_version: str = "1.0.0"
+    run_id: str = ""
+    content_budget_words: int = 700
+    estimated_selected_words: int = 0
+    requirements: list[JobRequirement] = Field(default_factory=list)
+    selected_evidence: list[EvidenceItem] = Field(default_factory=list)
+    uncovered_requirements: list[JobRequirement] = Field(default_factory=list)
+    excluded_evidence: list[EvidenceItem] = Field(default_factory=list)
+    coverage_summary: dict[str, float] = Field(default_factory=dict)
+    selection_config: SelectionConfig = Field(default_factory=SelectionConfig)
+
+
 class CVPipelineState(TypedDict, total=False):
     """The state dictionary passed between nodes in the CV generation LangGraph."""
+
     job_description: str
+    job_description_raw: str
     target_persona: str
+    posting_organization_type: str
+    recruitment_agency_name: str | None
+    target_employer_name: str
+    employer_archetype: str
+    parallel_venture_policy: str
     target_region: str
     target_track: str
     target_locations: list[str]
     cv_expectations: str
     primary_keywords: list[str]
     selected_entries: list[str]
+    role_bundles: list[dict[str, Any]]
+    long_draft: dict[str, Any] | None
     education_entries: list[str]
     skills_entries: list[str]
+    all_candidate_skills: list[str]
+    voice_guide: str
     strategy_info: str
     strategy_metadata: RegionalStrategy
     track_strategy_info: str
     track_strategy_metadata: TrackStrategy
     pdf_template: str
+    docx_template: str
+    structured_cv: dict[str, Any] | None
     draft_cv: str
     audit_feedback: str
     refiner_feedback: str
     iteration_count: int
+    max_iterations: int
     compression_count: int
     interactive: bool
     ats_scorecard: dict[str, Any]
@@ -147,3 +285,33 @@ class CVPipelineState(TypedDict, total=False):
     languages_entries: list[str]
     target_organization_slug: str
     target_role: str
+    requirements: list[dict[str, Any]]
+    candidate_evidence: list[dict[str, Any]]
+    selection_manifest: dict[str, Any] | None
+
+
+__all__ = [
+    "RegionalStrategy",
+    "TrackStrategy",
+    "RequirementSupport",
+    "JobRequirement",
+    "EvidenceItem",
+    "SelectionConfig",
+    "SelectionManifest",
+    "CVPipelineState",
+    "AnalyzerOutput",
+    "ATSScorecard",
+    "AuditOutput",
+    "RoleEvidenceBundle",
+    "SynthesizedBullet",
+    "SynthesizedRole",
+    "TailoredLongDraft",
+    "ContactHeader",
+    "CVRoleEntry",
+    "EducationItem",
+    "LanguageItem",
+    "PatentOrPublicationItem",
+    "ProjectItem",
+    "SkillCategory",
+    "StructuredCVDocument",
+]

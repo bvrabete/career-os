@@ -1,6 +1,6 @@
 [project]
 name = "cv-generator"
-version = "1.6.2"
+version = "1.7.0"
 description = "CV generator"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,6 +52,8 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
+    "types-pyyaml>=6.0.12.20261122",
+    "types-requests>=2.33.0.20261030",
 ]
 notebooks = [
     "ipykernel>=6.29.0",
@@ -92,3 +94,10 @@ select = ["E", "F", "W"]
 ignore = [
     "E501",  # Line length handled separately / soft wraps
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "ollama: local Ollama integration tests (requires running Ollama daemon)",
+    "live_llm: cloud LLM smoke tests (consumes API tokens)",
+]
+addopts = "-m 'not ollama and not live_llm'"

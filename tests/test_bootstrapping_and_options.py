@@ -3,7 +3,6 @@ Unit tests for validating the llm_wiki bootstrapping structure and CLI option co
 """
 
 import sys
-import unittest
 from pathlib import Path
 import tempfile
 import shutil
@@ -13,13 +12,13 @@ from ingestion.helpers import bootstrap_wiki_structure
 import kb_ingest
 
 
-class TestBootstrappingAndOptions(unittest.TestCase):
-    def setUp(self):
+class TestBootstrappingAndOptions:
+    def setup_method(self):
         # Create a clean isolated temporary directory for wiki bootstrapping
         self.temp_dir = Path(tempfile.mkdtemp())
         self.wiki_dir = self.temp_dir / "llm-wiki"
 
-    def tearDown(self):
+    def teardown_method(self):
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
@@ -29,19 +28,23 @@ class TestBootstrappingAndOptions(unittest.TestCase):
 
         # Verify subdirectories are created under wiki/
         wiki_root = self.wiki_dir / "wiki"
-        self.assertTrue(wiki_root.is_dir())
+        assert wiki_root.is_dir()
 
         expected_subdirs = [
             "experiences", "education", "entities", "projects", "skills",
-            "sources", "synthesis", "concepts", "notes", "patents",
+            "sources", "concepts", "notes", "patents",
             "strategies", "queries", "media", "cover-letters"
         ]
         for subdir in expected_subdirs:
-            self.assertTrue((wiki_root / subdir).is_dir(), f"Subfolder {subdir} was not bootstrapped.")
+            assert (wiki_root / subdir).is_dir(), f"Subfolder {subdir} was not bootstrapped."
+
+        assert (self.wiki_dir / "applications").is_dir()
+        assert (self.wiki_dir / "applications" / "applications.yaml").is_file()
+        assert (self.wiki_dir / "log.md").is_file()
 
         # Verify core blueprint templates
-        self.assertTrue((self.wiki_dir / "schema.md").is_file())
-        self.assertTrue((self.wiki_dir / "mappings.md").is_file())
+        assert (self.wiki_dir / "schema.md").is_file()
+        assert (self.wiki_dir / "mappings.md").is_file()
 
     @patch("kb_ingest_graph.build_ingest_graph")
     @patch("kb_ingest.collect_files")
@@ -78,9 +81,5 @@ class TestBootstrappingAndOptions(unittest.TestCase):
 
         # Assertions
         mock_build_graph.assert_called_with(dry_run=True)
-        self.assertTrue(mock_process_file.call_args[1]["force"])
-        self.assertTrue(mock_process_file.call_args[1]["dry_run"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert mock_process_file.call_args[1]["force"]
+        assert mock_process_file.call_args[1]["dry_run"]
