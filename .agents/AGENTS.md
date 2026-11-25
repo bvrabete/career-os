@@ -304,8 +304,9 @@ Keep cognitive complexity **strictly below 15** per function/method:
 - **Mandatory `monkeypatch` for Environment & Global State (`python:S6796`)**: Always use the `monkeypatch: pytest.MonkeyPatch` fixture (`monkeypatch.setenv()`, `monkeypatch.delenv(..., raising=False)`, `monkeypatch.setattr()`) when modifying environment variables or global state in tests. Never mutate `os.environ` directly (`os.environ[...] = ...` or `del os.environ[...]`).
 - **Use `tmp_path` for Temporary Files**: Always use pytest's `tmp_path: Path` fixture for temporary directories and files rather than manual `tempfile.mkdtemp()` / `shutil.rmtree()` boilerplate.
 
-### Codebase Search & Discovery
-- **MCP Graph First**: Always use the `codebase-memory-mcp` knowledge graph as the **primary tool** for code discovery. Prefer graph tools over grep/glob/file-search for locating functions, classes, routes, and variables.
+### Codebase Search & Discovery (Codebase-Memory MCP First)
+- **Mandatory MCP Indexing & Persistence**: The repository must be indexed with persistence using `codebase-memory-mcp`. The knowledge graph (`home-bvrabete-Documents-cv-generator-engine`) is the authoritative architectural and structural index for all code exploration.
+- **Strict Prohibition on Unfiltered Global File Searches**: Never execute unfiltered global searches (`find .`, `grep -r`, glob across root) that scan and pull noisy build artifacts, virtual environments (`.venv`), or cache directories (`.mypy_cache`, `.ruff_cache`, `__pycache__`) into context. This wastes context tokens and degrades agent reasoning.
 - **Priority Order**:
   1. `search_graph` — find functions, classes, routes, or variables by name pattern.
   2. `trace_path` — trace callers or callees of a specific function.
@@ -313,8 +314,8 @@ Keep cognitive complexity **strictly below 15** per function/method:
   4. `check_index_coverage` — validate candidate paths and missed ranges before making negative or exhaustive claims.
   5. `query_graph` — run Cypher queries for complex structural patterns.
   6. `get_architecture` — high-level project summary for orientation.
-- **Fall back to grep/glob only when**:
-  - Searching for string literals, error messages, or configuration values.
+- **Fall back to scoped grep/glob only when**:
+  - Searching for string literals, error messages, or configuration values in targeted directories (e.g., `grep -rn "pattern" src/ tests/` with explicit `--exclude-dir`).
   - Searching non-code files (Dockerfiles, shell scripts, YAML configs).
   - MCP tools return insufficient or inconclusive results.
 - **Coverage Check**: After candidate paths are known, call `check_index_coverage` once with all evidence paths before making any exhaustive or negative claims about the codebase.
