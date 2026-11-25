@@ -15,6 +15,20 @@ from schemas.cv_models import CompressedSummaryOutput
 logger = logging.getLogger(__name__)
 
 BRACKET_LINK_PATTERN = re.compile(r'\[\[(.*?)\]\]')
+COMPRESSION_SUMMARY_PATTERN = re.compile(
+    r"\n+(?:[-*_]{3,}\s*\n+)?(?:#{1,3}\s*|\*{1,2})?(?:Summary of Compression|Compression Summary|Compression Notes)\b.*$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def strip_compression_summary(text: str) -> tuple[str, str]:
+    """Strip any trailing LLM compression summary block from CV markdown and return (clean_cv, summary_metadata)."""
+    match = COMPRESSION_SUMMARY_PATTERN.search(text)
+    if not match:
+        return text, ""
+    clean_cv = text[: match.start()].rstrip()
+    summary = re.sub(r"^[-*_]{3,}\s*", "", match.group(0).strip()).strip()
+    return clean_cv, summary
 
 
 def _get_model_for_step(step: str) -> Any:

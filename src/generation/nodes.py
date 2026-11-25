@@ -12,6 +12,7 @@ from generation.cv_renderer import parse_and_render_structured_cv
 from generation.formatting import (
     check_typesetting_budget as check_typesetting_budget,
     handle_interactive_audit as _handle_interactive_audit,
+    strip_compression_summary,
     strip_wikilinks,
 )
 from generation.helpers import (
@@ -409,21 +410,23 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
 
     response = llm.invoke([HumanMessage(content=prompt)])
     compressed_text = strip_wikilinks(llm_text(response.content).strip())
+    compressed_text, compression_summary = strip_compression_summary(compressed_text)
+    if compression_summary:
+        logger.info("Extracted trailing compression summary into metadata (%d chars).", len(compression_summary))
     region = str(state.get("target_region") or "emea")
     compression_count = state.get("compression_count", 0) + 1
     structured_dict, rendered_md = parse_and_render_structured_cv(
         compressed_text, region=region, max_pages=max_pages
     )
-    if structured_dict is not None:
-        return {
-            "structured_cv": structured_dict,
-            "draft_cv": rendered_md,
-            "compression_count": compression_count,
-        }
-    return {
+    result: dict[str, Any] = {
         "draft_cv": rendered_md,
         "compression_count": compression_count,
     }
+    if structured_dict is not None:
+        result["structured_cv"] = structured_dict
+    if compression_summary:
+        result["compression_summary"] = compression_summary
+    return result
 
 
 def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"]]:

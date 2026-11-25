@@ -135,3 +135,29 @@ class TestTypesettingAndCompressor:
         assert "REWRITE REQUIRED" in res_dict["audit_feedback"]
         assert "Add metrics" in res_dict["audit_feedback"]
         assert res_dict["ats_scorecard"]["total_score"] == 68
+
+    @patch("generation.nodes.get_model_for_step")
+    def test_node_compressor_strips_trailing_summary_to_metadata(self, mock_get_model):
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = (
+            "# Candidate Name\n\n"
+            "## Professional Summary\nConcise summary.\n\n"
+            "---\n\n"
+            "**Summary of Compression:**\n"
+            "- Reduced word count from 1641 to ~1045 words.\n"
+        )
+        mock_llm.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_llm
+
+        state = CVPipelineState(
+            draft_cv="# Candidate Name\n\nLong draft.",
+            job_description="Platform Engineer",
+            target_region="emea",
+            compression_count=0,
+        )
+        result = node_compressor(state)
+        assert "Summary of Compression" not in result["draft_cv"]
+        assert not result["draft_cv"].rstrip().endswith("---")
+        assert "Summary of Compression" in result["compression_summary"]
+        assert result["compression_count"] == 1

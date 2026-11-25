@@ -270,6 +270,7 @@ class CVPipelineState(TypedDict, total=False):
     iteration_count: int
     max_iterations: int
     compression_count: int
+    compression_summary: str
     interactive: bool
     ats_scorecard: dict[str, Any]
     total_words: int

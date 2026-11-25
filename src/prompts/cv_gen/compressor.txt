@@ -24,4 +24,4 @@ Draft CV to compress:
 Job Description Context:
 {job_description}
 
-Return ONLY the compressed CV. Do not include markdown code block ticks (```) or preamble.
+Return ONLY the compressed CV. Do not include markdown code block ticks (```), preamble, trailing horizontal rules (`---`), compression summaries, or explanatory notes.
