@@ -4,7 +4,6 @@ Unit tests for pdf_generator.py and docx_generator.py.
 
 import os
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 from docx_generator import _clean_markdown_wrapper as docx_clean, generate_docx
@@ -17,7 +16,7 @@ from pdf_generator import (
 )
 
 
-class TestPdfAndDocxGenerator(unittest.TestCase):
+class TestPdfAndDocxGenerator:
     def test_clean_markdown_wrapper(self):
         """Test stripping markdown code blocks from content."""
         wrapped_md_1 = "```markdown\n# John Doe\nSome content\n```"
@@ -26,32 +25,32 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
         unwrapped_md = "# John Doe\nSome content"
         mixed_md = "```python\nprint('hello')\n```\n# John\n```bash\necho\n```"
 
-        self.assertEqual(pdf_clean(wrapped_md_1), "# John Doe\nSome content")
-        self.assertEqual(pdf_clean(wrapped_md_2), "# John Doe\nSome content")
-        self.assertEqual(pdf_clean(wrapped_md_3), "# John Doe\nSome content")
-        self.assertEqual(pdf_clean(unwrapped_md), "# John Doe\nSome content")
-        self.assertEqual(pdf_clean(mixed_md), "```python\nprint('hello')\n```\n# John\n```bash\necho\n```")
+        assert pdf_clean(wrapped_md_1) == "# John Doe\nSome content"
+        assert pdf_clean(wrapped_md_2) == "# John Doe\nSome content"
+        assert pdf_clean(wrapped_md_3) == "# John Doe\nSome content"
+        assert pdf_clean(unwrapped_md) == "# John Doe\nSome content"
+        assert pdf_clean(mixed_md) == "```python\nprint('hello')\n```\n# John\n```bash\necho\n```"
 
         # Do the same for docx_clean
-        self.assertEqual(docx_clean(wrapped_md_1), "# John Doe\nSome content")
-        self.assertEqual(docx_clean(wrapped_md_2), "# John Doe\nSome content")
-        self.assertEqual(docx_clean(wrapped_md_3), "# John Doe\nSome content")
-        self.assertEqual(docx_clean(unwrapped_md), "# John Doe\nSome content")
-        self.assertEqual(docx_clean(mixed_md), "```python\nprint('hello')\n```\n# John\n```bash\necho\n```")
+        assert docx_clean(wrapped_md_1) == "# John Doe\nSome content"
+        assert docx_clean(wrapped_md_2) == "# John Doe\nSome content"
+        assert docx_clean(wrapped_md_3) == "# John Doe\nSome content"
+        assert docx_clean(unwrapped_md) == "# John Doe\nSome content"
+        assert docx_clean(mixed_md) == "```python\nprint('hello')\n```\n# John\n```bash\necho\n```"
 
     def test_extract_frontmatter_single(self):
         """Test extracting single YAML frontmatter."""
         content = "---\nname: John Doe\nrole: Engineer\n---\n# Title\nBody text"
         body, metadata = _extract_frontmatter(content)
-        self.assertEqual(body, "# Title\nBody text")
-        self.assertEqual(metadata, {"name": "John Doe", "role": "Engineer"})
+        assert body == "# Title\nBody text"
+        assert metadata == {"name": "John Doe", "role": "Engineer"}
 
     def test_extract_frontmatter_multiple(self):
         """Test extracting multiple sequential frontmatters (synthesis + cv profile)."""
         content = "---\ntype: synthesis\ntarget_role: Architect\n---\n---\nname: John Doe\n---\n# Title"
         body, metadata = _extract_frontmatter(content)
-        self.assertEqual(body, "# Title")
-        self.assertEqual(metadata, {"type": "synthesis", "target_role": "Architect", "name": "John Doe"})
+        assert body == "# Title"
+        assert metadata == {"type": "synthesis", "target_role": "Architect", "name": "John Doe"}
 
     def test_build_header_html(self):
         """Test building HTML header from metadata."""
@@ -62,11 +61,11 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
             "phone": "12345"
         }
         header_html = _build_header_html(metadata)
-        self.assertIn("<h1>John Doe</h1>", header_html)
-        self.assertIn("Engineer &nbsp;|&nbsp; john@example.com &nbsp;|&nbsp; 12345", header_html)
+        assert "<h1>John Doe</h1>" in header_html
+        assert "Engineer &nbsp;|&nbsp; john@example.com &nbsp;|&nbsp; 12345" in header_html
 
         # No name
-        self.assertEqual(_build_header_html({"position": "Engineer"}), "")
+        assert _build_header_html({"position": "Engineer"}) == ""
 
     @patch("pdf_generator.HTML")
     @patch("pdf_generator.CSS")
@@ -78,7 +77,7 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = os.path.join(temp_dir, "test.pdf")
             success = generate_pdf("# Test CV\nWith some text.", pdf_path)
-            self.assertTrue(success)
+            assert success
             mock_html.assert_called_once()
 
     def test_generate_docx(self):
@@ -86,15 +85,11 @@ class TestPdfAndDocxGenerator(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             docx_path = os.path.join(temp_dir, "test.docx")
             success = generate_docx("```markdown\n# Test CV\n- Bullet point\n```", docx_path)
-            self.assertTrue(success)
-            self.assertTrue(os.path.exists(docx_path))
+            assert success
+            assert os.path.exists(docx_path)
 
     def test_resolve_css_path_themes(self):
         """Test resolving built-in theme names like executive, compact, base."""
-        self.assertIsNotNone(_resolve_css_path("base"))
-        self.assertIsNotNone(_resolve_css_path("executive"))
-        self.assertIsNotNone(_resolve_css_path("compact"))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert _resolve_css_path("base") is not None
+        assert _resolve_css_path("executive") is not None
+        assert _resolve_css_path("compact") is not None

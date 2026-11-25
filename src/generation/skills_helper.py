@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 from typing import Any
 import yaml
+from utils import extract_wikilink_list
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,8 @@ def extract_skills_from_file(file_path: Path) -> list[str]:
         match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
         if not match:
             return []
-        frontmatter: dict[str, Any] = yaml.safe_load(match.group(1)) or {}
+        loaded = yaml.safe_load(match.group(1))
+        frontmatter: dict[str, Any] = loaded if isinstance(loaded, dict) else {}
         skills = frontmatter.get("skills", [])
         if isinstance(skills, list):
             return [str(s).strip() for s in skills if s]
@@ -62,19 +64,20 @@ def gather_skills_from_directory(directory: Path) -> set[str]:
 
 
 def get_all_candidate_skills(wiki_dir: Path) -> list[str]:
-    """Extract and compile a sorted list of all unique candidate skills from experiences and projects."""
+    """Extract and compile a sorted list of all unique candidate skills across wiki directories."""
     all_skills: set[str] = set()
-    exp_dir = wiki_dir / "wiki" / "experiences"
-    all_skills.update(gather_skills_from_directory(exp_dir))
-    proj_dir = wiki_dir / "wiki" / "projects"
-    all_skills.update(gather_skills_from_directory(proj_dir))
+    for subdir in ["experiences", "projects", "case-studies", "patents", "publications"]:
+        all_skills.update(gather_skills_from_directory(wiki_dir / "wiki" / subdir))
     return sorted(list(all_skills))
 
 
 def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
-    """Scan experiences and projects, compiling and linking all skills in wiki/skills/."""
+    """Scan experiences, projects, case-studies, patents, and publications, compiling and linking all skills."""
     experiences_dir = wiki_dir / "wiki" / "experiences"
     projects_dir = wiki_dir / "wiki" / "projects"
+    case_studies_dir = wiki_dir / "wiki" / "case-studies"
+    patents_dir = wiki_dir / "wiki" / "patents"
+    publications_dir = wiki_dir / "wiki" / "publications"
     skills_dir = wiki_dir / "wiki" / "skills"
 
     if not skills_dir.exists():
@@ -93,7 +96,6 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
             for skill in skills:
                 if not skill:
                     continue
-                # Sanitize the skill name itself if it ends with .md
                 if skill.lower().endswith(".md"):
                     skill = skill[:-3].strip()
                 skill_slug = get_skill_slug(skill)
@@ -103,14 +105,13 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
                         "sources": set()
                     }
                 else:
-                    # Format refinement heuristic: prefer capitalized / nicer formatted variants
                     current_name = skill_sources[skill_slug]["name"]
                     if sum(1 for c in skill if c.isupper()) > sum(1 for c in current_name if c.isupper()):
                         skill_sources[skill_slug]["name"] = skill
                 skill_sources[skill_slug]["sources"].add(slug)
 
-    scan_directory(experiences_dir)
-    scan_directory(projects_dir)
+    for src_dir in [experiences_dir, projects_dir, case_studies_dir, patents_dir, publications_dir]:
+        scan_directory(src_dir)
 
     logger.info("Found %d unique skill slug(s) across experiences and projects.", len(skill_sources))
 
@@ -128,7 +129,8 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
                 content = skill_file.read_text(encoding="utf-8")
                 match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
                 if match:
-                    fm = yaml.safe_load(match.group(1)) or {}
+                    loaded_fm = yaml.safe_load(match.group(1))
+                    fm = loaded_fm if isinstance(loaded_fm, dict) else {}
                     body = content[match.end():].strip()
                 else:
                     fm = {}
@@ -139,12 +141,7 @@ def run_skills_sync(wiki_dir: Path, dry_run: bool = False) -> None:
 
             # Merge related experiences
             existing_related_raw = fm.get("related_experiences", [])
-            existing_related = []
-            if isinstance(existing_related_raw, list):
-                for item in existing_related_raw:
-                    item_str = str(item).strip()
-                    m = re.match(r"^\[\[(.*?)\]\]$", item_str)
-                    existing_related.append(m.group(1) if m else item_str)
+            existing_related = extract_wikilink_list(existing_related_raw)
 
             merged_related = sorted(list(set(existing_related + new_related)))
 
@@ -203,14 +200,11 @@ def get_compact_skills_list(skills_dir: Path, allowed_experience_slugs: list[str
             # Extract title and related experiences
             match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
             if match:
-                fm = yaml.safe_load(match.group(1)) or {}
+                loaded_fm = yaml.safe_load(match.group(1))
+                fm = loaded_fm if isinstance(loaded_fm, dict) else {}
                 title = fm.get("title", f.stem)
                 related_raw = fm.get("related_experiences", [])
-                related_slugs = []
-                for item in related_raw:
-                    item_str = str(item).strip()
-                    m_link = re.match(r"^\[\[(.*?)\]\]$", item_str)
-                    related_slugs.append(m_link.group(1) if m_link else item_str)
+                related_slugs = extract_wikilink_list(related_raw)
 
                 # Filter by allowed experience slugs if specified
                 if allowed_set is not None:

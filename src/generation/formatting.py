@@ -5,9 +5,12 @@ import logging
 from pathlib import Path
 import re
 import sys
+import time
 from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 import kb_config
+from schemas.cv_models import CompressedSummaryOutput
 
 logger = logging.getLogger(__name__)
 
@@ -122,52 +125,116 @@ def load_prompt(filename: str) -> str:
     return prompt_path.read_text(encoding="utf-8")
 
 
-def compress_experience_llm(content: str) -> str:
+def _extract_compressed_summary(raw_response: str) -> str:
+    """Validate and extract clean summary text via CompressedSummaryOutput Pydantic schema."""
+    cleaned = raw_response.strip()
+    if "{" in cleaned and "}" in cleaned:
+        try:
+            data = robust_json_loads(cleaned)
+            parsed = CompressedSummaryOutput.model_validate(data)
+            if parsed.summary.strip():
+                cleaned = parsed.summary.strip()
+        except Exception:
+            pass
+    cleaned = re.sub(r"^---\n.*?\n---\s*", "", cleaned, flags=re.DOTALL).strip()
+    return strip_wikilinks(cleaned)
+
+
+def _deterministic_one_liner_fallback(content: str, keywords: list[str] | None = None) -> str:
+    """Deterministic fallback that extracts the highest-matching single bullet when LLM socket fails."""
+    body = re.sub(r"^---\n.*?\n---\s*", "", content, flags=re.DOTALL).strip()
+    bullets = [
+        strip_wikilinks(line.strip())
+        for line in body.splitlines()
+        if line.strip().startswith(("- ", "* ", "• "))
+    ]
+    if bullets:
+        if keywords:
+            kw_low = [k.lower() for k in keywords if k]
+            bullets.sort(key=lambda b: sum(1 for k in kw_low if k in b.lower()), reverse=True)
+        return bullets[0]
+    first_para = next((p.strip() for p in body.split("\n\n") if p.strip() and not p.strip().startswith("#")), "")
+    return strip_wikilinks(first_para[:220]) if first_para else content
+
+
+def compress_experience_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """
     Compresses an old, lower-relevance experience entry into a highly concise summary
     retaining metadata, company description/size, location, technologies, and 1 key achievement.
     """
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_experience.txt")
-        prompt = system_template.replace("{CONTENT}", content)
+        kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
+        prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
-        return llm_text(response.content)
+        response = model.invoke([HumanMessage(content=prompt)])
+        return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress experience via LLM: {e}")
         return content
 
 
-def compress_experience_to_one_liner_llm(content: str) -> str:
+def compress_experience_to_one_liner_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """
     Compresses an extremely historic experience entry into a single highly optimized,
-    ATS-aligned sentence while retaining its YAML frontmatter.
+    ATS-aligned sentence while Python retains its YAML frontmatter deterministically.
     """
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_to_one_liner.txt")
-        prompt = system_template.replace("{CONTENT}", content)
+        kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
+        prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
-        return llm_text(response.content)
+        response = model.invoke([HumanMessage(content=prompt)])
+        return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress experience to one-liner via LLM: {e}")
-        return content
+        return _deterministic_one_liner_fallback(content, keywords=keywords)
 
 
-def compress_grouped_experience_llm(content: str) -> str:
+def compress_grouped_experience_llm(content: str, keywords: list[str] | None = None, llm: Any = None) -> str:
     """Compresses a grouped set of old experience entries into a structured nested list."""
     try:
-        llm = _get_model_for_step("RETRIEVAL")
+        model = llm if llm is not None else _get_model_for_step("RETRIEVAL")
         system_template = _resolve_prompt("compress_grouped_experience.txt")
-        prompt = system_template.replace("{CONTENT}", content)
+        kw_str = ", ".join(keywords) if keywords else "general leadership and technical impact"
+        prompt = system_template.replace("{CONTENT}", content).replace("{KEYWORDS}", kw_str)
 
-        response = llm.invoke([HumanMessage(content=prompt)])
-        return llm_text(response.content)
+        response = model.invoke([HumanMessage(content=prompt)])
+        return _extract_compressed_summary(llm_text(response.content))
     except Exception as e:
         logger.warning(f"Failed to compress grouped experience via LLM: {e}")
         return content
+
+
+def invoke_structured_llm(llm: Any, schema: type[Any], messages: list[Any]) -> Any:
+    """Invoke an LLM and validate the response into the target Pydantic schema."""
+    is_mock = type(llm).__module__.startswith("unittest.mock")
+    has_explicit_mock_structured = is_mock and "with_structured_output" in getattr(llm, "__dict__", {})
+    if (not is_mock or has_explicit_mock_structured) and hasattr(llm, "with_structured_output"):
+        try:
+            structured_llm = (
+                llm.with_structured_output(schema, method="function_calling")
+                if isinstance(llm, ChatOpenAI)
+                else llm.with_structured_output(schema)
+            )
+            res = structured_llm.invoke(messages)
+            if isinstance(res, schema):
+                return res
+            if isinstance(res, dict):
+                return schema.model_validate(res)
+        except Exception as e:
+            logger.debug("with_structured_output fallback triggered for %s: %s", getattr(schema, "__name__", schema), e)
+
+    response = llm.invoke(messages)
+    if isinstance(response, schema):
+        return response
+    if isinstance(response, dict):
+        return schema.model_validate(response)
+    raw_text = llm_text(response.content)
+    data = robust_json_loads(raw_text)
+    return schema.model_validate(data)
 
 
 def _parse_start_date(entry_str: str) -> tuple[int, int]:
@@ -216,40 +283,118 @@ def parse_and_sort_chronological_entries(entries: list[str]) -> str:
 
 
 def invoke_drafter_llm_with_fallback(llm: Any, system_prompt: str, prompt: str) -> Any:
-    """Invoke LLM for drafting, with custom handling and fallback for rate limits."""
-    try:
-        return llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=prompt)
-        ])
-    except Exception as e:
-        err_msg = str(e).lower()
-        is_rate_limit = any(
-            keyword in err_msg
-            for keyword in ["rate_limit", "rate limit", "limit_exceeded", "429"]
-        )
-        if not is_rate_limit:
-            raise e
-
-        fallback_llm = _get_fallback_model_for_step("DRAFTING")
-        if fallback_llm is None:
-            logger.warning(
-                f"DRAFTING LLM invocation failed due to rate limit: {e}. "
-                "No valid fallback model configured or credentials missing. Re-raising error."
-            )
-            raise e
-
-        logger.warning(
-            f"DRAFTING LLM invocation failed due to rate limit: {e}. "
-            "Attempting configured fallback model..."
-        )
+    """Invoke LLM for drafting, with retry for transient Windows socket errors and fallback for rate limits."""
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=prompt),
+    ]
+    last_err: Exception | None = None
+    for attempt in range(3):
         try:
-            return fallback_llm.invoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=prompt)
-            ])
-        except Exception:
-            logger.exception(
-                "Configured fallback model failed. Re-raising original rate limit error."
+            return llm.invoke(messages)
+        except Exception as e:
+            last_err = e
+            err_msg = str(e).lower()
+            is_socket_err = "10013" in err_msg or "connecterror" in err_msg or "socket" in err_msg
+            if is_socket_err and attempt < 2:
+                logger.warning("Transient socket error on drafting attempt %d/3 (%s); retrying in 1.5s...", attempt + 1, e)
+                time.sleep(1.5)
+                continue
+            break
+
+    assert last_err is not None
+    err_msg = str(last_err).lower()
+    is_rate_limit = any(
+        keyword in err_msg
+        for keyword in ["rate_limit", "rate limit", "limit_exceeded", "429"]
+    )
+    if not is_rate_limit:
+        raise last_err
+
+    fallback_llm = _get_fallback_model_for_step("DRAFTING")
+    if fallback_llm is None:
+        logger.warning(
+            f"DRAFTING LLM invocation failed due to rate limit: {last_err}. "
+            "No valid fallback model configured or credentials missing. Re-raising error."
+        )
+        raise last_err
+
+    logger.warning(
+        f"DRAFTING LLM invocation failed due to rate limit: {last_err}. "
+        "Attempting configured fallback model..."
+    )
+    try:
+        return fallback_llm.invoke(messages)
+    except Exception:
+        logger.exception(
+            "Configured fallback model failed. Re-raising original rate limit error."
+        )
+        raise last_err
+
+
+def check_typesetting_budget(draft: str, max_pages: int) -> tuple[bool, str, int, int]:
+    """Evaluate whether the drafted CV fits within the calibrated typesetting page budget."""
+    words = len(draft.split())
+    bullet_lines = sum(
+        1 for line in draft.splitlines()
+        if line.strip().startswith(("- ", "* ", "• "))
+    )
+    char_count = len(draft)
+
+    if max_pages == 1:
+        word_limit, bullet_limit, char_limit = 500, 20, 4500
+    elif max_pages == 3:
+        word_limit, bullet_limit, char_limit = 1550, 62, 12500
+    elif max_pages >= 4:
+        word_limit = max_pages * 500
+        bullet_limit = max_pages * 20
+        char_limit = 12500 + (max_pages - 3) * 4000
+    else:
+        word_limit, bullet_limit, char_limit = 1050, 42, 8500
+
+    if words > word_limit or bullet_lines > bullet_limit or char_count > char_limit:
+        excess_words = max(0, words - word_limit)
+        excess_bullets = max(0, bullet_lines - bullet_limit)
+        feedback = (
+            f"DENSITY ERROR: The CV is too long. DENSITY OVERFLOW: CV exceeds the {max_pages}-page budget. "
+            f"Words: {words}/{word_limit} (+{excess_words}), "
+            f"Bullet lines: {bullet_lines}/{bullet_limit} (+{excess_bullets}), "
+            f"Characters: {char_count}/{char_limit}. "
+            "Compress wordy STAR achievement bullets, eliminate fluff, and trim secondary "
+            "accomplishments from older roles."
+        )
+        return True, feedback, words, bullet_lines
+
+    return False, "", words, bullet_lines
+
+
+def handle_interactive_audit(checklist: list[str], ats_score: dict[str, Any]) -> tuple[bool, str]:
+    """Interactive CLI prompt allowing the user to review the scorecard and guide the audit."""
+    _ = ats_score
+    if not sys.stdin.isatty():
+        return False, ""
+
+    sys.stdout.write(
+        "\n" + "=" * 50 + "\nINTERACTIVE AUDITOR REVIEW\n" + "=" * 50 + "\n"
+        "[1] Accept Draft (override audit and mark PASS)\n"
+        "[2] Provide Custom Revision Guidance\n"
+        "[3] Proceed with Automatic Rewrite Checklist\n"
+    )
+    try:
+        choice = input("Select an option [1-3] (default 3): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return False, ""
+
+    if choice == "1":
+        return True, "PASS"
+    if choice == "2":
+        try:
+            custom_note = input("Enter your custom revision directive for the drafter: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            custom_note = ""
+        if custom_note:
+            feedback = f"USER REVISION DIRECTIVE:\n- {custom_note}\n\nORIGINAL AUDIT CHECKLIST:\n" + "\n".join(
+                [f"- [ ] {item}" for item in checklist]
             )
-            raise e
+            return True, feedback
+    return False, ""

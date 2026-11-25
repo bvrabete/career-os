@@ -4,7 +4,7 @@ Delegates entirely to the new, modular 'generation' package.
 """
 
 from generation.state import CVPipelineState
-from generation.graph import build_graph, routing_logic
+from generation.graph import build_graph
 from generation.nodes import (
     node_analyzer,
     node_retriever,
@@ -24,7 +24,6 @@ from generation.helpers import (
 __all__ = [
     "CVPipelineState",
     "build_graph",
-    "routing_logic",
     "node_analyzer",
     "node_retriever",
     "node_drafter",

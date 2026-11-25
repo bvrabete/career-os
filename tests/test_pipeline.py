@@ -1,9 +1,9 @@
+import pytest
 import argparse
 import json
 from pathlib import Path
 import sys
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 # Ensure src is in python path
@@ -22,7 +22,7 @@ from generation.nodes import node_analyzer, node_drafter
 from generation.state import CVPipelineState
 
 
-class TestCVGeneratorPipeline(unittest.TestCase):
+class TestCVGeneratorPipeline:
     """Unit tests for the Career OS CV Generator Pipeline enhancements."""
 
     def test_score_by_keywords_exact_matches(self):
@@ -30,28 +30,26 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         text = "Experienced in Python and Azure Cloud deployments."
         keywords = ["Python", "Azure", "Cloud", "Nonexistent"]
         score = _score_by_keywords(text, keywords)
-        self.assertEqual(score, 3)
+        assert score == 3
 
     def test_score_by_keywords_case_insensitivity(self):
         """Test _score_by_keywords is case-insensitive."""
         text = "experienced in python and azure cloud deployments."
         keywords = ["PYTHON", "AZURE", "CLOUD"]
         score = _score_by_keywords(text, keywords)
-        self.assertEqual(score, 3)
+        assert score == 3
 
     def test_score_by_keywords_word_boundaries(self):
         """Test _score_by_keywords respects word boundaries (no partial matching)."""
         text = "We use Pythoneer and AzureDevOps daily."
         keywords = ["Python", "Azure"]
         score = _score_by_keywords(text, keywords)
-        self.assertEqual(
-            score, 0
-        )  # "Python" does not match "Pythoneer", "Azure" does not match "AzureDevOps"
+        assert score == 0  # "Python" does not match "Pythoneer", "Azure" does not match "AzureDevOps"
 
     def test_score_by_keywords_empty_inputs(self):
         """Test _score_by_keywords handles empty inputs gracefully."""
-        self.assertEqual(_score_by_keywords("", ["Python"]), 0)
-        self.assertEqual(_score_by_keywords("Some text", []), 0)
+        assert _score_by_keywords("", ["Python"]) == 0
+        assert _score_by_keywords("Some text", []) == 0
 
     @patch("generation.helpers.get_model_for_step")
     def test_generate_skill_bridging_map_basic(self, mock_get_model):
@@ -68,8 +66,8 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
         bridge_map = _generate_skill_bridging_map(mock_llm, skills, keywords)
 
-        self.assertEqual(bridge_map.get("AWS"), "Azure (equivalent)")
-        self.assertEqual(bridge_map.get("React"), "Angular (equivalent)")
+        assert bridge_map.get("AWS") == "Azure (equivalent)"
+        assert bridge_map.get("React") == "Angular (equivalent)"
 
     @patch("generation.helpers.get_model_for_step")
     def test_generate_skill_bridging_map_invalid_json(self, mock_get_model):
@@ -81,7 +79,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         mock_get_model.return_value = mock_llm
 
         bridge_map = _generate_skill_bridging_map(mock_llm, [], ["AWS"])
-        self.assertEqual(bridge_map, {})
+        assert bridge_map == {}
 
     @patch("generation.nodes.get_model_for_step")
     @patch("generation.nodes.get_wiki_dir")
@@ -142,9 +140,9 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         result = node_analyzer(state)
 
         # Verify region is the overridden value "ireland" instead of suggested "emea"
-        self.assertEqual(result["target_region"], "ireland")
-        self.assertEqual(result["target_organization_slug"], "mock-org")
-        self.assertEqual(result["target_role"], "Mock Role")
+        assert result["target_region"] == "ireland"
+        assert result["target_organization_slug"] == "mock-org"
+        assert result["target_role"] == "Mock Role"
 
     @patch("generation.helpers.get_model_for_step")
     def test_compress_experience_llm_success(self, mock_get_model):
@@ -157,7 +155,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
 
         raw_experience = "---\ntype: experience\n---\nLong body list..."
         compressed = _compress_experience_llm(raw_experience)
-        self.assertEqual(compressed, "Compressed content summary.")
+        assert compressed == "Compressed content summary."
         mock_get_model.assert_called_once_with("RETRIEVAL")
 
     @patch("generation.nodes.get_model_for_step")
@@ -209,7 +207,7 @@ class TestCVGeneratorPipeline(unittest.TestCase):
         }
 
         result = node_drafter(state)
-        self.assertEqual(result["draft_cv"], "Gemini-drafted CV content")
+        assert result["draft_cv"] == "Gemini-drafted CV content"
         mock_get_fallback.assert_called_once_with("DRAFTING")
 
     @patch("generation.nodes.get_model_for_step")
@@ -256,9 +254,9 @@ class TestCVGeneratorPipeline(unittest.TestCase):
             "languages_entries": [],
         }
 
-        with self.assertRaises(RuntimeError) as context:
+        with pytest.raises(RuntimeError) as context:
             node_drafter(state)
-        self.assertIn("rate_limit_exceeded", str(context.exception))
+        assert "rate_limit_exceeded" in str(context.value)
 
     def test_prune_recent_experience_top_achievements(self):
         """Test that _prune_recent_experience ranks and limits achievements to the top 4."""
@@ -312,48 +310,48 @@ This is some narrative text that should be stripped.
         )
 
         # Verify that Narrative & Reflections is stripped
-        self.assertNotIn("Narrative & Reflections", pruned)
-        self.assertNotIn("should be stripped", pruned)
+        assert "Narrative & Reflections" not in pruned
+        assert "should be stripped" not in pruned
 
         # Verify that only 4 achievements are kept (and the "office kitchen" one is filtered out)
-        self.assertIn("FastAPI", pruned)
-        self.assertIn("CockroachDB", pruned)
-        self.assertIn("Docker and Kubernetes", pruned)
-        self.assertIn("Trained 5 engineers", pruned)
-        self.assertNotIn("Paint the office kitchen", pruned)
+        assert "FastAPI" in pruned
+        assert "CockroachDB" in pruned
+        assert "Docker and Kubernetes" in pruned
+        assert "Trained 5 engineers" in pruned
+        assert "Paint the office kitchen" not in pruned
 
         # Count the number of achievements (Situation blocks)
-        self.assertEqual(pruned.count("- **Situation"), 4)
+        assert pruned.count("- **Situation") == 4
 
     def test_detect_employment_type_explicit(self):
         """Test _detect_employment_type with explicit frontmatter."""
         fm = {"employment_type": "Contract"}
-        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        assert _detect_employment_type(fm, "") == "Contract"
 
         fm = {"employment_type": "Permanent"}
-        self.assertEqual(_detect_employment_type(fm, ""), "Permanent")
+        assert _detect_employment_type(fm, "") == "Permanent"
 
         fm = {"employment_type": "contract"}
-        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        assert _detect_employment_type(fm, "") == "Contract"
 
     def test_detect_employment_type_fallback(self):
         """Test _detect_employment_type fallbacks when frontmatter is missing."""
         fm = {"tags": ["contract", "remote"]}
-        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        assert _detect_employment_type(fm, "") == "Contract"
 
         fm = {"title": "Contract Software Engineer"}
-        self.assertEqual(_detect_employment_type(fm, ""), "Contract")
+        assert _detect_employment_type(fm, "") == "Contract"
 
         fm = {}
         content = "Worked as a contractor for 6 months."
-        self.assertEqual(_detect_employment_type(fm, content), "Contract")
+        assert _detect_employment_type(fm, content) == "Contract"
 
         fm = {}
         content = "Regular full-time software developer role."
-        self.assertEqual(_detect_employment_type(fm, content), "Permanent")
+        assert _detect_employment_type(fm, content) == "Permanent"
 
 
-class TestDOCXGenerator(unittest.TestCase):
+class TestDOCXGenerator:
     """Unit tests for the DOCX generation utility using Pandoc."""
 
     def test_docx_generation_success(self):
@@ -362,9 +360,9 @@ class TestDOCXGenerator(unittest.TestCase):
             out_file = Path(tmpdir) / "test_output.docx"
             md_content = "# Hello World\nSome body text."
             success = generate_docx(md_content, str(out_file))
-            self.assertTrue(success)
-            self.assertTrue(out_file.exists())
-            self.assertGreater(out_file.stat().st_size, 0)
+            assert success
+            assert out_file.exists()
+            assert out_file.stat().st_size > 0
 
     @patch("docx.Document")
     def test_docx_generation_failure(self, mock_doc):
@@ -373,10 +371,10 @@ class TestDOCXGenerator(unittest.TestCase):
         mock_doc.side_effect = Exception("Mocked document creation failure")
 
         success = generate_docx("# Dummy", "dummy.docx")
-        self.assertFalse(success)
+        assert not success
 
 
-class TestSynthesisFileReuse(unittest.TestCase):
+class TestSynthesisFileReuse:
     """Unit tests for active synthesis file reuse logic."""
 
     def test_parse_synthesis_metadata(self):
@@ -386,19 +384,19 @@ class TestSynthesisFileReuse(unittest.TestCase):
             f_path = Path(f.name)
         try:
             meta = _parse_synthesis_metadata(f_path)
-            self.assertEqual(meta.get("status"), "Generated")
-            self.assertEqual(meta.get("created"), "2026-07-01")
+            assert meta.get("status") == "Generated"
+            assert meta.get("created") == "2026-07-01"
         finally:
             f_path.unlink(missing_ok=True)
 
 
-class TestOutputFolderHandling(unittest.TestCase):
+class TestOutputFolderHandling:
     """Unit tests for output folder handling logic."""
 
     def test_save_outputs_folder_append(self):
         """Test that save_outputs correctly appends the JD's name with .md if out is a folder."""
 
-        with tempfile.TemporaryDirectory(dir=str(Path.home())) as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir) / "output_folder"
             args = argparse.Namespace(
                 out=str(out_dir),
@@ -415,11 +413,7 @@ class TestOutputFolderHandling(unittest.TestCase):
             out_path = save_outputs(args, draft, final_state, synthesis_path, synthesis_content)
 
             expected_path = out_dir / "my_jumbo_jd.md"
-            self.assertEqual(out_path, expected_path)
-            self.assertTrue(out_path.exists())
+            assert out_path == expected_path
+            assert out_path.exists()
             with open(out_path, "r", encoding="utf-8") as f:
-                self.assertEqual(f.read(), draft)
-
-
-if __name__ == "__main__":
-    unittest.main()
+                assert f.read() == draft

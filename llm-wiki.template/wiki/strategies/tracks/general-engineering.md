@@ -4,6 +4,7 @@ title: "Senior Software Engineering Track"
 seniority_levels: [Senior Software Engineer, Full-Stack Engineer, Backend Engineer, Frontend Engineer]
 archetype: "Hands-on Technical Craftsmanship & Reliable Execution"
 focus: [Feature Delivery, Clean Architecture, Test Automation, CI/CD, Production Reliability]
+org_culture: corporate
 created: 2026-09-20
 updated: 2026-09-20
 ---

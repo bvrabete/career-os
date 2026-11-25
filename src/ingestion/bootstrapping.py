@@ -23,7 +23,7 @@ def _bootstrap_subdirs(wiki_root: Path) -> None:
     """Create all standard subdirectories under the wiki root with .gitkeep placeholders."""
     subdirs = [
         "experiences", "education", "entities", "projects", "skills",
-        "sources", "synthesis", "concepts", "notes", "patents", "publications",
+        "sources", "concepts", "notes", "patents", "publications",
         "strategies", "queries", "media", "cover-letters", "case-studies", "voice"
     ]
     for subdir in subdirs:
@@ -92,11 +92,13 @@ The LLM Wiki tool must consult this file during ingestion to prevent duplicate o
             target_mappings.write_text(mappings_template, encoding="utf-8")
             logging.info("Created clean, generic mappings.md template (fallback)")
 
-    # 3. Log
-    target_log = wiki_root / "log.md"
+    # 3. Log (at <wiki_dir>/log.md outside wiki/)
+    target_log = wiki_dir / "log.md"
     if not target_log.exists():
         copied_log = False
-        repo_log = repo_llm_wiki / "wiki" / "log.md"
+        repo_log = repo_llm_wiki / "log.md"
+        if not repo_log.exists():
+            repo_log = repo_llm_wiki / "wiki" / "log.md"
         if repo_log.exists():
             try:
                 shutil.copy(repo_log, target_log)
@@ -180,8 +182,10 @@ def _bootstrap_voice(wiki_root: Path) -> None:
 
 
 def _bootstrap_crm(wiki_root: Path) -> None:
-    """Bootstrap applications.yaml CRM registry if missing."""
-    target_crm = wiki_root / APPLICATIONS_FILE_NAME
+    """Bootstrap applications/ directory and applications/applications.yaml CRM registry if missing."""
+    apps_dir = wiki_root.parent / "applications"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+    target_crm = apps_dir / APPLICATIONS_FILE_NAME
     if not target_crm.exists():
         crm_content = (
             "# CareerOS Applications CRM Registry\n"
@@ -189,7 +193,16 @@ def _bootstrap_crm(wiki_root: Path) -> None:
             "applications: []\n"
         )
         target_crm.write_text(crm_content, encoding="utf-8")
-        logging.info("Bootstrapped empty applications.yaml CRM registry")
+        logging.info("Bootstrapped empty applications/applications.yaml CRM registry")
+
+    repo_obsidian = Path(__file__).resolve().parent.parent.parent / "llm-wiki.template" / ".obsidian" / "graph.json"
+    target_obsidian = wiki_root.parent / ".obsidian" / "graph.json"
+    if not target_obsidian.exists() and repo_obsidian.exists():
+        try:
+            target_obsidian.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(repo_obsidian, target_obsidian)
+        except Exception as e:
+            logging.warning(f"Failed to copy .obsidian/graph.json: {e}")
 
 
 def bootstrap_wiki_structure(wiki_dir: Path, force: bool = False) -> None:

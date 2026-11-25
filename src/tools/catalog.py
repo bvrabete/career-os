@@ -7,9 +7,19 @@ from typing import Any
 
 import yaml
 
-from utils import validate_path
+from schemas.config_models import WikiCatalog
+from utils import extract_wikilink_slug, validate_path
 
 logger = logging.getLogger(__name__)
+
+
+def _unwrap_org_value(raw_val: Any) -> str:
+    """Unwrap wikilink or nested list into a clean string while preserving non-wikilink display names."""
+    if raw_val is None:
+        return ""
+    if isinstance(raw_val, list) or "[[" in str(raw_val):
+        return extract_wikilink_slug(raw_val)
+    return str(raw_val).strip()
 
 
 def _parse_frontmatter(file_path: Path) -> dict[str, Any]:
@@ -28,7 +38,7 @@ def _parse_frontmatter(file_path: Path) -> dict[str, Any]:
 
 
 def _index_experiences(wiki_root: Path) -> list[dict[str, Any]]:
-    """Index all experience markdown files."""
+    """Index all experience markdown files (supporting both schema.md and legacy keys)."""
     exp_dir = wiki_root / "experiences"
     if not exp_dir.is_dir():
         return []
@@ -39,13 +49,19 @@ def _index_experiences(wiki_root: Path) -> list[dict[str, Any]]:
         fm = _parse_frontmatter(file)
         content = file.read_text(encoding="utf-8")
         bullets = [line for line in content.splitlines() if line.strip().startswith("- ")]
-        case_study_links = content.count("[[case-studies/")
+        cs_list = fm.get("case_studies", [])
+        case_study_links = len(cs_list) if isinstance(cs_list, list) and cs_list else content.count("[[case-studies/")
+        raw_dates = fm.get("dates")
+        dates: dict[str, Any] = raw_dates if isinstance(raw_dates, dict) else {}
+        start_val = fm.get("start_date") or dates.get("start") or ""
+        end_val = fm.get("end_date") or dates.get("end") or ""
+        role_val = fm.get("role") or fm.get("title") or ""
         records.append({
             "slug": file.stem,
-            "organization": fm.get("organization", ""),
-            "role": fm.get("role", ""),
-            "start_date": str(fm.get("start_date", "")),
-            "end_date": str(fm.get("end_date", "")),
+            "organization": _unwrap_org_value(fm.get("organization", "")),
+            "role": str(role_val),
+            "start_date": str(start_val),
+            "end_date": str(end_val),
             "achievements_count": len(bullets),
             "case_studies_count": case_study_links,
             "file": file.name,
@@ -54,7 +70,7 @@ def _index_experiences(wiki_root: Path) -> list[dict[str, Any]]:
 
 
 def _index_education(wiki_root: Path) -> list[dict[str, Any]]:
-    """Index education records."""
+    """Index education records (supporting both schema.md and legacy keys)."""
     edu_dir = wiki_root / "education"
     if not edu_dir.is_dir():
         return []
@@ -63,11 +79,14 @@ def _index_education(wiki_root: Path) -> list[dict[str, Any]]:
         if file.name.startswith("."):
             continue
         fm = _parse_frontmatter(file)
+        raw_dates = fm.get("dates")
+        dates: dict[str, Any] = raw_dates if isinstance(raw_dates, dict) else {}
+        year_val = fm.get("year") or fm.get("end_date") or dates.get("end") or dates.get("start") or ""
         records.append({
             "slug": file.stem,
-            "institution": fm.get("institution", ""),
-            "degree": fm.get("degree", ""),
-            "year": str(fm.get("year", fm.get("end_date", ""))),
+            "institution": _unwrap_org_value(fm.get("institution", "")),
+            "degree": str(fm.get("degree") or fm.get("title") or ""),
+            "year": str(year_val),
             "file": file.name,
         })
     return records
@@ -83,11 +102,12 @@ def _index_projects(wiki_root: Path) -> list[dict[str, Any]]:
         if file.name.startswith(".") or file.name.endswith(".example.md"):
             continue
         fm = _parse_frontmatter(file)
+        techs = fm.get("technologies") or fm.get("skills") or []
         records.append({
             "slug": file.stem,
-            "name": fm.get("name", file.stem),
-            "project_nature": fm.get("project_nature", "project"),
-            "technologies": fm.get("technologies", []),
+            "name": str(fm.get("name") or fm.get("title") or file.stem),
+            "project_nature": str(fm.get("project_nature", "project")),
+            "technologies": [str(t) for t in techs] if isinstance(techs, list) else [],
             "file": file.name,
         })
     return records
@@ -103,10 +123,11 @@ def _index_case_studies(wiki_root: Path) -> list[dict[str, Any]]:
         if file.name.startswith("."):
             continue
         fm = _parse_frontmatter(file)
+        rel_exp = fm.get("related_experience") or fm.get("tenure") or ""
         records.append({
             "slug": file.stem,
-            "title": fm.get("title", file.stem),
-            "related_experience": fm.get("related_experience", ""),
+            "title": str(fm.get("title", file.stem)),
+            "related_experience": _unwrap_org_value(rel_exp),
             "file": file.name,
         })
     return records
@@ -167,7 +188,7 @@ def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
     strategies_info = _index_strategies(wiki_root)
     strategies = strategies_info["all"]
 
-    return {
+    catalog_dict = {
         "metadata": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_experiences": len(experiences),
@@ -188,27 +209,29 @@ def generate_catalog(wiki_dir: Path) -> dict[str, Any]:
         "location_strategies": strategies_info["locations"],
         "track_strategies": strategies_info["tracks"],
     }
+    WikiCatalog.model_validate(catalog_dict)
+    return catalog_dict
 
 
 def save_catalog(wiki_dir: Path, catalog: dict[str, Any] | None = None) -> Path:
-    """Save the catalog to catalog.json under wiki_dir/wiki or wiki_dir."""
+    """Save the catalog to catalog.json at the vault root (<wiki_dir>/catalog.json)."""
     validated_dir = validate_path(wiki_dir)
-    wiki_root = validated_dir / "wiki" if (validated_dir / "wiki").is_dir() else validated_dir
+    vault_root = validated_dir.parent if validated_dir.name == "wiki" else validated_dir
 
     if catalog is None:
         catalog = generate_catalog(wiki_dir)
 
-    target_file = validate_path(wiki_root / "catalog.json")
+    target_file = validate_path(vault_root / "catalog.json")
     target_file.write_text(json.dumps(catalog, indent=2, ensure_ascii=False), encoding="utf-8")
     logger.info(f"Saved wiki catalog to: {target_file}")
     return target_file
 
 
 def load_catalog(wiki_dir: Path) -> dict[str, Any] | None:
-    """Load existing catalog.json if available."""
+    """Load existing catalog.json from the vault root if available."""
     validated_dir = validate_path(wiki_dir)
-    wiki_root = validated_dir / "wiki" if (validated_dir / "wiki").is_dir() else validated_dir
-    catalog_path = wiki_root / "catalog.json"
+    vault_root = validated_dir.parent if validated_dir.name == "wiki" else validated_dir
+    catalog_path = vault_root / "catalog.json"
     if not catalog_path.exists():
         return None
     try:

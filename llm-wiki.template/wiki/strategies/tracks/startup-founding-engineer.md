@@ -4,6 +4,7 @@ title: "Startup & Founding Engineer Track"
 seniority_levels: [Founding Engineer, Core Engineer, Lead Developer, Head of Engineering (Early-Stage)]
 archetype: "Zero-to-One Product Builder & High Agency"
 focus: [Zero-to-One, Product Velocity, Autonomous Execution, Full-Stack Architecture, High Agency]
+org_culture: startup
 created: 2026-09-20
 updated: 2026-09-20
 ---

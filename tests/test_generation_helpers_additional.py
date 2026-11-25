@@ -1,8 +1,8 @@
+import pytest
 import logging
 from pathlib import Path
 import shutil
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 from generation.helpers import (
@@ -37,30 +37,30 @@ from langchain_core.messages import AIMessage
 logging.basicConfig(level=logging.ERROR)
 
 
-class TestGenerationHelpersAdditional(unittest.TestCase):
+class TestGenerationHelpersAdditional:
     """Deterministic offline unit tests for remaining generation helpers paths."""
 
-    def setUp(self):
+    def setup_method(self):
         self.temp_dir = tempfile.TemporaryDirectory(dir=".")
         self.temp_path = Path(self.temp_dir.name)
         self.wiki_dir = self.temp_path / "wiki_dir"
         self.wiki_root = self.wiki_dir / "wiki"
         self.wiki_root.mkdir(parents=True, exist_ok=True)
 
-    def tearDown(self):
+    def teardown_method(self):
         self.temp_dir.cleanup()
 
     # 1. robust_json_loads & score_by_keywords Edge Cases
     def test_robust_json_loads_failures(self):
         """Test robust_json_loads throwing exceptions on invalid json format."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             robust_json_loads("{invalid json string}")
 
     def test_score_by_keywords_edge_cases(self):
         """Test score_by_keywords with null text, empty keywords, and empty elements."""
-        self.assertEqual(score_by_keywords("", ["python"]), 0)
-        self.assertEqual(score_by_keywords("python", []), 0)
-        self.assertEqual(score_by_keywords("python java", ["", "  ", "python"]), 1)
+        assert score_by_keywords("", ["python"]) == 0
+        assert score_by_keywords("python", []) == 0
+        assert score_by_keywords("python java", ["", "  ", "python"]) == 1
 
     # 2. Skill Bridging Map & LLM Experience Compression
     @patch("generation.helpers.load_prompt", return_value="KEYWORDS: {KEYWORDS}\nSUMMARY: {SKILLS_SUMMARY}")
@@ -73,12 +73,12 @@ class TestGenerationHelpersAdditional(unittest.TestCase):
 
         # Success
         res = generate_skill_bridging_map(mock_llm, ["java", "pytest"], ["kotlin", "unittest"])
-        self.assertEqual(res.get("java"), "kotlin")
+        assert res.get("java") == "kotlin"
 
         # Exception
         mock_llm.invoke.side_effect = Exception("LLM call failed")
         res = generate_skill_bridging_map(mock_llm, ["java"], ["kotlin"])
-        self.assertEqual(res, {})
+        assert res == {}
 
     def test_compress_experience_llm(self):
         """Test compress_experience_llm success and exception handling."""
@@ -91,14 +91,14 @@ class TestGenerationHelpersAdditional(unittest.TestCase):
         with patch("generation.helpers.get_model_for_step", return_value=mock_llm), \
              patch("generation.helpers.load_prompt", return_value="Compress template"):
             res = compress_experience_llm("Detailed experience text")
-            self.assertEqual(res, "Compressed content")
+            assert res == "Compressed content"
 
         # Exception path should return original content
         mock_llm.invoke.side_effect = Exception("LLM failed")
         with patch("generation.helpers.get_model_for_step", return_value=mock_llm), \
              patch("generation.helpers.load_prompt", return_value="Compress template"):
             res = compress_experience_llm("Detailed experience text")
-            self.assertEqual(res, "Detailed experience text")
+            assert res == "Detailed experience text"
 
     # 3. Recent Experience Pruning and Achievement Extraction
     def test_prune_recent_frontmatter(self):
@@ -110,9 +110,9 @@ class TestGenerationHelpersAdditional(unittest.TestCase):
             "tracks": ["Engineering", "Leadership"]
         }
         res = _prune_recent_frontmatter(fm, "Permanent")
-        self.assertIn("Staff Software Engineer", res)
-        self.assertIn("google-cloud", res)
-        self.assertIn("Permanent", res)
+        assert "Staff Software Engineer" in res
+        assert "google-cloud" in res
+        assert "Permanent" in res
 
     def test_extract_and_clean_achievements(self):
         """Test _extract_and_clean_achievements splits bullet points and paragraphs."""
@@ -121,9 +121,9 @@ class TestGenerationHelpersAdditional(unittest.TestCase):
 - **Situation**: Designed and built scalable ML feature store in AWS.
 Other trailing details here."""
         achievements, desc = _extract_and_clean_achievements(body)
-        self.assertEqual(len(achievements), 2)
-        self.assertIn("- **Situation**: Achieved 50% performance improvement", achievements[0])
-        self.assertIn("Some introductory description", desc)
+        assert len(achievements) == 2
+        assert "- **Situation**: Achieved 50% performance improvement" in achievements[0]
+        assert "Some introductory description" in desc
 
     def test_select_top_achievements(self):
         """Test selecting achievements matching keywords."""
@@ -134,14 +134,14 @@ Other trailing details here."""
 Outro"""
         # Python keyword should rank Python achievement first
         res = _select_top_achievements(body, ["python", "ML"])
-        self.assertIn("Achieved 50% improvement", res)
-        self.assertIn("Designed and built scalable ML", res)
+        assert "Achieved 50% improvement" in res
+        assert "Designed and built scalable ML" in res
 
     def test_prune_recent_experience_no_frontmatter(self):
         """Test prune_recent_experience returns cleaned body when no frontmatter is found."""
         content = "Just simple text without frontmatter blocks."
         res = prune_recent_experience(content)
-        self.assertEqual(res, "Just simple text without frontmatter blocks.")
+        assert res == "Just simple text without frontmatter blocks."
 
     # 4. Experiences Scoring, Extraction and Deduplication
     @patch("generation.helpers.get_wiki_dir")
@@ -149,7 +149,7 @@ Outro"""
         """Test scoring when the directory is missing, and file sizes are too small."""
         mock_get_wiki_dir.return_value = self.wiki_dir / "does_not_exist"
         scored = _score_experiences_list(MagicMock(), ["kw"], "persona", "jd", "template")
-        self.assertEqual(scored, [])
+        assert scored == []
 
         # File size < 50 chars
         exp_dir = self.wiki_dir / "wiki" / "experiences"
@@ -161,24 +161,24 @@ Outro"""
 
         mock_llm = MagicMock()
         res = _score_single_experience(mock_llm, small_file, ["kw"], "persona", "jd", "template")
-        self.assertIsNone(res)
+        assert res is None
 
     def test_extract_start_year(self):
         """Test _extract_start_year variations."""
-        self.assertEqual(_extract_start_year({"start": "2020"}), "2020")
-        self.assertEqual(_extract_start_year({"dates": "2015-05-15"}), "2015")
-        self.assertEqual(_extract_start_year({}), "")
+        assert _extract_start_year({"start": "2020"}) == "2020"
+        assert _extract_start_year({"dates": "2015-05-15"}) == "2015"
+        assert _extract_start_year({}) == ""
 
     def test_detect_employment_type(self):
         """Test _detect_employment_type configurations."""
-        self.assertEqual(_detect_employment_type({"employment_type": "Contract"}, "Body"), "Contract")
-        self.assertEqual(_detect_employment_type({}, "This is a contractor role"), "Contract")
-        self.assertEqual(_detect_employment_type({}, "consulting (contract) work"), "Contract")
-        self.assertEqual(_detect_employment_type({}, "Regular permanent job"), "Permanent")
-        self.assertEqual(_detect_employment_type({"title": "Co-Founder and CTO"}, ""), "Startup / Co-Founder")
-        self.assertEqual(_detect_employment_type({"employment_type": "co_founder"}, ""), "Startup / Co-Founder")
-        self.assertEqual(_detect_employment_type({"title": "Technical Advisor"}, ""), "Advisory")
-        self.assertEqual(_detect_employment_type({"employment_type": "advisory"}, ""), "Advisory")
+        assert _detect_employment_type({"employment_type": "Contract"}, "Body") == "Contract"
+        assert _detect_employment_type({}, "This is a contractor role") == "Contract"
+        assert _detect_employment_type({}, "consulting (contract) work") == "Contract"
+        assert _detect_employment_type({}, "Regular permanent job") == "Permanent"
+        assert _detect_employment_type({"title": "Co-Founder and CTO"}, "") == "Startup / Co-Founder"
+        assert _detect_employment_type({"employment_type": "co_founder"}, "") == "Startup / Co-Founder"
+        assert _detect_employment_type({"title": "Technical Advisor"}, "") == "Advisory"
+        assert _detect_employment_type({"employment_type": "advisory"}, "") == "Advisory"
 
     def test_build_combined_body(self):
         """Test combining multiple experiences chronologically or otherwise."""
@@ -187,8 +187,8 @@ Outro"""
             ((20, "google.md", "Google Body", "Justification"), {"dates": {"start": "2022-01-01"}})
         ]
         res = _build_combined_body(roles)
-        self.assertIn("Intel Body", res)
-        self.assertIn("Google Body", res)
+        assert "Intel Body" in res
+        assert "Google Body" in res
 
     def test_consolidate_company_roles(self):
         """Test consolidating multiple roles at the same company."""
@@ -207,8 +207,8 @@ Outro"""
                 (20, "role_2.md", exp_2.read_text(), "justification 2")
             ]
             grouped = _group_old_experiences_by_company(old_experiences)
-            self.assertEqual(len(grouped), 1)
-            self.assertEqual(grouped[0][1], "grouped-intel.md")
+            assert len(grouped) == 1
+            assert grouped[0][1] == "grouped-intel.md"
 
             # Consolidate with LLM mock
             mock_llm = MagicMock()
@@ -219,12 +219,12 @@ Outro"""
                     ((10, "role_1.md", exp_1.read_text(), "justification 1"), {"dates": {"start": "2010-01-01"}}),
                     ((20, "role_2.md", exp_2.read_text(), "justification 2"), {"dates": {"start": "2012-01-01"}})
                 ])
-                self.assertEqual(res[0], 20)
-                self.assertEqual(res[1], "grouped-intel.md")
-                self.assertIn("Intel Body 1", res[2])
-                self.assertIn("Intel Body 2", res[2])
-                self.assertIn("[role_1.md]: justification 1", res[3])
-                self.assertIn("[role_2.md]: justification 2", res[3])
+                assert res[0] == 20
+                assert res[1] == "grouped-intel.md"
+                assert "Intel Body 1" in res[2]
+                assert "Intel Body 2" in res[2]
+                assert "[role_1.md]: justification 1" in res[3]
+                assert "[role_2.md]: justification 2" in res[3]
 
     def test_compress_grouped_experience_llm_exception(self):
         """Test compress_grouped_experience_llm fallback on LLM failure."""
@@ -233,7 +233,7 @@ Outro"""
         with patch("generation.helpers.get_model_for_step", return_value=mock_llm), \
              patch("generation.helpers.load_prompt", return_value="template"):
             res = compress_grouped_experience_llm("Grouped text here")
-            self.assertEqual(res, "Grouped text here")
+            assert res == "Grouped text here"
 
     # 5. Project, Patent, and Note Retrieval
     def test_retrieve_and_score_projects(self):
@@ -241,11 +241,11 @@ Outro"""
         from generation.retrieval import _calculate_project_recency_factor
 
         # Test _calculate_project_recency_factor directly
-        self.assertAlmostEqual(_calculate_project_recency_factor({"dates": {"end": "present"}}), 1.0, places=2)
-        self.assertAlmostEqual(_calculate_project_recency_factor({}), 0.5, places=2)
+        assert _calculate_project_recency_factor({"dates": {"end": "present"}}) == pytest.approx(1.0, abs=10**(-2))
+        assert _calculate_project_recency_factor({}) == pytest.approx(0.5, abs=10**(-2))
         old_factor = _calculate_project_recency_factor({"dates": {"end": "2010-01-01"}})
         recent_factor = _calculate_project_recency_factor({"dates": {"end": "2024-01-01"}})
-        self.assertGreater(recent_factor, old_factor)
+        assert recent_factor > old_factor
 
         proj_dir = self.wiki_root / "projects"
         proj_dir.mkdir(parents=True, exist_ok=True)
@@ -257,9 +257,9 @@ Outro"""
 
         with patch("generation.helpers.get_wiki_dir", return_value=self.wiki_dir):
             res = retrieve_and_score_projects(self.wiki_dir, ["Python", "AI"], ["intel"])
-            self.assertEqual(len(res), 2)
+            assert len(res) == 2
             # Python project should be ranked first because of relevance score
-            self.assertIn("p1.md", res[0])
+            assert "p1.md" in res[0]
 
     def test_retrieve_and_score_patents(self):
         """Test patents retrieval, scoring, and sorting."""
@@ -273,8 +273,8 @@ Outro"""
 
         with patch("generation.helpers.get_wiki_dir", return_value=self.wiki_dir):
             res = retrieve_and_score_patents(self.wiki_dir, ["Neural", "networks"], ["intel-corporation", "intel-platform-architect-and-tech-lead"])
-            self.assertEqual(len(res), 2)
-            self.assertIn("pat1.md", res[0])
+            assert len(res) == 2
+            assert "pat1.md" in res[0]
 
     def test_compress_and_wrap_experiences_constituent_slugs(self):
         """Test that _compress_and_wrap_experiences populates constituent and org slugs."""
@@ -282,10 +282,10 @@ Outro"""
         exp_2 = (20, "smartrs-cto.md", "---\norganization: [[smartrs]]\ntitle: CTO\nemployment_type: co_founder\n---\nBody 2", "Just 2")
         dedup = [exp_1, exp_2]
         _, slugs = _compress_and_wrap_experiences(dedup, ["Python"], max_pages=1)
-        self.assertIn("intel-role-1", slugs)
-        self.assertIn("intel-corp", slugs)
-        self.assertIn("smartrs-cto", slugs)
-        self.assertIn("smartrs", slugs)
+        assert "intel-role-1" in slugs
+        assert "intel-corp" in slugs
+        assert "smartrs-cto" in slugs
+        assert "smartrs" in slugs
 
     def test_retrieve_and_score_notes(self):
         """Test notes retrieval, scoring, and sorting."""
@@ -299,8 +299,8 @@ Outro"""
 
         with patch("generation.helpers.get_wiki_dir", return_value=self.wiki_dir):
             res = retrieve_and_score_notes(self.wiki_dir, ["kubernetes", "scale"], ["intel"])
-            self.assertEqual(len(res), 1)  # travel diary does not have performance-review or relation, so it is skipped
-            self.assertIn("n1.md", res[0])
+            assert len(res) == 1  # travel diary does not have performance-review or relation, so it is skipped
+            assert "n1.md" in res[0]
 
     # 6. Education Retrieval and Duplication
     def test_retrieve_and_deduplicate_education_variations(self):
@@ -315,13 +315,13 @@ Outro"""
 
         res = retrieve_and_deduplicate_education(self.wiki_dir)
         # Should deduplicate stanford based on completed status first, and start year
-        self.assertEqual(len(res), 1)
-        self.assertIn("Major in Computer Science", res[0])
+        assert len(res) == 1
+        assert "Major in Computer Science" in res[0]
 
         # Test exception path inside _parse_education_candidate
         mock_path = MagicMock(spec=Path)
         mock_path.read_text.side_effect = Exception("Read failed")
-        self.assertIsNone(_parse_education_candidate(mock_path))
+        assert _parse_education_candidate(mock_path) is None
 
     # 7. Few Shots Retrieval and Truncation
     def test_retrieve_few_shots_scenarios(self):
@@ -336,14 +336,14 @@ Outro"""
 
         res = retrieve_few_shots(self.wiki_dir, ["Python"])
         # Should only retrieve success_offer.md (Offers/Technical-Interviews)
-        self.assertEqual(len(res), 1)
-        self.assertIn("success_offer.md", res[0])
+        assert len(res) == 1
+        assert "success_offer.md" in res[0]
         # Should be truncated to 12000 chars
-        self.assertIn("[TRUNCATED SUCCESSFUL PAST CV FOR BREVITY]", res[0])
+        assert "[TRUNCATED SUCCESSFUL PAST CV FOR BREVITY]" in res[0]
 
         # Test empty synthesis directory path
         shutil.rmtree(synth_dir)
-        self.assertEqual(retrieve_few_shots(self.wiki_dir, ["Python"]), [])
+        assert retrieve_few_shots(self.wiki_dir, ["Python"]) == []
 
     # 8. Drafter LLM with Fallback Integration (Rate Limits)
     def test_invoke_drafter_llm_with_fallback_success(self):
@@ -351,13 +351,13 @@ Outro"""
         mock_llm = MagicMock()
         mock_llm.invoke.return_value = AIMessage(content="Perfect CV Draft")
         res = invoke_drafter_llm_with_fallback(mock_llm, "system instructions", "user prompt")
-        self.assertEqual(res.content, "Perfect CV Draft")
+        assert res.content == "Perfect CV Draft"
 
     def test_invoke_drafter_llm_with_fallback_not_rate_limit(self):
         """Test invoke_drafter_llm_with_fallback re-raising non-rate-limit exceptions."""
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = ValueError("Some standard value error")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             invoke_drafter_llm_with_fallback(mock_llm, "system", "prompt")
 
     @patch("generation.helpers.get_fallback_model_for_step")
@@ -367,9 +367,9 @@ Outro"""
         mock_llm.invoke.side_effect = Exception("rate_limit_exceeded: TPM limit reached.")
         mock_fallback_model.return_value = None
 
-        with self.assertRaises(Exception) as ctx:
+        with pytest.raises(Exception) as ctx:
             invoke_drafter_llm_with_fallback(mock_llm, "system", "prompt")
-        self.assertIn("rate_limit_exceeded", str(ctx.exception))
+        assert "rate_limit_exceeded" in str(ctx.value)
 
     @patch("generation.helpers.get_fallback_model_for_step")
     def test_invoke_drafter_llm_with_fallback_rate_limit_with_successful_fallback(self, mock_fallback_model):
@@ -382,7 +382,7 @@ Outro"""
         mock_fallback_model.return_value = mock_fallback
 
         res = invoke_drafter_llm_with_fallback(mock_llm, "system", "prompt")
-        self.assertEqual(res.content, "Draft from fallback model")
+        assert res.content == "Draft from fallback model"
 
     @patch("generation.helpers.get_fallback_model_for_step")
     def test_invoke_drafter_llm_with_fallback_rate_limit_with_failing_fallback(self, mock_fallback_model):
@@ -394,21 +394,45 @@ Outro"""
         mock_fallback.invoke.side_effect = Exception("Fallback model connection timeout")
         mock_fallback_model.return_value = mock_fallback
 
-        with self.assertRaises(Exception) as ctx:
+        with pytest.raises(Exception) as ctx:
             invoke_drafter_llm_with_fallback(mock_llm, "system", "prompt")
         # Should raise the ORIGINAL rate limit error
-        self.assertIn("rate_limit", str(ctx.exception))
+        assert "rate_limit" in str(ctx.value)
 
     def test_heading_double_hash_sanitization(self):
         """Verify regex cleans duplicate heading hash markers cleanly."""
         import re
         sample = "### ### Job Title at Org [Full-Time]\n## ## Section\n# # Header"
         cleaned = re.sub(r'^(#{1,6})\s*#{1,6}\s+', r'\1 ', sample, flags=re.MULTILINE)
-        self.assertEqual(
-            cleaned,
-            "### Job Title at Org [Full-Time]\n## Section\n# Header",
-        )
+        assert cleaned == "### Job Title at Org [Full-Time]\n## Section\n# Header"
 
+    def test_resolve_timeline_conflicts_and_anchor_tenure(self):
+        """Verify generic interval-graph timeline de-confliction and anchor tenure protection."""
+        from generation.grouping import _is_anchor_tenure, resolve_timeline_conflicts
 
-if __name__ == "__main__":
-    unittest.main()
+        anchor_fm = {"dates": {"start": "2007-09-01", "end": "2017-07-01"}, "employment_type": "Permanent"}
+        assert _is_anchor_tenure(anchor_fm, score=90) is True
+        assert _is_anchor_tenure(anchor_fm, score=40) is False
+
+        deduplicated = [
+            (92, "corp-recent.md", "---\ntitle: Director\ndates:\n  start: 2024-04-01\n  end: Present\nemployment_type: Permanent\n---\nBody", "just"),
+            (60, "side-venture-active.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2021-01-01\n  end: Present\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (55, "corp-mid.md", "---\ntitle: Advisor\ndates:\n  start: 2019-02-01\n  end: 2020-05-01\nemployment_type: Contract\n---\nBody", "just"),
+            (90, "spinout-winner.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2017-08-01\n  end: 2020-02-29\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (70, "venture-loser.md", "---\ntitle: Co-Founder & CTO\ndates:\n  start: 2016-10-01\n  end: 2019-01-30\nemployment_type: Startup / Co-Founder\n---\nBody", "just"),
+            (5, "short-contract.md", "---\ntitle: Engineer\ndates:\n  start: 2017-12-01\n  end: 2018-05-01\nemployment_type: Contract\n---\nBody", "just"),
+            (90, "corp-anchor.md", "---\ntitle: Architect\ndates:\n  start: 2007-09-01\n  end: 2017-07-01\nemployment_type: Permanent\n---\nBody", "just"),
+        ]
+
+        resolved = resolve_timeline_conflicts(deduplicated, parallel_venture_policy="strict_single_timeline", min_contract_score=25)
+        retained_names = [r[1] for r in resolved]
+        assert "corp-recent.md" in retained_names
+        assert "corp-mid.md" in retained_names
+        assert "spinout-winner.md" in retained_names
+        assert "corp-anchor.md" in retained_names
+        assert "side-venture-active.md" not in retained_names
+        assert "venture-loser.md" not in retained_names
+        assert "short-contract.md" not in retained_names
+
+        spinout_entry = next(r for r in resolved if r[1] == "spinout-winner.md")
+        assert "end: 2019-02-01" in spinout_entry[2]

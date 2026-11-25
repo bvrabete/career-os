@@ -1,5 +1,4 @@
 """Unit tests for the ingestion pipeline nodes and parser logic."""
-import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
@@ -16,7 +15,7 @@ from typing import cast
 from ingestion.state import IngestionState
 
 
-class TestIngestionNodes(unittest.TestCase):
+class TestIngestionNodes:
     """Deterministic offline unit tests for LangGraph Ingestion Nodes."""
 
     def test_parse_via_pypdf_success(self):
@@ -28,14 +27,14 @@ class TestIngestionNodes(unittest.TestCase):
 
         with patch("pypdf.PdfReader", return_value=mock_reader):
             text = _parse_via_pypdf(Path("mock.pdf"))
-            self.assertIsNotNone(text)
-            self.assertIn("extracted test PDF text", text)
+            assert text is not None
+            assert "extracted test PDF text" in text
 
     def test_parse_via_pypdf_failure(self):
         """Test _parse_via_pypdf returns None on exception."""
         with patch("pypdf.PdfReader", side_effect=Exception("Read error")):
             text = _parse_via_pypdf(Path("mock.pdf"))
-            self.assertIsNone(text)
+            assert text is None
 
     @patch("ingestion.nodes.DocumentConverter")
     def test_parse_via_docling_success(self, mock_converter_cls):
@@ -47,7 +46,7 @@ class TestIngestionNodes(unittest.TestCase):
         mock_converter_cls.return_value = mock_instance
 
         text = _parse_via_docling(Path("mock.pdf"), ".pdf")
-        self.assertEqual(text, "# Markdown Text")
+        assert text == "# Markdown Text"
 
     @patch("ingestion.nodes.DocumentConverter")
     def test_parse_via_docling_failure(self, mock_converter_cls):
@@ -57,13 +56,13 @@ class TestIngestionNodes(unittest.TestCase):
         mock_converter_cls.return_value = mock_instance
 
         text = _parse_via_docling(Path("mock.pdf"), ".pdf")
-        self.assertIsNone(text)
+        assert text is None
 
     def test_parse_fallback_text_success(self):
         """Test _parse_fallback reads standard text file."""
         with patch("pathlib.Path.read_text", return_value="plain text content") as mock_read:
             text = _parse_fallback(Path("mock.txt"), ".txt")
-            self.assertEqual(text, "plain text content")
+            assert text == "plain text content"
             mock_read.assert_called_once()
 
     @patch("pypdf.PdfReader")
@@ -92,7 +91,7 @@ class TestIngestionNodes(unittest.TestCase):
         })
 
         result = node_parser(state)
-        self.assertEqual(result["raw_text"], "A" * 300)
+        assert result["raw_text"] == "A" * 300
 
     @patch("ingestion.nodes.get_model_for_step")
     @patch("ingestion.nodes.load_prompt")
@@ -122,7 +121,7 @@ class TestIngestionNodes(unittest.TestCase):
         })
 
         result = node_classifier(state)
-        self.assertEqual(result["doc_type"], "experience")
+        assert result["doc_type"] == "experience"
 
     @patch("ingestion.nodes.get_model_for_step")
     def test_node_classifier_empty_text(self, mock_get_model):
@@ -144,7 +143,7 @@ class TestIngestionNodes(unittest.TestCase):
         })
 
         result = node_classifier(state)
-        self.assertEqual(result["doc_type"], "skip")
+        assert result["doc_type"] == "skip"
 
     @patch("ingestion.nodes.parse_mappings")
     def test_node_entity_resolver(self, mock_parse_mappings):
@@ -173,9 +172,9 @@ class TestIngestionNodes(unittest.TestCase):
         result = node_entity_resolver(state)
         resolved = result["resolved_entities"]
 
-        self.assertEqual(resolved.get("Intel Corp"), "intel-corporation")
-        self.assertEqual(resolved.get("Google Inc"), "google-inc")
-        self.assertEqual(resolved.get("Unknown Corp"), "unknown-corp")
+        assert resolved.get("Intel Corp") == "intel-corporation"
+        assert resolved.get("Google Inc") == "google-inc"
+        assert resolved.get("Unknown Corp") == "unknown-corp"
 
     def test_node_validator_success(self):
         """Test node_validator with correct experience frontmatter blocks."""
@@ -216,8 +215,4 @@ Some body text.
         })
 
         result = node_validator(state)
-        self.assertEqual(result["wiki_outputs"][0]["validation_errors"], [])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert result["wiki_outputs"][0]["validation_errors"] == []

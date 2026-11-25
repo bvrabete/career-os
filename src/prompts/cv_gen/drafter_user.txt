@@ -1,4 +1,4 @@
-Please draft the final CV.
+Please draft the final tailored StructuredCVDocument JSON object calibrated to the target regional page budget and voice guide.
 
 Job Description:
 {job_description}
@@ -6,35 +6,39 @@ Job Description:
 {feedback_instruction}
 
 ---
-SUBJECT & STRATEGY:
+SUBJECT, VOICE & STRATEGY CONTEXT:
 {strategy_info}
 
 ---
-SKILL BRIDGING MAP (Use to align skill names):
+PRE-SELECTED & SYNTHESIZED EVIDENCE MANIFEST (Prioritize these JD-mapped achievements to ensure 100% requirement coverage within the page budget):
+{selection_manifest_text}
+
+---
+SKILL BRIDGING MAP (Use only for transparent sibling equivalence annotations — never fabricate unpossessed skills):
 {skill_bridge_text}
 
 ---
-FEW-SHOT EXAMPLES (Mirror the style, structure, and tone of these successful CVs):
+FEW-SHOT STYLE REFERENCE:
 {few_shots_text}
 
 ---
-CAREER ENTRIES (Work Experience):
+CAREER ENTRIES & ROLE EVIDENCE BUNDLES (Work Experience):
 {chronological_entries_text}
 
 ---
-RETRIEVED PROJECTS (Integrate with relevant company/roles):
+RETRIEVED PROJECTS:
 {projects_text}
 
 ---
-RETRIEVED PATENTS (Integrate with relevant company/roles):
+RETRIEVED PATENTS & PUBLICATIONS:
 {patents_text}
 
 ---
-PERFORMANCE REVIEW NOTES ("My Voice" peer praise and evidence):
+PERFORMANCE REVIEW NOTES (Verified peer/manager proof points):
 {notes_text}
 
 ---
-ARCHITECTURAL CASE STUDIES (Deep technical initiatives, distributed systems, and platform modernization details):
+ARCHITECTURAL CASE STUDIES (Deep technical details linked to parent roles):
 {case_studies_text}
 
 ---
@@ -42,7 +46,7 @@ EDUCATION ENTRIES:
 {education_text}
 
 ---
-SKILLS & LANGUAGES:
+CANDIDATE VERIFIED SKILLS & SPOKEN LANGUAGES:
 {skills_text}
 
 Draft the final tailored Markdown CV now:

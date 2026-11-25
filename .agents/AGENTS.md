@@ -172,6 +172,7 @@ uv run kb-cleanup --wiki-dir /path/to/llm-wiki
 career-os/
 ├── .agents/                      # Agent instruction rules and tooling hooks
 │   └── AGENTS.md                 # Agent guidelines
+├── conductor/                    # Plans, architectural audits & intermediary discussion files (.gitignored, agent-accessible)
 ├── docs/                         # Technical guides and ATS scoring documentation
 ├── job-descriptions/             # Sample and active target job descriptions
 ├── ai-generated-cvs/             # Exported CV drafts and tailored outputs
@@ -248,15 +249,17 @@ All contributions in `src/` must strictly observe these engineering rules:
 - Implement explicit, user-configured fallback models where defined in `config.yaml`.
 
 ### Configuration & Fail-Fast Mandate
+- **No Silent Fallbacks in Processing**: Never catch an error, pipeline failure, or schema-validation exception and silently substitute heuristic guesses, mock data, uncompressed text, or dummy defaults to simulate successful completion. At this early stage, fail immediately and raise the underlying error with descriptive context so problems are surfaced and diagnosed rather than masked by phantom success.
 - **Strictly Config-Driven**: All model selections, step bindings, and operational paths must be resolved from `config.yaml` or explicit CLI flags. Never embed hardcoded fallback model names (e.g. `qwen2.5:7b`, `gpt-4o`, `gemma`) in Python source code.
 - **Fail-Fast Principles**:
+  - **No Silent Fallbacks**: Pipeline steps must raise exceptions on failures (missing step definitions, invalid LLM outputs, schema mismatches) rather than falling back to unvalidated heuristics.
   - **Missing Configuration File**: If `config.yaml` does not exist, immediately raise `FileNotFoundError` with clear setup instructions. Never return a phantom internal dummy configuration.
   - **Missing Step Binding**: If a pipeline step is invoked but absent in `config.yaml` under `STEPS`, immediately raise `KeyError`. Never silently fall back to an arbitrary default provider (e.g. Ollama).
   - **Missing Model Name**: If a step or provider does not specify `MODEL_NAME`, immediately raise `ValueError`.
   - **Secret Isolation**: Never place filesystem paths in `.env`. The `.env` file is strictly reserved for API credentials and secrets. Operational directories belong in `config.yaml` under `PATHS`.
 
 ### Security & Path Validation (pythonsecurity:S8707)
-- **Path Traversal Prevention**: To eliminate directory traversal vulnerabilities, all filesystem reads and writes must pass through `validate_path()` in [src/utils.py](file:///C:/Users/bvrabete/source/personal/career-os/src/utils.py). Never read or write paths provided by CLI parameters or LLM outputs without canonicalization and sanitization.
+- **Path Traversal Prevention**: To eliminate directory traversal vulnerabilities, all filesystem reads and writes must pass through `validate_path()` in [src/utils.py](src/utils.py). Never read or write paths provided by CLI parameters or LLM outputs without canonicalization and sanitization.
 
 ### Cognitive Complexity (SonarQube python:S3776)
 Keep cognitive complexity **strictly below 15** per function/method:
@@ -280,6 +283,42 @@ Keep cognitive complexity **strictly below 15** per function/method:
 ### Git & Version Control Policy
 - **User Manages Git Exclusively**: The user manages git directly. Agents must **NEVER** run git staging or commit commands (`git add`, `git commit`, `git push`, etc.).
 - **No Check-Ins Without Prior User Review**: All code changes must remain unstaged in the working directory so the user can thoroughly inspect and review them before check-in.
+
+### Planning & Intermediary Discussion Artifacts (`conductor/`)
+- **Save Plans & Discussions in `conductor/`**: All implementation plans, architectural reviews, track specifications, and intermediary discussion files must be saved inside the workspace `conductor/` directory.
+- **Git-Ignored, Agent-Accessible**: The `conductor/` folder is excluded from version control via `.gitignore`, while `.agentignore` explicitly allows `!conductor/` and `!conductor/**` so all AI agents and subagents can freely read, write, and search planning artifacts.
+- **Use Machine-Independent Relative Paths**: In all `conductor/` plans, architectural reviews, and discussion files, always use relative paths (e.g., `../src/generation/nodes.py` or `src/generation/nodes.py`) rather than machine-dependent `file:///C:/Users/...` URIs.
+
+### Python Runtime & Package Management
+- **Always use `uv`**: Never invoke `python`, `python3`, `pip`, or `pytest` directly. Every Python execution and package operation must go through `uv`:
+  - Run scripts:      `uv run python script.py`
+  - Run tests:        `uv run pytest`
+  - Run type checker: `uv run mypy`
+  - Run linter:       `uv run ruff check src tests`
+  - Add packages:     `uv add <package>`
+  - Install deps:     `uv sync` / `uv sync --group dev`
+- **Rationale**: `uv` manages the project's virtual environment and lock file; bypassing it risks inconsistent interpreter versions, missing dependencies, and broken lock-file state.
+
+### Testing Standards (`pytest` & SonarQube `python:S6796`)
+- **Pure `pytest` Only**: Write all unit, contract, and integration tests using native `pytest` functions or plain `Test*` classes (`assert`, `pytest.raises`, `pytest.approx`). Never subclass `unittest.TestCase` or include `unittest.main()`.
+- **Mandatory `monkeypatch` for Environment & Global State (`python:S6796`)**: Always use the `monkeypatch: pytest.MonkeyPatch` fixture (`monkeypatch.setenv()`, `monkeypatch.delenv(..., raising=False)`, `monkeypatch.setattr()`) when modifying environment variables or global state in tests. Never mutate `os.environ` directly (`os.environ[...] = ...` or `del os.environ[...]`).
+- **Use `tmp_path` for Temporary Files**: Always use pytest's `tmp_path: Path` fixture for temporary directories and files rather than manual `tempfile.mkdtemp()` / `shutil.rmtree()` boilerplate.
+
+### Codebase Search & Discovery (Codebase-Memory MCP First)
+- **Mandatory MCP Indexing & Persistence**: The repository must be indexed with persistence using `codebase-memory-mcp`. The knowledge graph (`home-bvrabete-Documents-cv-generator-engine`) is the authoritative architectural and structural index for all code exploration.
+- **Strict Prohibition on Unfiltered Global File Searches**: Never execute unfiltered global searches (`find .`, `grep -r`, glob across root) that scan and pull noisy build artifacts, virtual environments (`.venv`), or cache directories (`.mypy_cache`, `.ruff_cache`, `__pycache__`) into context. This wastes context tokens and degrades agent reasoning.
+- **Priority Order**:
+  1. `search_graph` — find functions, classes, routes, or variables by name pattern.
+  2. `trace_path` — trace callers or callees of a specific function.
+  3. `get_code_snippet` — retrieve exact source for a known qualified name.
+  4. `check_index_coverage` — validate candidate paths and missed ranges before making negative or exhaustive claims.
+  5. `query_graph` — run Cypher queries for complex structural patterns.
+  6. `get_architecture` — high-level project summary for orientation.
+- **Fall back to scoped grep/glob only when**:
+  - Searching for string literals, error messages, or configuration values in targeted directories (e.g., `grep -rn "pattern" src/ tests/` with explicit `--exclude-dir`).
+  - Searching non-code files (Dockerfiles, shell scripts, YAML configs).
+  - MCP tools return insufficient or inconclusive results.
+- **Coverage Check**: After candidate paths are known, call `check_index_coverage` once with all evidence paths before making any exhaustive or negative claims about the codebase.
 
 ---
 
