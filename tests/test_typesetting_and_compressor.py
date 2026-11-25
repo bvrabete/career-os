@@ -1,5 +1,6 @@
 """Unit tests for typesetting budget, refiner guard, and fast compressor."""
 from unittest.mock import MagicMock, patch
+import pytest
 
 from generation.nodes import (
     check_typesetting_budget,
@@ -76,9 +77,16 @@ class TestTypesettingAndCompressor:
 
     @patch("generation.nodes.get_model_for_step")
     def test_node_compressor(self, mock_get_model):
+        from schemas.cv_models import CVRoleEntry, ContactHeader, StructuredCVDocument
+
         mock_llm = MagicMock()
         mock_response = MagicMock()
-        mock_response.content = "```markdown\n# Compressed CV\n- Impact 1\n```"
+        doc = StructuredCVDocument(
+            contact=ContactHeader(full_name="Candidate Name"),
+            professional_summary="Compressed summary",
+            experience_roles=[CVRoleEntry(title="Lead", organization="Acme", bullets=["Impact 1"])],
+        )
+        mock_response.content = doc.model_dump_json()
         mock_llm.invoke.return_value = mock_response
         mock_get_model.return_value = mock_llm
 
@@ -86,11 +94,12 @@ class TestTypesettingAndCompressor:
             draft_cv="# Bloated CV\n" + ("word " * 1200),
             job_description="Target role: Principal Engineer",
             strategy_metadata=RegionalStrategy(max_pages=2),
-            compression_count=0
+            compression_count=0,
         )
         result = node_compressor(state)
         res_dict = result.update if (hasattr(result, "update") and isinstance(result.update, dict)) else result
-        assert res_dict["draft_cv"] == "# Compressed CV\n- Impact 1"
+        assert "Impact 1" in res_dict["draft_cv"]
+        assert res_dict["structured_cv"] is not None
         assert res_dict["compression_count"] == 1
 
     @patch("generation.nodes.get_model_for_step")
@@ -137,27 +146,64 @@ class TestTypesettingAndCompressor:
         assert res_dict["ats_scorecard"]["total_score"] == 68
 
     @patch("generation.nodes.get_model_for_step")
-    def test_node_compressor_strips_trailing_summary_to_metadata(self, mock_get_model):
+    def test_node_compressor_returns_typed_structured_cv(self, mock_get_model):
+        from schemas.cv_models import ContactHeader, StructuredCVDocument
+
         mock_llm = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = (
-            "# Candidate Name\n\n"
-            "## Professional Summary\nConcise summary.\n\n"
-            "---\n\n"
-            "**Summary of Compression:**\n"
-            "- Reduced word count from 1641 to ~1045 words.\n"
+        doc = StructuredCVDocument(
+            contact=ContactHeader(full_name="Jane Doe", email="jane@example.com"),
+            professional_summary="Concise compressed executive summary.",
         )
+        mock_response = MagicMock()
+        mock_response.content = doc.model_dump_json()
         mock_llm.invoke.return_value = mock_response
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.invoke.return_value = doc
+        mock_llm.with_structured_output.return_value = mock_structured_llm
         mock_get_model.return_value = mock_llm
 
         state = CVPipelineState(
-            draft_cv="# Candidate Name\n\nLong draft.",
+            draft_cv="# Jane Doe\n\n## Professional Summary\nLong summary...",
             job_description="Platform Engineer",
             target_region="emea",
             compression_count=0,
         )
         result = node_compressor(state)
+        assert result["structured_cv"]["contact"]["full_name"] == "Jane Doe"
+        assert "Concise compressed executive summary." in result["draft_cv"]
         assert "Summary of Compression" not in result["draft_cv"]
-        assert not result["draft_cv"].rstrip().endswith("---")
-        assert "Summary of Compression" in result["compression_summary"]
         assert result["compression_count"] == 1
+
+    @patch("generation.nodes.get_model_for_step")
+    def test_node_compressor_deterministic_fallback_when_llm_fails(self, mock_get_model):
+        from schemas.cv_models import CVRoleEntry, ContactHeader, StructuredCVDocument
+
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = RuntimeError("Compressor LLM failed")
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.invoke.side_effect = RuntimeError("Compressor LLM failed")
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+        mock_get_model.return_value = mock_llm
+
+        base_doc = StructuredCVDocument(
+            contact=ContactHeader(full_name="Jane Doe"),
+            professional_summary="Summary",
+            experience_roles=[
+                CVRoleEntry(
+                    title="Lead",
+                    organization="Acme",
+                    bullets=["Bullet 1", "Bullet 2", "Bullet 3", "Bullet 4", "Bullet 5", "Bullet 6"],
+                )
+            ],
+        )
+
+        state = CVPipelineState(
+            draft_cv="# Jane Doe\n\nLong draft",
+            structured_cv=base_doc.model_dump(),
+            job_description="Platform Engineer",
+            target_region="emea",
+            compression_count=0,
+            strategy_info="1 page",
+        )
+        with pytest.raises(RuntimeError, match="Compressor LLM failed"):
+            node_compressor(state)

@@ -1,4 +1,4 @@
-Please draft the final tailored Markdown CV calibrated to the target regional page budget and voice guide.
+Please draft the final tailored StructuredCVDocument JSON object calibrated to the target regional page budget and voice guide.
 
 Job Description:
 {job_description}

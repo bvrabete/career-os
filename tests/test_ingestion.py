@@ -2,6 +2,7 @@
 
 import pytest
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -114,7 +115,7 @@ class TestIngestionHelpers:
     def test_bootstrap_subdirs(self):
         """Test bootstrapping subdirectories creates all folders."""
         # Use a temporary directory inside user home to avoid path traversal errors
-        temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
+        temp_dir = Path(tempfile.gettempdir()) / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         temp_dir.mkdir(parents=True, exist_ok=True)
         try:
             _bootstrap_subdirs(temp_dir)
@@ -132,7 +133,7 @@ class TestIngestionHelpers:
 
     def test_bootstrap_templates_and_schema_creates_defaults(self):
         """Test bootstrapping writes default files if templates not found."""
-        temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
+        temp_dir = Path(tempfile.gettempdir()) / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         temp_dir.mkdir(parents=True, exist_ok=True)
         wiki_root = temp_dir / "wiki"
         wiki_root.mkdir()
@@ -175,7 +176,7 @@ class TestWikiFileResolution:
 
     def setup_method(self):
         # Create temp dir under user home to satisfy validate_path bounds
-        self.temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
+        self.temp_dir = Path(tempfile.gettempdir()) / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.wiki_dir = self.temp_dir / "wiki"
         self.wiki_dir.mkdir()
@@ -247,7 +248,7 @@ class TestIngestionPersonaMappings:
     """Tests mappings.md parsing and mapping additions."""
 
     def setup_method(self):
-        self.temp_dir = Path.home() / f".tmp_test_ingestion_{uuid.uuid4().hex}"
+        self.temp_dir = Path(tempfile.gettempdir()) / f".tmp_test_ingestion_{uuid.uuid4().hex}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.mappings_path = self.temp_dir / MAPPINGS_FILE_NAME
         content = """# Entity Aliases & Mappings

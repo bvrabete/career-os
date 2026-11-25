@@ -396,7 +396,7 @@ class TestOutputFolderHandling:
     def test_save_outputs_folder_append(self):
         """Test that save_outputs correctly appends the JD's name with .md if out is a folder."""
 
-        with tempfile.TemporaryDirectory(dir=str(Path.home())) as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir) / "output_folder"
             args = argparse.Namespace(
                 out=str(out_dir),

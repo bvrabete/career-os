@@ -1,3 +1,5 @@
+__pycache__
+
 # Allow AI agents and subagents full access to local configuration and log files
 !.env*
 !config.yaml

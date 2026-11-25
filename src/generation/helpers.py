@@ -7,6 +7,13 @@ This module acts as a unified facade, re-exporting routines decomposed into:
 - pruning: Scoring, deduplication, achievement filtering, and weight calculations.
 """
 
+import json
+import logging
+import re
+from typing import Any
+from langchain_core.messages import HumanMessage
+from schemas.cv_models import StructuredCVDocument
+from generation.state import CVPipelineState
 from kb_config import (
     get_fallback_model_for_step,
     get_model_for_step,
@@ -88,6 +95,56 @@ from generation.pruning import (
     retrieve_and_score_experiences,
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _slugify_org_name(name: str) -> str:
+    """Convert an organization name into a kebab-case slug."""
+    cleaned = re.sub(r"[^a-z0-9\s\-]", "", name.strip().lower())
+    return re.sub(r"[\s_]+", "-", cleaned).strip("-")
+
+
+def _resolve_target_employer_slug(data: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Extract posting_organization_type, agency name, employer name, and safe employer slug."""
+    org_type = str(data.get("posting_organization_type") or "direct_employer").strip().lower()
+    if org_type not in {"direct_employer", "recruitment_agency", "confidential_client"}:
+        org_type = "direct_employer"
+
+    agency_name = str(data.get("recruitment_agency_name") or "").strip()
+    employer_name = str(data.get("target_employer_name") or "").strip()
+    raw_slug = str(data.get("target_organization_slug") or "unknown-company").strip().lower()
+
+    agency_slug = _slugify_org_name(agency_name) if agency_name else ""
+    if org_type in {"recruitment_agency", "confidential_client"}:
+        if agency_slug and raw_slug == agency_slug:
+            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
+        elif not raw_slug or raw_slug == "unknown-company":
+            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
+
+    return org_type, agency_name, employer_name, raw_slug or "unknown-company"
+
+
+def _resolve_compressor_input(state: CVPipelineState, draft: str) -> str:
+    """Format structured CV JSON or raw draft as input payload for compressor prompt."""
+    structured = state.get("structured_cv")
+    if structured and isinstance(structured, dict):
+        return json.dumps(structured, indent=2)
+    return draft
+
+
+def _resolve_compressed_cv_doc(
+    llm: Any, prompt: str, state: CVPipelineState, max_pages: int
+) -> StructuredCVDocument:
+    """Invoke structured LLM to compress StructuredCVDocument, failing fast on error."""
+    _ = max_pages
+    res = invoke_structured_llm(llm, StructuredCVDocument, [HumanMessage(content=prompt)])
+    if isinstance(res, StructuredCVDocument):
+        return res
+    if isinstance(res, dict):
+        return StructuredCVDocument.model_validate(res)
+    raise ValueError(f"Compressor LLM returned unexpected non-StructuredCVDocument output: {type(res).__name__}")
+
+
 __all__ = [
     "BRACKET_LINK_PATTERN",
     "llm_text",
@@ -125,4 +182,8 @@ __all__ = [
     "assemble_role_evidence_bundles",
     "retrieve_company_entity",
     "retrieve_voice_guide",
+    "_slugify_org_name",
+    "_resolve_target_employer_slug",
+    "_resolve_compressor_input",
+    "_resolve_compressed_cv_doc",
 ]

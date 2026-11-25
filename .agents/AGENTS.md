@@ -249,8 +249,10 @@ All contributions in `src/` must strictly observe these engineering rules:
 - Implement explicit, user-configured fallback models where defined in `config.yaml`.
 
 ### Configuration & Fail-Fast Mandate
+- **No Silent Fallbacks in Processing**: Never catch an error, pipeline failure, or schema-validation exception and silently substitute heuristic guesses, mock data, uncompressed text, or dummy defaults to simulate successful completion. At this early stage, fail immediately and raise the underlying error with descriptive context so problems are surfaced and diagnosed rather than masked by phantom success.
 - **Strictly Config-Driven**: All model selections, step bindings, and operational paths must be resolved from `config.yaml` or explicit CLI flags. Never embed hardcoded fallback model names (e.g. `qwen2.5:7b`, `gpt-4o`, `gemma`) in Python source code.
 - **Fail-Fast Principles**:
+  - **No Silent Fallbacks**: Pipeline steps must raise exceptions on failures (missing step definitions, invalid LLM outputs, schema mismatches) rather than falling back to unvalidated heuristics.
   - **Missing Configuration File**: If `config.yaml` does not exist, immediately raise `FileNotFoundError` with clear setup instructions. Never return a phantom internal dummy configuration.
   - **Missing Step Binding**: If a pipeline step is invoked but absent in `config.yaml` under `STEPS`, immediately raise `KeyError`. Never silently fall back to an arbitrary default provider (e.g. Ollama).
   - **Missing Model Name**: If a step or provider does not specify `MODEL_NAME`, immediately raise `ValueError`.

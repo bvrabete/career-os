@@ -8,14 +8,19 @@ from typing import Any, Literal
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from generation.cv_renderer import parse_and_render_structured_cv
+from generation.cv_renderer import (
+    parse_and_render_structured_cv,
+    render_ats_markdown,
+)
 from generation.formatting import (
     check_typesetting_budget as check_typesetting_budget,
     handle_interactive_audit as _handle_interactive_audit,
-    strip_compression_summary,
     strip_wikilinks,
 )
 from generation.helpers import (
+    _resolve_compressed_cv_doc,
+    _resolve_compressor_input,
+    _resolve_target_employer_slug,
     assemble_role_evidence_bundles,
     discover_available_strategies,
     generate_skill_bridging_map,
@@ -52,32 +57,6 @@ from kb_config import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _slugify_org_name(name: str) -> str:
-    """Convert an organization name into a kebab-case slug."""
-    cleaned = re.sub(r"[^a-z0-9\s\-]", "", name.strip().lower())
-    return re.sub(r"[\s_]+", "-", cleaned).strip("-")
-
-
-def _resolve_target_employer_slug(data: dict[str, Any]) -> tuple[str, str, str, str]:
-    """Extract posting_organization_type, agency name, employer name, and safe employer slug."""
-    org_type = str(data.get("posting_organization_type") or "direct_employer").strip().lower()
-    if org_type not in {"direct_employer", "recruitment_agency", "confidential_client"}:
-        org_type = "direct_employer"
-
-    agency_name = str(data.get("recruitment_agency_name") or "").strip()
-    employer_name = str(data.get("target_employer_name") or "").strip()
-    raw_slug = str(data.get("target_organization_slug") or "unknown-company").strip().lower()
-
-    agency_slug = _slugify_org_name(agency_name) if agency_name else ""
-    if org_type in {"recruitment_agency", "confidential_client"}:
-        if agency_slug and raw_slug == agency_slug:
-            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
-        elif not raw_slug or raw_slug == "unknown-company":
-            raw_slug = _slugify_org_name(employer_name) if employer_name else "confidential-employer"
-
-    return org_type, agency_name, employer_name, raw_slug or "unknown-company"
 
 
 def node_analyzer(state: CVPipelineState) -> dict[str, Any]:
@@ -379,7 +358,7 @@ def node_refiner(state: CVPipelineState) -> Command[Literal["compressor", "audit
 
 
 def node_compressor(state: CVPipelineState) -> dict[str, Any]:
-    """Compress the drafted CV to strictly fit the typesetting page budget using a fast model."""
+    """Compress the drafted CV to strictly fit the typesetting page budget returning typed data."""
     logger.info("--- NODE E: FAST COMPRESSOR ---")
     try:
         llm = get_model_for_step("COMPRESSION")
@@ -389,13 +368,14 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
     draft = state.get("draft_cv", "")
     jd = state.get("job_description", "")
     max_pages = _resolve_max_pages(state)
-
     word_limit = 500 if max_pages == 1 else (1550 if max_pages == 3 else (max_pages * 500 if max_pages >= 4 else 1050))
     bullet_limit = 20 if max_pages == 1 else (62 if max_pages == 3 else (max_pages * 20 if max_pages >= 4 else 42))
 
     current_words = state.get("total_words", len(draft.split()))
     current_bullets = state.get("total_bullet_lines", 0)
     current_metrics = f"{current_words} words, {current_bullets} bullet lines"
+    refiner_feedback = state.get("refiner_feedback", "")
+    cv_input = _resolve_compressor_input(state, draft)
 
     compressor_template = load_prompt("compressor.txt")
     prompt = (
@@ -404,29 +384,22 @@ def node_compressor(state: CVPipelineState) -> dict[str, Any]:
         .replace("{target_words}", str(word_limit))
         .replace("{target_bullet_lines}", str(bullet_limit))
         .replace("{current_metrics}", current_metrics)
+        .replace("{refiner_feedback}", refiner_feedback)
+        .replace("{structured_cv_json}", cv_input)
         .replace("{draft_cv}", draft)
         .replace("{job_description}", jd)
     )
 
-    response = llm.invoke([HumanMessage(content=prompt)])
-    compressed_text = strip_wikilinks(llm_text(response.content).strip())
-    compressed_text, compression_summary = strip_compression_summary(compressed_text)
-    if compression_summary:
-        logger.info("Extracted trailing compression summary into metadata (%d chars).", len(compression_summary))
     region = str(state.get("target_region") or "emea")
     compression_count = state.get("compression_count", 0) + 1
-    structured_dict, rendered_md = parse_and_render_structured_cv(
-        compressed_text, region=region, max_pages=max_pages
-    )
-    result: dict[str, Any] = {
+    cv_doc = _resolve_compressed_cv_doc(llm, prompt, state, max_pages)
+
+    rendered_md = render_ats_markdown(cv_doc, strategy_region=region)
+    return {
+        "structured_cv": cv_doc.model_dump(),
         "draft_cv": rendered_md,
         "compression_count": compression_count,
     }
-    if structured_dict is not None:
-        result["structured_cv"] = structured_dict
-    if compression_summary:
-        result["compression_summary"] = compression_summary
-    return result
 
 
 def node_auditor(state: CVPipelineState) -> Command[Literal["drafter", "__end__"]]:

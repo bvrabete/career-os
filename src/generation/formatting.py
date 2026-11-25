@@ -15,20 +15,6 @@ from schemas.cv_models import CompressedSummaryOutput
 logger = logging.getLogger(__name__)
 
 BRACKET_LINK_PATTERN = re.compile(r'\[\[(.*?)\]\]')
-COMPRESSION_SUMMARY_PATTERN = re.compile(
-    r"\n+(?:[-*_]{3,}\s*\n+)?(?:#{1,3}\s*|\*{1,2})?(?:Summary of Compression|Compression Summary|Compression Notes)\b.*$",
-    re.IGNORECASE | re.DOTALL,
-)
-
-
-def strip_compression_summary(text: str) -> tuple[str, str]:
-    """Strip any trailing LLM compression summary block from CV markdown and return (clean_cv, summary_metadata)."""
-    match = COMPRESSION_SUMMARY_PATTERN.search(text)
-    if not match:
-        return text, ""
-    clean_cv = text[: match.start()].rstrip()
-    summary = re.sub(r"^[-*_]{3,}\s*", "", match.group(0).strip()).strip()
-    return clean_cv, summary
 
 
 def _get_model_for_step(step: str) -> Any:
@@ -225,7 +211,8 @@ def compress_grouped_experience_llm(content: str, keywords: list[str] | None = N
 def invoke_structured_llm(llm: Any, schema: type[Any], messages: list[Any]) -> Any:
     """Invoke an LLM and validate the response into the target Pydantic schema."""
     is_mock = type(llm).__module__.startswith("unittest.mock")
-    if not is_mock and hasattr(llm, "with_structured_output"):
+    has_explicit_mock_structured = is_mock and "with_structured_output" in getattr(llm, "__dict__", {})
+    if (not is_mock or has_explicit_mock_structured) and hasattr(llm, "with_structured_output"):
         try:
             structured_llm = (
                 llm.with_structured_output(schema, method="function_calling")
